@@ -1,0 +1,1440 @@
+[
+  {
+    "proposal_type": "update",
+    "entity_id": 9423110,
+    "entity_kind": "location",
+    "entity_local_id": 2122735,
+    "entity_name": "Thundertree",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "previous_entry": "<span class=\"citation-43 citation-end-43\">Once a prosperous lumber community wealthy from the work of its woodcutters and trappers, [location:9423110|Thundertree] now stands as a desolate, choked ghost town on the outskirts of the Neverwinter Wood.<sup class=\"superscript\"></sup></span> <span class=\"citation-42 citation-end-42\">The village was utterly devastated decades ago by the catastrophic eruption of Mount Hotenow, which blanketed the area in ash and unleashed a horrific plague of ash zombies that drove away or killed any remaining survivors.<sup class=\"superscript\"></sup></span> Today, nature has aggressively reclaimed the ruins; <span class=\"citation-41 citation-end-41\">ramshackle stone cottages are half-swallowed by dense, overgrown thickets, and a strange, mutating magic permeates the region, twisting the local vegetation into hostile, predatory plant monsters like twig blights.<sup class=\"superscript\"></sup></span> A heavy silence hangs over the crumbling village, broken only by the skittering of giant spiders and the ominous shadow of the young green dragon, Venomfang, who has claimed the town’s highest stone tower as his personal lair.",
+    "proposed_entry": "Once a prosperous lumber community wealthy from the work of its woodcutters and trappers, [location:9423110|Thundertree] now stands as a desolate, choked ghost town on the outskirts of the Neverwinter Wood. The village was utterly devastated decades ago by the catastrophic eruption of Mount Hotenow, which blanketed the area in ash and unleashed a horrific plague of ash zombies that drove away or killed any remaining survivors. Today, nature has aggressively reclaimed the ruins; ramshackle stone cottages are half-swallowed by dense, overgrown thickets, and a strange, mutating magic permeates the region, twisting the local vegetation into hostile, predatory plant monsters like twig blights. \n\nA heavy silence hangs over the crumbling village, broken only by the skittering of giant spiders and the presence of ash zombies and twig blights. While the young green dragon, Venomfang, once claimed the town’s highest stone tower as his personal lair, he has since been driven away by adventurers. The ruins remain a site of interest for various factions, including dragon cultists and agents of the Black Spider, who seek to exploit the area's power and its former draconic occupant.",
+    "change_summary": "Updated the synopsis to reflect that Venomfang has been driven away and noted the presence of dragon cultists and the Black Spider's influence in the area.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Venomfang",
+        "relation": "formerly the resident of",
+        "attitude": -50,
+        "reason": "The dragon was driven away by the adventurers."
+      }
+    ],
+    "uncertain": [
+      "The exact nature of the dragon cultists' motivations remains unknown, though they sought to treat with the dragon."
+    ],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419630,
+    "entity_kind": "location",
+    "entity_local_id": 2121889,
+    "entity_name": "Peacely",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "previous_entry": "<p>The hamlet of [location:9419630|Peacely] is a Halfling town located just east of [location:9419635|Phandalin], also popular with Humans and Elves. It is built around a large fortress and is known for its mines and industry. </p>",
+    "proposed_entry": "<p>The hamlet of [location:9419630|Peacely] is a Halfling town located just east of [location:9419635|Phandalin], also popular with Humans and Elves. It is built around a large fortress and is known for its mines and industry. Most of the commonfolk work as farmers and miners. There is notable tension between the races, as the halflings have expressed concern regarding the increasing number of outsiders in their town.</p><p>The town has recently dealt with a crisis involving a poisoned well, which was found to be the source of demons. This issue was linked to the mage Hamun Kost, who was attempting to use the well to poison a local green dragon.</p>",
+    "change_summary": "Updated the synopsis to include details about the town's economy (farming and mining), racial tensions, and the recent incident involving the poisoned well and Hamun Kost.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419635,
+    "entity_kind": "location",
+    "entity_local_id": 2121892,
+    "entity_name": "Phandalin",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "previous_entry": "<span class=\"citation-27 citation-end-27\">[location:9419635|Phandalin] is a rough-and-tumble frontier town nestled in the foothills of the Sword Mountains, built directly upon the stone ruins of a much larger human settlement that was destroyed centuries ago.<sup class=\"superscript\"></sup></span> <span class=\"citation-26 citation-end-26\">Reclaimed by recent influxes of farmers, prospectors, and traders from nearby cities like Neverwinter, the bustling village features simple log buildings and dirt roads contrasted against crumbling, moss-covered archways.<sup class=\"superscript\"></sup></span> <span class=\"citation-25 citation-end-25\">A single, muddy main street cuts through the heart of town, rising uphill toward the looming, dilapidated remains of Tresendar Manor.<sup class=\"superscript\"></sup></span> <span class=\"citation-24 citation-end-24\">Because it lacks a formal city guard or military presence, [location:9419635|Phandalin] has a lawless, untamed atmosphere—making it a perfect haven for opportunistic mining exchanges, eccentric locals, and the ruthless criminal syndicates that seek to squeeze the town for everything it's worth.</span>",
+    "proposed_entry": "<p>[location:9419635|Phandalin] is a rough-and-tumble frontier town nestled in the foothills of the Sword Mountains, built directly upon the stone ruins of a much larger human settlement that was destroyed centuries ago. Reclaimed by recent influxes of farmers, prospectors, and traders from nearby cities like Neverwinter, the bustling village features simple log buildings and dirt roads contrasted against crumbling, moss-covered archways. A single, muddy main street cuts through the heart of town, rising uphill toward the looming, dilapidated remains of Tresendar Manor.</p>\n\n<p>The town has recently been terrorized by the Redbrands, a gang of miscreants led by the mysterious Iarno \"Glasstaff\" Albrek, who operated from a hidden stronghold beneath an old manor. The Redbrands were revealed to be working under the direction of the Black Spider, a drow named Nezznar. While the town's lawless atmosphere makes it a haven for criminal syndicates, the recent disruption of the Redbrands has left the area in a state of flux as various factions, including the Cragmaw goblins, vie for influence and control over the region's secrets, such as the location of the lost mine and Wave Echo Cave.</p>",
+    "change_summary": "Updated the synopsis to include the recent conflict with the Redbrands and their connection to the Black Spider.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Redbrands",
+        "relation": "formerly controlled by",
+        "attitude": -50,
+        "reason": "The Redbrands were a gang of miscreants that had been terrorizing the town."
+      },
+      {
+        "action": "create",
+        "target_name": "Black Spider",
+        "relation": "manipulated",
+        "attitude": -50,
+        "reason": "The Black Spider (Nezznar) was orchestrating the Redbrands and the Cragmaw goblins to control the area."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Cragmaw Castle",
+    "suggested_type": "location",
+    "draft_entry": "A castle that serves as the stronghold for the Cragmaw goblins.",
+    "reason": "Flagged as a specific named location.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Glasstaff",
+    "suggested_type": "character",
+    "draft_entry": "The mysterious leader of the Redbrands gang.",
+    "reason": "Flagged as a specific named character/title.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "King Grol",
+    "suggested_type": "character",
+    "draft_entry": "The leader of the Cragmaw goblins.",
+    "reason": "Flagged as a specific named character.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Nezznar",
+    "suggested_type": "character",
+    "draft_entry": "A drow adventurer known as the Black Spider.",
+    "reason": "Flagged as a specific named character.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Nundro Rockseeker",
+    "suggested_type": "character",
+    "draft_entry": "One of Gundren Rockseeker's brothers.",
+    "reason": "Flagged as a specific named character.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Tharden Rockseeker",
+    "suggested_type": "character",
+    "draft_entry": "One of Gundren Rockseeker's brothers.",
+    "reason": "Flagged as a specific named character.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Wave Echo Cave",
+    "suggested_type": "location",
+    "draft_entry": "A location containing a mythical forge and the fate of the Rockseeker brothers.",
+    "reason": "Flagged as a specific named location.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Hamun Kost",
+    "suggested_type": "character",
+    "draft_entry": "A stout, red-robed necromancer with a black tattoo on his forehead who works for the Black Spider.",
+    "reason": "Flagged as a specific named character.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Greenest",
+    "suggested_type": "location",
+    "draft_entry": "An area the dragon was heading toward in search of a golden dragon.",
+    "reason": "Flagged as a specific named location.",
+    "source_journal": "2022/01/01 - Last time on Phandelver Z pt 1",
+    "status": "applied",
+    "created_local_id": 2134391,
+    "created_kind": "location",
+    "created_entity_id": 9471239
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423618,
+    "entity_kind": "character",
+    "entity_local_id": 2438997,
+    "entity_name": "Gladio",
+    "source_journal": "2022/01/02 - Last time on Phandelver Z pt 2",
+    "previous_entry": "<p>[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.</p>",
+    "proposed_entry": "<p>[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.</p>",
+    "change_summary": "Updated Gladio's synopsis to include details about his family's current situation (his mother's fall and his father's age) and his recent activities transporting produce to Neverwinter.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419635,
+    "entity_kind": "location",
+    "entity_local_id": 2121892,
+    "entity_name": "Phandalin",
+    "source_journal": "2022/01/02 - Last time on Phandelver Z pt 2",
+    "previous_entry": "<p>[location:9419635|Phandalin] is a rough-and-tumble frontier town nestled in the foothills of the Sword Mountains, built directly upon the stone ruins of a much larger human settlement that was destroyed centuries ago. Reclaimed by recent influxes of farmers, prospectors, and traders from nearby cities like Neverwinter, the bustling village features simple log buildings and dirt roads contrasted against crumbling, moss-covered archways. A single, muddy main street cuts through the heart of town, rising uphill toward the looming, dilapidated remains of Tresendar Manor.</p>\n\n<p>The town has recently been terrorized by the Redbrands, a gang of miscreants led by the mysterious Iarno \"Glasstaff\" Albrek, who operated from a hidden stronghold beneath an old manor. The Redbrands were revealed to be working under the direction of the Black Spider, a drow named Nezznar. While the town's lawless atmosphere makes it a haven for criminal syndicates, the recent disruption of the Redbrands has left the area in a state of flux as various factions, including the Cragmaw goblins, vie for influence and control over the region's secrets, such as the location of the lost mine and Wave Echo Cave.</p>",
+    "proposed_entry": "[location:9419635|Phandalin] is a rough-and-tumble frontier town nestled in the foothills of the Sword Mountains, built directly upon the stone ruins of a much larger human settlement that was destroyed centuries ago. Reclaimed by recent influxes of farmers, prospectors, and traders from nearby cities like Neverwinter, the bustling village features simple log buildings and dirt roads contrasted against crumbling, moss-covered archways. A single, muddy main street cuts through the heart of town, rising uphill toward the looming, dilapidated remains of Tresendar Manor. \n\nThe town's atmosphere has shifted following the defeat of the Redbrands and the Black Spider. While the town's lawless nature previously made it a haven for criminal syndicates, the recent disruption of these factions has left the area in a state of flux. However, the town's leadership remains vigilant; the Townmaster and Sildar Hallwinter have taken a hard line with local adventurers, disarming those who have caused previous terror in the area. Despite the recent chaos, the Rockseeker brothers intend to reopen the Wave Echo Cave mine and share the profits with those who helped them, signaling a potential era of prosperity for the settlement.",
+    "change_summary": "Updated the synopsis to reflect the defeat of the Redbrands/Black Spider and the town's current state of tension with adventurers, including the involvement of the Townmaster and Sildar.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Sildar Hallwinter",
+        "relation": "Law enforcement official in",
+        "attitude": 0,
+        "reason": "Sildar is noted as relieving the party of their weapons and armor upon their return to Phandalin."
+      },
+      {
+        "action": "create",
+        "target_name": "The Townmaster",
+        "relation": "Law enforcement official in",
+        "attitude": 0,
+        "reason": "The Townmaster is noted as relieving the party of their weapons and armor upon their return to Phandalin."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Wave Echo Cave",
+    "suggested_type": "location",
+    "draft_entry": "A cavernous mine containing a smelting room, a forge of spells, and various magical chambers.",
+    "reason": "Flagged as a specific named location.",
+    "source_journal": "2022/01/02 - Last time on Phandelver Z pt 2",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "the black spider",
+    "suggested_type": "character",
+    "draft_entry": "A suspicious individual who was killed by the party; he had bugbear guards and was using the caverns as a base.",
+    "reason": "Flagged as a specific named NPC/antagonist.",
+    "source_journal": "2022/01/02 - Last time on Phandelver Z pt 2",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "the forge of spells",
+    "suggested_type": "location",
+    "draft_entry": "A room within Wave Echo Cave containing a magic forge that has waned in potential over the centuries.",
+    "reason": "Flagged as a specific named location.",
+    "source_journal": "2022/01/02 - Last time on Phandelver Z pt 2",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9438979,
+    "entity_kind": "location",
+    "entity_local_id": 2126522,
+    "entity_name": "City of the Dead",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>The <b>City of the Dead</b> was a large cemetery and ward in [location:9418490]. Most of the city's dead were buried here.  By day, it was used as a park and picnic area. At night it was \noff-limits to the public, but was still used by many for more nefarious \nactivities.</p>",
+    "proposed_entry": "The City of the Dead was a large cemetery and ward in Waterdeep. Most of the city's dead were buried here. By day, it was used as a park and picnic area. At night it was off-limits to the public, but was still used by many for more nefarious activities.",
+    "change_summary": "No changes were made to the synopsis as the session notes did not contain information regarding the City of the Dead.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423629,
+    "entity_kind": "character",
+    "entity_local_id": 2439003,
+    "entity_name": "Orlum",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat.</p>",
+    "proposed_entry": "[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat. During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half.",
+    "change_summary": "Added a detail about Orlum's decisive combat action during an ambush in Candle Lane.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431699,
+    "entity_kind": "location",
+    "entity_local_id": 2124815,
+    "entity_name": "Yawning Portal",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>The Yawning Portal is an inn and tavern in the city of [location:9418490] that was renowned for being the primary open route into Undermountain.  A well within its walls led down into the first level of the vast dungeon complex.  It is owned and run by the famous adventurer [character:9431702].</p>",
+    "proposed_entry": "The Yawning Portal is an inn and tavern in the city of [location:9418490|Waterdeep] that was renowned for being the primary open route into Undermountain. A well within its walls led down into the first level of the vast dungeon complex and is protected by [item:9431776|Ahghairon’s Dragonward] (preventing dragons from entering the city). It is owned and run by the famous adventurer [character:9431702|Durnan].",
+    "change_summary": "Updated the proprietor's name to Durnan and added the detail regarding Ahghairon’s Dragonward protecting the city from dragons.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431700,
+    "entity_kind": "character",
+    "entity_local_id": 2441393,
+    "entity_name": "Krentz",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>        A brutal thug of the [organisation:9419437], Krentz met the party when he attacked [character:9431701] at the [location:9431699], completely unprovoked.\n    </p>",
+    "proposed_entry": "A brutal thug of the Xanathar Guild, Krentz is a bald human fighter with eye tattoos. He met the party when he led a 5-vs-1 ambush against Yagra Stonefist at the Yawning Portal, an attack that was halted by Eoula's magic.",
+    "change_summary": "Updated Krentz's physical description (bald, eye tattoos) and clarified the nature of his attack on Yagra Stonefist.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Yagra Stonefist",
+        "relation": "Attacked",
+        "attitude": -50,
+        "reason": "Krentz led a 5-vs-1 ambush against her at the Yawning Portal."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431701,
+    "entity_kind": "character",
+    "entity_local_id": 2441394,
+    "entity_name": "Yagra Stonefist",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Seven-foot-tall half-orc with purplish-gray skin, a tousled mop of black\n hair, and shapely tusks to either side of her mouth. She wears \nwell-kept leather armor and has a simple sword strapped to her side. She\n wears a large pendant of red jade, seared with the winged-serpent sigil\n of the [organisation:9419438].</p>",
+    "proposed_entry": "Seven-foot-tall half-orc with purplish-gray skin, a tousled mop of black hair, and shapely tusks to either side of her mouth. She wears well-kept leather armor and has a simple sword strapped to her side. She wears a large pendant of red jade, seared with the winged-serpent sigil of the Zhentarim.\n\nA muscular half-orc and friend of Eoula Tealeaf, Yagra was recently involved in a tavern brawl at the Yawning Portal. She was the target of a 5-vs-1 ambush led by Krentz, a member of the Xanathar Guild, though the fight was quickly shut down by Eoula's magic. While she expressed slight disappointment that her fun was interrupted, she was happy to see the party.",
+    "change_summary": "Updated synopsis to include her recent involvement in a tavern brawl at the Yawning Portal and her reaction to the ambush by Krentz.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Eoula Tealeaf",
+        "relation": "Friend",
+        "attitude": 50,
+        "reason": "Yagra was happy to see the party (which includes Eoula) during their reunion at the Yawning Portal."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9425236,
+        "target_name": "Eoula Tealeaf",
+        "previous_relation": {
+          "id": 1043394,
+          "owner_id": 9431701,
+          "target_id": 9425236,
+          "relation": "Friend",
+          "attitude": null,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": 1043395,
+          "created_at": "2026-06-18T21:35:06.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-18T21:35:06.000000Z"
+        }
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431702,
+    "entity_kind": "character",
+    "entity_local_id": 2441395,
+    "entity_name": "Durnan",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Durnan was the gruff, burly yet close-mouthed barkeep who ran the [location:9431699] and considered himself the self-appointed gatekeeper to Undermountain. He was known for having explored Undermountain.</p>",
+    "proposed_entry": "Durnan was the gruff, burly yet close-mouthed barkeep who ran the [location:9431699|Yawning Portal] and considered himself the self-appointed gatekeeper to Undermountain. He was known for having explored Undermountain. During a monster outbreak in his tavern involving a troll and stirges, he fought alongside the party, though he expressed annoyance at the mess left behind by their combat methods.",
+    "change_summary": "Updated the synopsis to include his combat participation during the tavern brawl and his reaction to the party's messy combat style.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418259,
+    "entity_kind": "character",
+    "entity_local_id": 2437494,
+    "entity_name": "Volothamp Geddarm",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p><span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\">Volothamp Geddarm</span></span>—better known simply as Volo—is a flamboyant, overly confident, and frequently unreliable travel writer, “expert,” and self-styled explorer of [location:9418260]. He is famous across the [location:9418394] for publishing sensational guidebooks such as <em>Volo’s Guide to Monsters</em> and <em>Volo’s Guide to Waterdeep</em>, which blend genuine observations with wild speculation, exaggerated anecdotes, and the occasional outright fabrication. Despite his tendency to overstate his expertise and underestimate danger, Volo has a knack for surviving situations that should absolutely kill him, often thanks to luck or intervention from more competent companions. He is charismatic, talkative to a fault, and always eager to turn any encounter into material for his next book—whether or not his subjects agree.</p>",
+    "proposed_entry": "Volothamp Geddarm —better known simply as Volo—is a flamboyant, overly confident, and frequently unreliable travel writer, “expert,” and self-styled explorer of [location:9418260]. He is famous across the [location:9418394] for publishing sensational guidebooks such as Volo’s Guide to Monsters and Volo’s Guide to Waterdeep, which blend genuine observations with wild speculation, exaggerated anecdotes, and the occasional outright fabrication. Despite his tendency to overstate his expertise and underestimate danger, Volo has a knack for surviving situations that should absolutely kill him, often thanks to luck or intervention from more competent companions. He is charismatic, talkative to a fault, and always eager to turn any encounter into material for his next book—whether or not his subjects agree.\n\nRecently, Volo has been dealing with writer's block and has sought the help of adventurers to locate his friend, Floon Blagmaar, who has gone missing. While he presents himself as a \"chronicler, wizard, and celebrity,\" he is known by many as a braggart and notorious embellisher, though some perceive him to be soft-hearted and deeply caring toward his friends.",
+    "change_summary": "Updated synopsis to include his recent quest to find Floon Blagmaar and noted the perception of his character as both a braggart and soft-hearted.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Floon Blagmaar",
+        "relation": "Friend of",
+        "attitude": 50,
+        "reason": "Volo is actively seeking Floon's safe return and describes him as his friend."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431741,
+        "target_name": "Floon Blagmaar"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9442092,
+    "entity_kind": "character",
+    "entity_local_id": 2444130,
+    "entity_name": "Avi",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Avi is a water genasi and a master armor smith that belongs to the \nSplendid Order of Armorers, Locksmiths, and Finesmiths. He worships \nEldath, the god of peace, and uses his magic to quench hot steel. He is \nlaid back and optimistic, balancing out his husband [character:9442093]'s personality. </p>",
+    "proposed_entry": "Avi is a water genasi and a master armor smith that belongs to the Splendid Order of Armorers, Locksmiths, and Finesmiths. He worships Eldath, the god of peace, and uses his magic to quench hot steel. He is laid back and optimistic, balancing out his husband's personality.",
+    "change_summary": "No changes were made to the synopsis or relationships as the session notes did not mention Avi.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431741,
+    "entity_kind": "character",
+    "entity_local_id": 2441403,
+    "entity_name": "Floon Blagmaar",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Floon Blagmaar is a well-known figure in [location:9418490]'s social undercurrent, where charm and beauty can earn coin just as \neasily as a noble name. With tousled ginger-blond hair, aristocratic \nfeatures, and an easy smile, Floon is frequently mistaken for his \nlongtime friend [character:9431743]—a\n resemblance that nearly cost him his life. Despite his good looks and \naccess to elite parties, Floon is not of noble birth. He supports \nhimself, in part as an escort, attending galas, dinners, and private \nevents in the company of the city’s wealthy and powerful.\n<span class=\"line-spacer d-block\"> </span>\nHis affable nature and polished demeanor conceal a survivor’s instinct. \nFloon knows how to read a room, win favor, and disappear when danger \narises. </p>",
+    "proposed_entry": "Floon Blagmaar is a well-known figure in Waterdeep's social undercurrent, where charm and beauty can earn coin just as easily as a noble name. With wavy red-blond hair, aristocratic features, and an easy smile, Floon is frequently mistaken for his longtime friend Renaer Neverember—a resemblance that nearly cost him his life. Despite his good looks and access to elite parties, Floon is not of noble birth. He supports himself, in part as an escort, attending galas, dinners, and private events in the company of the city’s wealthy and powerful.\n\nHis affable nature and polished demeanor conceal a survivor’s instinct. Floon knows how to read a room, win favor, and disappear when danger arises. He was recently reported missing after being seen with Renaer Neverember; witnesses suggest he may have been ambushed by ruffians associated with the Zhentarim.",
+    "change_summary": "Updated physical description to include 'wavy' hair and added details regarding his recent disappearance and potential involvement with the Zhentarim.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Volothamp \"Volo\" Geddarm",
+        "relation": "Friend of",
+        "attitude": 50,
+        "reason": "Volo is described as Floon's friend and is actively seeking his safe return."
+      },
+      {
+        "action": "create",
+        "target_name": "Renaer Neverember",
+        "relation": "Friend of",
+        "attitude": 50,
+        "reason": "Witnesses saw Floon meeting with Renaer Neverember shortly before he went missing."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431743,
+        "target_name": "Renaer Neverember"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431742,
+    "entity_kind": "location",
+    "entity_local_id": 2124827,
+    "entity_name": "Skewered Dragon Tavern",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>A dark, bawdy tavern in the [location:9418606]<span class=\"private-article article-unlinked\"></span>,\n The Skewered Dragon is in very poor shape. Both front windows are \nbroken and the roof groans under the weight of a ship's anchor that \npunctured it. The clientele is primarily made up of dock workers that \nare suspicious of strangers.</p>",
+    "proposed_entry": "A dark, bawdy tavern in the [location:9418606|Dock Ward].\\n\\nThe Skewered Dragon is in very poor shape. Both front windows are broken and the roof groans under the weight of a ship's anchor that punctured it. The clientele is primarily made up of dock workers that are suspicious of strangers. Patrons at the tavern noted that [character:9431741|Floon Blagmaar] was seen meeting with [character:9431743|Renaer Neverember] before being followed by five men.",
+    "change_summary": "Updated the location to the Dock Ward and added information regarding the patrons' observations about Floon and Renaer Neverember.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431743,
+    "entity_kind": "character",
+    "entity_local_id": 2441404,
+    "entity_name": "Renaer Neverember",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Renaer is the estranged son of <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/dagult-neverember-person\">Dagult Neverember</a>, the former Open Lord of Waterdeep and the current Lord of <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/neverwinter-settlement\">Neverwinter</a>.\n Father and son detest one another. and Renaer is least happy when he \nfinds himself forced to deal with some mess his father left behind.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>Qualities that both share include striking good looks, a love of drink, \nand a flair for diplomacy. What Renaer lacks is his father's \nbelligerence, ill temper, and bad judgment.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>Renaer lives off a sizable inheritance left to him by his mother, <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/alethea-brandath-person\">Alethea Brandath</a>. Approaching middle age, he has given up adventuring and \"settled down\" somewhat. As a member of the [organisation:9419383]<span class=\"private-article article-unlinked\"></span>,\n he spends a lot of time defending Waterdavians against those who, like \nhis father, would deprive them of their coin and rights.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>He owns <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/brandarthall-landmark\">Brandarthall</a>, a\n fourstory residence in the [location:9431883]. Renaer spends as little time there\n as possible, however, since it's constantly under surveillance by spies\n loyal to his father. His friends have an open invitation to use the \nhouse as they please, while Renaer spends most of his free time in \ntaverns and festhalls.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>Some believe that Renaer's estrangement from his father is nothing but \nan act. and that anyone who bears the Neverember name is an enemy of [location:9418490]. Renaer just shakes his head at such accusations and gets on \nwith his life. He has many powerful friends to watch his back.\n</p>",
+    "proposed_entry": "Renaer is the estranged son of Dagult Neverember, the former Open Lord of Waterdeep and the current Lord of Neverwinter. Father and son detest one another, and Renaer is least happy when he finds himself forced to deal with some mess his father left behind.\n\nQualities that both share include striking good looks, a love of drink, and a flair for diplomacy. What Renaer lacks is his father's belligerence, ill temper, and bad judgment.\n\nRenaer lives off a sizable inheritance left to him by his mother, Alethea Brandath. Approaching middle age, he has given up adventuring and \"settled down\" somewhat. As a member of the [organisation:9419383], he spends a lot of time defending Waterdavians against those who, like his father, would deprive them of their coin and rights.\n\nHe owns Brandarthall, a four-story residence in the [location:9431883]. Renaer spends as little time there as possible, however, since it's constantly under surveillance by spies loyal to his father. His friends have an open invitation to use the house as they please, while Renaer spends most of his free time in taverns and festhalls.\n\nSome believe that Renaer's estrangement from his father is nothing but an act, and that anyone who bears the Neverember name is an enemy of [location:9418490]. Renaer just shakes his head at such accusations and gets on with his life. He has many powerful friends to watch his back.",
+    "change_summary": "No changes were made to the synopsis or relationships as the session notes provided no new information regarding Renaer's personal status, abilities, or connections, only mentioning his presence in a past event involving Floon Blagmaar.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431744,
+    "entity_kind": "location",
+    "entity_local_id": 2124828,
+    "entity_name": "Old Xoblob Shop",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>The Old Xoblob Shop is a curio shop little known outside [location:9418490], but \nfamous in the city for its trophies of battle, adventuring bands, and \nexotic, faraway places. From drow sculptures to the huge, eyeless, \nstuffed beholder that overhangs everything, the shop is crammed with an \nuntidy assortment of blades, treasure maps, coils of rope hundreds of \nfeet long, statuettes of forgotten make and mysterious origin, and more.\n The shop is named for the beholder, killed by the proprietor in single \ncombat long ago. Xoblob is all he could pronounce of its name.</p>",
+    "proposed_entry": "The Old Xoblob Shop is a curio shop little known outside [location:9418490|Waterdeep], but famous in the city for its trophies of battle, adventuring bands, and exotic, faraway places. From drow sculptures to the huge, eyeless, stuffed beholder that overhangs everything, the shop is crammed with an untidy assortment of blades, treasure maps, coils of rope hundreds of feet long, statuettes of forgotten make and mysterious origin, and more. The shop features a striking deep purple facade and a stuffed beholder doll in the window.\n\nThe shop is named for the beholder, killed by the proprietor in single combat long ago. Xoblob is all he could pronounce of its name. The proprietor is an odd gnome who dresses entirely in purple.",
+    "change_summary": "Added physical descriptions of the shop's facade and window display, and noted the appearance of the gnome shopkeeper.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419465,
+    "entity_kind": "character",
+    "entity_local_id": 2437804,
+    "entity_name": "Xanathar",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p><span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\">Xanathar</span></span> is a powerful beholder who rules the [organisation:9419437] from the depths beneath [location:9418490], serving as both its absolute master and its most volatile weakness. Obsessed with control, treasure, and above all else paranoia, Xanathar maintains a sprawling criminal empire that extends through every level of the city’s underworld—smuggling, extortion, assassination, and intelligence gathering all ultimately feeding back to its central, ever-watching eye. As a beholder, it possesses vast innate magical power and a terrifying array of eye rays, but its greatest threat to its own organization is its obsessive suspicion, as it constantly believes (often correctly) that its own lieutenants are plotting betrayal. This paranoia leads to frequent purges within the guild, making Xanathar both an immensely stable source of power and an unpredictable, dangerous master.</p>",
+    "proposed_entry": "Xanathar is a powerful beholder who rules the [organisation:9419437|Xanathar Guild] from the depths beneath [location:9418490|Waterdeep], serving as both its absolute master and its most volatile weakness. Obsessed with control, treasure, and above all else paranoia, Xanathar maintains a sprawling criminal empire that extends through every level of the city’s underworld—smuggling, extortion, assassination, and intelligence gathering all ultimately feeding back to its central, ever-watching eye. As a beholder, it possesses vast innate magical power and a terrifying array of eye rays, but its greatest threat to its own organization is its obsessive suspicion, as it constantly believes (often correctly) that its own lieutenants are plotting betrayal. This paranoia leads to frequent purges within the guild, making Xanathar both an immensely stable source of power and an unpredictable, dangerous master. The guild is known to engage in violent skirmishes with rival factions, such as the [organisation:9419438|Zhentarim], for control of the city's underworld.",
+    "change_summary": "Updated the synopsis to include the guild's violent rivalry with the Zhentarim as noted in the session.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Zhentarim",
+        "relation": "Rival faction of",
+        "attitude": -50,
+        "reason": "The session notes describe a bloody skirmish between the Xanathar Guild and the Zhentarim in the Dock Ward."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431892,
+    "entity_kind": "location",
+    "entity_local_id": 2124866,
+    "entity_name": "Castle Ward",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<div class=\"paragraph-indent\"><p>In terms of both geography and power, \nCastle Ward is the city's center. Most, if not all, of the city's \nadministrative buildings are within the ward boundaries, from the lofty \nspires of Piergeiron's Palace to the low-slung crenelations of the guard\n smithy. While money and social standing are the prevalent benchmarks of\n might in the City of Splendors, [location:9418490]'s true power and what keeps \nit running are the Lords and Magisters here. If you like the taste of \npower and authority mixed with the usual commerce of the city, Castle \nWard is the place to go.</p><p>The city guard maintains a strong \npresence in Castle Ward due to the concentration of city officials and \nareas of importance in need of heavier security. Even so, the watch \nmaintains much of the order, especially around the Market, the Palace, \nand the Castle Ward docks. Like the guard, the watch makes a show of \nforce in Castle Ward, traveling in larger patrols of six and \nbrandishing short swords in addition to their normal rods and clubs.</p><p>The ward boundaries are the southern \nside of Julthoon Street over to Shield Street and down to Trader's Way \non the north, meeting up with the High Road and Snail Street for the \neastern perimeter. Lackpurse Lane, Belnimbra's Street, Gut Alley, and \nShesstra's Street combine in an uneven boundary to the south, whereas \nthe mountain and the coastline form the western edges of the ward. While\n Castle Ward covers the most territory, Mount Waterdeep makes up a lot \nof empty land and the ward is effectively a little larger than Sea or \nNorth Ward.</p></div>",
+    "proposed_entry": "In terms of both geography and power, Castle Ward is the city's center. Most, if not all, of the city's administrative buildings are within the ward boundaries, from the lofty spires of Piergeiron's Palace to the low-slung crenelations of the guard smithy. While money and social standing are the prevalent benchmarks of might in the City of Splendors, Waterdeep's true power and what keeps it running are the Lords and Magisters here. If you like the taste of power and authority mixed with the usual commerce of the city, Castle Ward is the place to go.  The city guard maintains a strong presence in Castle Ward due to the concentration of city officials and areas of importance in need of heavier security. Even so, the watch maintains much of the order, especially around the Market, the Palace, and the Castle Ward docks. Like the guard, the watch makes a show of force in Castle Ward, traveling in larger patrols of six and brandishing short swords in addition to their normal rods and clubs.  The ward boundaries are the southern side of Julthoon Street over to Shield Street and down to Trader's Way on the north, meeting up with the High Road and Snail Street for the eastern perimeter. Lackpurse Lane, Belnimbra's Street, Gut Alley, and Shesstra's Street combine in an uneven boundary to the south, whereas the mountain and the coastline form the western edges of the ward. While Castle Ward covers the most territory, Mount Waterdeep makes up a lot of empty land and the ward is effectively a little larger than Sea or North Ward. The ward is home to the famous Yawning Portal Inn and Tavern, which features a massive central well leading down into Undermountain and is protected by Ahghairon’s Dragonward.",
+    "change_summary": "Added the Yawning Portal Inn and Tavern to the synopsis, noting its connection to Undermountain and its protection by Ahghairon’s Dragonward.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425236,
+    "entity_kind": "character",
+    "entity_local_id": 2439422,
+    "entity_name": "Eoula Tealeaf",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<div class=\"markdown markdown-main-panel tutor-markdown-rendering enable-luminous-fast-follows stronger enable-updated-hr-color\" style=\"font-family:'Google Sans Text', sans-serif;line-height:1.15;margin-top:0px;\" id=\"model-response-message-contentr_086c8a96b3cd5d9f\"><p style=\"font-family:'Google Sans Text', sans-serif;line-height:1.15;margin-top:0px;\">[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm.</p></div>\n\n<br>",
+    "proposed_entry": "<p>[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders.</p><p>Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm. During a recent chaotic encounter at the [location:9431699|Yawning Portal], she demonstrated her tactical utility by using her web magic to neutralize both a group of thugs and a monster uprising from the tavern's well.</p>",
+    "change_summary": "Added details regarding her use of web magic during the tavern brawl and the monster encounter at the Yawning Portal.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431893,
+    "entity_kind": "location",
+    "entity_local_id": 2124867,
+    "entity_name": "North Ward",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<div class=\"paragraph-indent\"><p>Home to the many wealthier middle \nclass, lesser nobles, and well-to-do merchants, North Ward is a quiet \nhaven from the hustle and bustle of [location:9418490]'s commercial endeavors. \nDominated by residences, this ward tends toward insular, walled villas \nand distinctly individual stone and timber houses. While, on the \nsurface, it seems tedious compared to the rest of the city, North Ward \nseethes with intrigues of far-reaching effects hidden just beneath the \nsurface. There is little for visitors to do within this ward beyond gawk\n at the marvelous houses and towers unless they are already linked into \nthe nobles' or guilds' politics.</p><p>The city watch keeps this ward under \ntight control, suffering noise and disruption only from the local nobles\n and dandies while rousting noisy trespassers. Though lightly armed, the\n watch maintains a constant presence in North Ward, making it as safe as\n one can be in a city of this size. If ever a place \"closes down upon \nthe cobbles at dusk,\" North Ward fits the bill.</p><p>North Ward's western boundaries consist\n of the High Road with a western arm extending to Shield Street along \nVondhil Street and Trader's Way. Andamaar's Street marks the southern \nborder, while the walls of the City of the Dead and the Trollwall close \nout the rest of the ward.</p></div>",
+    "proposed_entry": "Home to the many wealthier middle class, lesser nobles, and well-to-do merchants, North Ward is a quiet haven from the hustle and bustle of Waterdeep's commercial endeavors. Dominated by residences, this ward tends toward insular, walled villas and distinctly individual stone and timber houses. While, on the surface, it seems tedious compared to the rest of the city, North Ward seethes with intrigues of far-reaching effects hidden just beneath the surface. There is little for visitors to do within this ward beyond gawk at the marvelous houses and towers unless they are already linked into the nobles' or guilds' politics. The city watch keeps this ward under tight control, suffering noise and disruption only from the local nobles and dandies while rousting noisy trespassers. Though lightly armed, the watch maintains a constant presence in North Ward, making it as safe as one can be in a city of this size. If ever a place \"closes down upon the cobbles at dusk,\" North Ward fits the bill. North Ward's western boundaries consist of the High Road with a western arm extending to Shield Street along Vondhil Street and Trader's Way. Andamaar's Street marks the southern border, while the walls of the City of the Dead and the Trollwall close out the rest of the ward.",
+    "change_summary": "No changes were made to the synopsis as the session notes focused on the Castle Ward, Dock Ward, and Candle Lane, with no mention of the North Ward.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419629,
+    "entity_kind": "character",
+    "entity_local_id": 2437853,
+    "entity_name": "Warryn",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Warryn is an adventurer who was part of a group that successfully navigated the perils of Wave Echo Cave, including the defeat of the Black Spider and the liberation of a cursed flameskull. After the group's exploits, Warryn departed from the party near Phandalin to retire to the hamlet of Peacely.</p>",
+    "proposed_entry": "Warryn is an adventurer who was part of a group that successfully navigated the perils of Wave Echo Cave, including the defeat of the Black Spider and the liberation of a cursed flameskull. After the group's exploits, Warryn departed from the party near Phandalin to retire to the hamlet of Peacely, where he currently serves as a landlord.",
+    "change_summary": "Updated synopsis to reflect Warryn's current occupation as a landlord in Peacely.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419631,
+    "entity_kind": "character",
+    "entity_local_id": 2437854,
+    "entity_name": "Raucous",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p>Was asked by his friend [character:9423618] to meet [organisation:9419162] in [location:9418490] and help them find his missing friend [character:9431741].</p>",
+    "proposed_entry": "<p>A local Waterdeep butcher and friend of Gladio, Raucous joined the party at the Yawning Portal amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the Dock Ward in their search for Floon Blagmaar.</p>",
+    "change_summary": "Updated Raucous's occupation to a local butcher and added his role in joining the party and guiding them through the Dock Ward.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418490,
+    "entity_kind": "location",
+    "entity_local_id": 2121671,
+    "entity_name": "Waterdeep",
+    "source_journal": "2023/04/23 - The search for Floon",
+    "previous_entry": "<p><span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\">Waterdeep</span></span>—often called the City of Splendors—is one of the largest, richest, and most influential cities in the Forgotten Realms, a sprawling coastal metropolis where nobles, merchants, adventurers, and criminals all compete for power under a carefully balanced system of open governance and hidden influence. Ruled by the mysterious Lords of Waterdeep and publicly represented by the Open Lord, the city thrives on trade, magic, and politics, drawing in wealth and danger from across [location:9418260] through its vast harbor and strategic position on the [location:9418394]. Beneath its grand estates, bustling wards, and famed institutions lies a labyrinth of secrets: ancient ruins, hidden guild operations, and conspiracies that can shape the fate of nations. Waterdeep is both a beacon of opportunity and a maze of intrigue, where fortunes are made quickly—but only by those clever enough to survive its many layers.</p>",
+    "proposed_entry": "Waterdeep —often called the City of Splendors—is one of the largest, richest, and most influential cities in the Forgotten Realms, a sprawling coastal metropolis where nobles, merchants, adventurers, and criminals all compete for power under a carefully balanced system of open governance and hidden influence. Ruled by the mysterious Lords of Waterdeep and publicly represented by the Open Lord, the city thrives on trade, magic, and politics, drawing in wealth and danger from across [location:9418260] through its vast harbor and strategic position on the [location:9418394]. Beneath its grand estates, bustling wards, and famed institutions lies a labyrinth of secrets: ancient ruins, hidden guild operations, and conspiracies that can shape the fate of nations. The city's various wards, such as the Castle Ward and the grim, shadow-filled Dock Ward, serve as the backdrop for intense factional violence between groups like the Xanathar Guild and the Zhentarim. Waterdeep is both a beacon of opportunity and a maze of intrigue, where fortunes are made quickly—but only by those clever enough to survive its many layers.",
+    "change_summary": "Expanded the synopsis to include specific details about the city's wards (Castle Ward, Dock Ward) and the ongoing factional conflict between the Xanathar Guild and the Zhentarim.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423618,
+    "entity_kind": "character",
+    "entity_local_id": 2438997,
+    "entity_name": "Gladio",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.</p>",
+    "proposed_entry": "[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.\n\nRecently, Gladio provided tactical plans for an infiltration of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], which led to the discovery of a hidden cache and the rescue of [character:9431743|Renaer Neverember]. Following the investigation, the party has ventured into the sewers to track the [organisation:9419437|Xanathar Guild] in an attempt to rescue [character:9431741|Floon].",
+    "change_summary": "Updated the synopsis to include Gladio's recent tactical involvement in the Zhentarim Warehouse investigation and the party's subsequent descent into the sewers.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419465,
+    "entity_kind": "character",
+    "entity_local_id": 2437804,
+    "entity_name": "Xanathar",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>Xanathar is a powerful beholder who rules the [organisation:9419437|Xanathar Guild] from the depths beneath [location:9418490|Waterdeep], serving as both its absolute master and its most volatile weakness. Obsessed with control, treasure, and above all else paranoia, Xanathar maintains a sprawling criminal empire that extends through every level of the city’s underworld—smuggling, extortion, assassination, and intelligence gathering all ultimately feeding back to its central, ever-watching eye. As a beholder, it possesses vast innate magical power and a terrifying array of eye rays, but its greatest threat to its own organization is its obsessive suspicion, as it constantly believes (often correctly) that its own lieutenants are plotting betrayal. This paranoia leads to frequent purges within the guild, making Xanathar both an immensely stable source of power and an unpredictable, dangerous master. The guild is known to engage in violent skirmishes with rival factions, such as the [organisation:9419438|Zhentarim], for control of the city's underworld.</p>",
+    "proposed_entry": "Xanathar is a powerful beholder who rules the [organisation:9419437|Xanathar Guild] from the depths beneath [location:9418490|Waterdeep], serving as both its absolute master and its most volatile weakness. Obsessed with control, treasure, and above all else paranoia, Xanathar maintains a sprawling criminal empire that extends through every level of the city’s underworld—smuggling, extortion, assassination, and intelligence gathering all ultimately feeding back to its central, ever-watching eye. As a beholder, it possesses vast innate magical power and a terrifying array of eye rays, but its greatest threat to its own organization is its obsessive suspicion, as it constantly believes (often correctly) that its own lieutenants are plotting betrayal. This paranoia leads to frequent purges within the guild, making Xanathar both an immensely stable source of power and an unpredictable, dangerous master. The guild is known to engage in violent skirmishes with rival factions, such as the [organisation:9419438|Zhentarim], for control of the city's underworld. Recently, the guild has been actively hunting for the [item:9432044|Stone of Golorr], an artifact that was previously in their possession before being stolen.",
+    "change_summary": "Updated the synopsis to include the guild's recent pursuit of the [item:9432044|Stone of Golorr].",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423629,
+    "entity_kind": "character",
+    "entity_local_id": 2439003,
+    "entity_name": "Orlum",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat. During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half.</p>",
+    "proposed_entry": "[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat. During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half. During a recent investigation of a [location:9437421|Zhentarim Warehouse], Orlum successfully looted approximately 140 lbs of silver, a weight that left him heavily encumbered during the party's subsequent descent into the sewers.",
+    "change_summary": "Added details regarding Orlum looting 140 lbs of silver from the Zhentarim Warehouse and the resulting encumbrance during the sewer descent.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425235,
+    "entity_kind": "character",
+    "entity_local_id": 2439421,
+    "entity_name": "Alyzira Galanodel",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster.</p>",
+    "proposed_entry": "[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster.\n\nRecently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining the party's presence and helping to avoid legal repercussions for the group.",
+    "change_summary": "Added details regarding her recent infiltration of a Zhentarim warehouse and her successful social negotiation with Captain Staget.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Hyustus Staget",
+        "relation": "Negotiated with",
+        "attitude": 0,
+        "reason": "She fast-talked him to explain the party's situation during a City Watch raid, leading him to overlook their legal indiscretions."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9432045,
+        "target_name": "Hyustus Staget"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425236,
+    "entity_kind": "character",
+    "entity_local_id": 2439422,
+    "entity_name": "Eoula Tealeaf",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders.</p><p>Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm. During a recent chaotic encounter at the [location:9431699|Yawning Portal], she demonstrated her tactical utility by using her web magic to neutralize both a group of thugs and a monster uprising from the tavern's well.</p>",
+    "proposed_entry": "[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm.\n\nDuring a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr].",
+    "change_summary": "Updated synopsis to include the investigation of the Zhentarim Warehouse, the neutralization of Kenku ambushers, and the discovery of Renaer Neverember.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Renaer Neverember",
+        "relation": "Rescued",
+        "attitude": 0,
+        "reason": "Eoula discovered him hiding in a closet during the warehouse investigation."
+      },
+      {
+        "action": "create",
+        "target_name": "Floon",
+        "relation": "Associated with",
+        "attitude": 0,
+        "reason": "Eoula learned of his kidnapping via Renaer Neverember during the warehouse investigation."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431743,
+        "target_name": "Renaer Neverember"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431893,
+    "entity_kind": "location",
+    "entity_local_id": 2124867,
+    "entity_name": "North Ward",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<div class=\"paragraph-indent\"><p>Home to the many wealthier middle \nclass, lesser nobles, and well-to-do merchants, North Ward is a quiet \nhaven from the hustle and bustle of [location:9418490]'s commercial endeavors. \nDominated by residences, this ward tends toward insular, walled villas \nand distinctly individual stone and timber houses. While, on the \nsurface, it seems tedious compared to the rest of the city, North Ward \nseethes with intrigues of far-reaching effects hidden just beneath the \nsurface. There is little for visitors to do within this ward beyond gawk\n at the marvelous houses and towers unless they are already linked into \nthe nobles' or guilds' politics.</p><p>The city watch keeps this ward under \ntight control, suffering noise and disruption only from the local nobles\n and dandies while rousting noisy trespassers. Though lightly armed, the\n watch maintains a constant presence in North Ward, making it as safe as\n one can be in a city of this size. If ever a place \"closes down upon \nthe cobbles at dusk,\" North Ward fits the bill.</p><p>North Ward's western boundaries consist\n of the High Road with a western arm extending to Shield Street along \nVondhil Street and Trader's Way. Andamaar's Street marks the southern \nborder, while the walls of the City of the Dead and the Trollwall close \nout the rest of the ward.</p></div>",
+    "proposed_entry": "Home to the many wealthier middle class, lesser nobles, and well-to-do merchants, North Ward is a quiet haven from the hustle and bustle of [location:9418490]'s commercial endeavors. Dominated by residences, this ward tends toward insular, walled villas and distinctly individual stone and timber houses. While, on the surface, it seems tedious compared to the rest of the city, North Ward seethes with intrigues of far-reaching effects hidden just beneath the surface. There is little for visitors to do within this ward beyond gawk at the marvelous houses and towers unless they are already linked into the nobles' or guilds' politics.  The city watch keeps this ward under tight control, suffering noise and disruption only from the local nobles and dandies while rousting noisy trespassers. Though lightly armed, the watch maintains a constant presence in North Ward, making it as safe as one can be in a city of this size. If ever a place \"closes down upon the cobbles at dusk,\" North Ward fits the bill.  North Ward's western boundaries consist on the High Road with a western arm extending to Shield Street along Vondril Street and Trader's Way. Andamaar's Street marks the southern border, while the walls of the [location:9438979|City of the Dead] and the Trollwall close out the rest of the ward. Despite its reputation for safety, the ward's alleys and warehouses can become the site of violent turf wars between criminal organizations like the [organisation:9419438|Zhentarim] and the [organisation:9419437|Xanathar Guild].",
+    "change_summary": "Added a sentence to the synopsis noting that the ward's warehouses and alleys can be sites of violent turf wars between the Zhentarim and the Xanathar Guild.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9437421,
+    "entity_kind": "location",
+    "entity_local_id": 2126285,
+    "entity_name": "Zhentarim Warehouse",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>Once a bustling storage depot, it now stands battered and half-abandoned, its weathered timbers creaking in the wind and the smell of dust, damp wood, and old blood lingering in the air. Crates lie smashed where the battle between the [organisation:9419438] and [organisation:9419437] erupted, and dark stains still mark the floorboards where lives were lost. Broken windows admit pale shafts of light that illuminate scattered debris, while the upper catwalks groan ominously overhead. Though the warehouse has long since been searched and cleared, an uneasy silence hangs over the building, as if the shadows still remember the frantic struggle, the screeching kenku, and the desperate search for a missing noble that first drew the adventurers here.</p>",
+    "proposed_entry": "Located in the [location:9431893|North Ward], this two-story [location:9437421|Zhentarim warehouse] bears a snake symbol and serves as a site of violent turf wars. Once a bustling storage depot, it is now a scene of disarray following a clash between the [organisation:9419438|Zhentarim] and the [organisation:9419437|Xanathar Guild]. The aftermath of the conflict left several corpses strewn across the floor, including five [organisation:9419438|Zhentarim] sellswords and seven [organisation:9419437|Xanathar Guild] thugs. \n\nBeyond the main floor, the building contains a hidden cache of silver trade bars and paintings, as well as a small, cramped room under the staircase where [character:9431743|Renaer Neverember] was found hiding. The warehouse has also been the site of Kenku ambushes acting on behalf of [organisation:9419437|Xanathar Guild]. While the building was recently under surveillance by the City Watch, an investigation by adventurers led to the discovery of political intrigue involving the [item:9432044|Stone of Golorr] and the disappearance of [character:9431741|Floon].",
+    "change_summary": "Updated the synopsis to include the warehouse's specific location in the North Ward, details of the recent turf war casualties, the discovery of hidden items and Renaer Neverember, and the involvement of the Kenku and City Watch.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9432045,
+    "entity_kind": "character",
+    "entity_local_id": 2441482,
+    "entity_name": "Hyustus Staget",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>Captain Staget is an uptight man who helps keep the peace in the [location:9418606]. Every shopkeeper, guild member, innkeeper, and tavern keeper in \nthe [location:9418606] knows him, and most respect him regardless of their \nopinions of the City Watch in general. Staget doesn't believe in rumors \nor gossip, he doesn't drink, and he doesn't let his anger get the best \nof him.</p>",
+    "proposed_entry": "Captain Staget is an uptight man who helps keep the peace in the [location:9418606]. Every shopkeeper, guild member, innkeeper, and tavern keeper in the [location:9418606] knows him, and most respect him regardless of their opinions of the City Watch in general. Staget doesn't believe in rumors or gossip, he doesn't drink, and he doesn't let his anger get the best of him. \n\nDuring a recent investigation into a warehouse in the [location:9431893|North Ward], Staget's demeanor softened upon recognizing the noble [character:9431743|Renaer Neverember]. He agreed to overlook certain legal indiscretions committed by the party in exchange for a copy of the Code Legal, though he sternly warned them to stay out of the sewers, dismissing [character:9431741|Floon] as a potential spy.",
+    "change_summary": "Updated synopsis to include Staget's interaction with the party and Renaer Neverember during the warehouse investigation.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Renaer Neverember",
+        "relation": "Recognized the nobility of",
+        "attitude": 10,
+        "reason": "Staget's demeanor softened significantly upon recognizing Renaer."
+      },
+      {
+        "action": "create",
+        "target_name": "Floon",
+        "relation": "Suspicious of",
+        "attitude": -20,
+        "reason": "Staget dismissed Floon as a potential Zhentarim or Xanathar spy."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431743,
+        "target_name": "Renaer Neverember"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419631,
+    "entity_kind": "character",
+    "entity_local_id": 2437854,
+    "entity_name": "Raucous",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>A local Waterdeep butcher and friend of Gladio, Raucous joined the party at the Yawning Portal amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the Dock Ward in their search for Floon Blagmaar.</p>",
+    "proposed_entry": "A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch.",
+    "change_summary": "Updated the synopsis to include Raucous's accidental triggering of an alarm during the investigation of the Zhentarim warehouse.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9432046,
+    "entity_kind": "location",
+    "entity_local_id": 2124921,
+    "entity_name": "Thirsty Throat Inn",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>You will find a surprising number of institutions labelled \nthe ‘Thirsty’ this or that in [location:9418606]; take this one seriously. If \nyour goal is to get drunk as quick as possible for the fewest coins, \nthis is for you. Found on the corner of Candle Lane and Slut Street, \nthis ramshackle assembly of wood amazes all by not falling down. The \ntavern is crowded on a daily (let alone nightly) basis, and barely lit \ntop it all. Also, the tables and chairs are bolted down; this should \ntell you more than enough. This dive is known for its massive tankards \nof cheap ale.</p>",
+    "proposed_entry": "You will find a surprising number of institutions labelled \nthe ‘Thirsty’ this or that in [location:9418606]; take this one seriously. If \nyour goal is to get drunk as quick as possible for the fewest coins, \nthis is for you. Found on the corner of Candle Lane and Slut Street, \nthis ramshackle assembly of wood amazes all by not falling down. The \ntavern is crowded on a daily (let alone nightly) basis, and barely lit \ntop it all. Also, the tables and chairs are bolted down; this should \ntell you more than enough. This dive is known for its massive \ntankards of cheap ale. After a long investigation involving a warehouse raid and a descent into the sewers, the party used this establishment to take a much-needed long rest.",
+    "change_summary": "Added a sentence noting that the party stayed at the inn for a long rest following their investigation of the Zhentarim warehouse and the sewer descent.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9435900,
+    "entity_kind": "location",
+    "entity_local_id": 2125804,
+    "entity_name": "Trade Ward",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<div class=\"paragraph-indent\"><p>With no distinct look to separate it \nfrom surrounding wards, Trades Ward is somewhat lost in terms of \nneighborhood identity. On the other hand, though it lacks in \nneighborhood \"feel,\" its sense of community in commerce occupies nearly \nevery building and person within the entire ward. Many of [location:9418490]'s \nmiddle class and merchant class live and work here.</p></div>\n<div class=\"paragraph-indent\"><p>The busiest of wards due to all the \nconstant commercial work within its boundaries, Trades Ward is active \nday and night, requiring excessive streetlights (many merchants say that\n Trades Ward at night is beautiful, \"when her streets are filled with \nthe stars of Waukeen\"). The Guild of Chandlers and Lamplighters keeps a \ntriple shift here at all times of the night, its streets filled with the\n bobbing lanterns of young lamplighters; the only more frequent sights \nin Trades Ward at night are the large and frequent watch patrols. While \ncursing, shoving, and minor street tussles are typical behavior within \nthis business district, the worst criminal offenses are theft, \nvandalism, and destruction of private property - the watch patrols are \nmore often needed to protect thieves from angry merchants than to stop \nrobberies!</p></div>\n<div class=\"paragraph-indent\"><p>The ward boundaries are defined by the \ncity walls and the City of the Dead on the east, and Andamaar's Street \nto the High Road on the north. The High Road and Snail Street border it \non the west until Shesstra's Street cuts east to the Way of the Dragon \nwhere it links with the northern boundary of Southern Ward. Due to its \ncentral nature and rambling boundaries, it is hard to traverse the city \nwithout passing through this ward at some point.</p></div>",
+    "proposed_entry": "With no distinct look to separate it \nfrom surrounding wards, Trades Ward is somewhat lost in terms of \nneighborhood identity. On the other hand, though it lacks in \nneighborhood \"feel,\" its sense of community in commerce occupies nearly \nevery building and person within the entire ward. Many of [location:9418490]'s \nmiddle class and merchant class live and work here.  \n  The busiest of wards due to all the \nconstant commercial work within its boundaries, Trades Ward is active \nday and night, requiring excessive streetlights (many merchants say that\n Trades Ward at night is beautiful, \"when her streets are filled with \nthe stars of Waukeen\"). The Guild of Chandlers and Lamplighters keeps a \ntriple shift here at all times of the night, its streets filled with the \nbobbing lanterns of young lamplighters; the only more frequent sights \nin Trades Ward at night are the large and frequent watch patrols. While \ncursing, shoving, and minor street tussles are typical behavior within \nthis business district, the worst criminal offenses are theft, \nvandalism, and destruction of private property - the watch patrols are \nmore often needed to protect thieves from angry merchants than to stop \nrobberies!  \n  The ward boundaries are defined by the \ncity walls and the [location:9438979|City of the Dead] on the east, and Andamaar's Street to \nthe High Road on the north. The High Road and Snail Street border it \non the west until Shesstra's Street cuts east to the Way of the Dragon \nwhere it links with the northern boundary of Southern Ward. Due to its \ncentral nature and rambling boundaries, it is hard to traverse the city \nwithout passing through this ward at some point.\n\n  The ward's commercial nature is further complicated by the presence of organized crime and the city's sprawling sewer system. While the streets are patrolled by the City Watch, the subterranean tunnels beneath the ward serve as a labyrinthine territory for various factions, including the [organisation:9419437|Xanathar Guild].",
+    "change_summary": "Added a concluding paragraph regarding the ward's connection to the sewer system and the presence of the Xanathar Guild's influence in the tunnels below.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431741,
+    "entity_kind": "character",
+    "entity_local_id": 2441403,
+    "entity_name": "Floon Blagmaar",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>Floon Blagmaar is a well-known figure in Waterdeep's social undercurrent, where charm and beauty can earn coin just as easily as a noble name. With wavy red-blond hair, aristocratic features, and an easy smile, Floon is frequently mistaken for his longtime friend Renaer Neverember—a resemblance that nearly cost him his life. Despite his good looks and access to elite parties, Floon is not of noble birth. He supports himself, in part as an escort, attending galas, dinners, and private events in the company of the city’s wealthy and powerful.\n\nHis affable nature and polished demeanor conceal a survivor’s instinct. Floon knows how to read a room, win favor, and disappear when danger arises. He was recently reported missing after being seen with Renaer Neverember; witnesses suggest he may have been ambushed by ruffians associated with the Zhentarim.</p>",
+    "proposed_entry": "Floon Blagmaar is a well-known figure in [location:9418490|Waterdeep]'s social undercurrent, where charm and beauty can earn coin just as easily as a noble name. With wavy red-blond hair, aristocratic features, and an easy smile, Floon is frequently mistaken for his longtime friend [character:9431743|Renaer Neverember]—a resemblance that nearly cost him his life. Despite his good looks and access to elite parties, Floon is not of noble birth. He supports himself, in part as an escort, attending galas, dinners, and private events in the company of the city’s wealthy and powerful.\n\nHis affable nature and polished demeanor conceal a survivor’s instinct. Floon knows how to read a room, win favor, and disappear when danger arises. He was recently the victim of a kidnapping after being jumped in the streets alongside Renaer Neverember by members of the [organisation:9419438|Zhentarim]. Due to the chaos of the ambush, the [organisation:9419437|Xanathar Guild] mistook him for Renaer and snatched him, taking him to a [location:9437421|Zhentarim warehouse] in the [location:9431893|North Ward]. While the City Watch has refused to search the sewers for him, dismissing him as a potential spy, his fate remains tied to the search for the [item:9432044|Stone of Golorr].",
+    "change_summary": "Updated synopsis to reflect that Floon was kidnapped by the Xanathar Guild after being mistaken for Renaer Neverember, and noted the City Watch's refusal to search for him.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Renaer Neverember",
+        "relation": "Friend of",
+        "attitude": 50,
+        "reason": "Renaer recounted being jumped in the streets with Floon two nights prior to the warehouse investigation."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9431743,
+        "target_name": "Renaer Neverember",
+        "previous_relation": {
+          "id": 1051714,
+          "owner_id": 9431741,
+          "target_id": 9431743,
+          "relation": "Friend of",
+          "attitude": 50,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-27T01:02:47.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-27T01:02:47.000000Z"
+        }
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431743,
+    "entity_kind": "character",
+    "entity_local_id": 2441404,
+    "entity_name": "Renaer Neverember",
+    "source_journal": "2023/05/16 - The warehouse investigation & sewer descent",
+    "previous_entry": "<p>Renaer is the estranged son of <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/dagult-neverember-person\">Dagult Neverember</a>, the former Open Lord of Waterdeep and the current Lord of <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/neverwinter-settlement\">Neverwinter</a>.\n Father and son detest one another. and Renaer is least happy when he \nfinds himself forced to deal with some mess his father left behind.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>Qualities that both share include striking good looks, a love of drink, \nand a flair for diplomacy. What Renaer lacks is his father's \nbelligerence, ill temper, and bad judgment.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>Renaer lives off a sizable inheritance left to him by his mother, <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/alethea-brandath-person\">Alethea Brandath</a>. Approaching middle age, he has given up adventuring and \"settled down\" somewhat. As a member of the [organisation:9419383]<span class=\"private-article article-unlinked\"></span>,\n he spends a lot of time defending Waterdavians against those who, like \nhis father, would deprive them of their coin and rights.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>He owns <a class=\"article-explorer-link\" data-toggle=\"tooltip\" title=\"\" href=\"https://www.worldanvil.com/w/waterdeep3A-dragon-heist-emishmemy/a/brandarthall-landmark\">Brandarthall</a>, a\n fourstory residence in the [location:9431883]. Renaer spends as little time there\n as possible, however, since it's constantly under surveillance by spies\n loyal to his father. His friends have an open invitation to use the \nhouse as they please, while Renaer spends most of his free time in \ntaverns and festhalls.\n<span class=\"line-spacer d-block\"> </span>\n</p><p>Some believe that Renaer's estrangement from his father is nothing but \nan act. and that anyone who bears the Neverember name is an enemy of [location:9418490]. Renaer just shakes his head at such accusations and gets on \nwith his life. He has many powerful friends to watch his back.\n</p>",
+    "proposed_entry": "Renaer is the estranged son of [character:9457192|Dagult Neverember], the former Open Lord of Waterdeep and the current Lord of Neverwinter. Father and son detest one another. Renaer is least happy when he finds himself forced to deal with some mess his father left behind. \n\nQualities that both share include striking good looks, a love of drink, and a flair for diplomacy. What Renaer lacks is his father's belligerence, ill temper, and bad judgment. \n\nRenaer lives off a sizable inheritance left to him by his mother, Alethea Brandath. Approaching middle age, he has given up adventuring and \"settled down\" somewhat. As a member of the [organisation:9419383], he spends a lot of time defending Waterdavians against those who, like his father, would deprive them of their coin and rights. \n\nHe owns [location:9443317|Brandarthall], a four-story residence in the [location:9431883]. Renaer spends as little time there as possible, however, since it's constantly under surveillance by spies loyal to his father. His friends have an open invitation to use the house as they please, while Renaer spends most of his free time in taverns and festhalls. \n\nSome believe that Renaer's estrangement from his father is nothing but an act, and that anyone who bears the Neverember name is an enemy of [location:9418490]. Renaer just shakes his head at such accusations and gets on with his life. He has many powerful friends to watch his back. \n\nRecently, Renaer was kidnapped by [organisation:9419438|Zhentarim] thugs who were searching for the [item:9432044|Stone of Golorr] in connection to alleged embezzlement by his father. He was discovered by a group of adventurers hiding in a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward]. During the rescue, it was revealed that his friend [character:9431741|Floon] was also abducted by the [organisation:9419437|Xanathar Guild] in the confusion.",
+    "change_summary": "Updated the synopsis to include Renaer's recent kidnapping by the Zhentarim and his rescue by the party, as well as the abduction of his friend Floon.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Floon",
+        "relation": "friend of",
+        "attitude": 0,
+        "reason": "The session notes identify Floon as Renaer's friend who was kidnapped alongside him."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9438977,
+    "entity_kind": "location",
+    "entity_local_id": 2126521,
+    "entity_name": "Book Wyrm's Treasure",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>The front of this bookstore is adorned with a charming sign of a gold \ndragon curled around a treasure hoard of books and scrolls. Inside, the \nshop is decorated with beautiful hardwood, and the earthy scent of old \nbooks permeates the air. The library fills two floors of this \nthree-story building, and it somehow seems to contain more shelves than \nthe building should be able to hold.\n</p><p>The shop is managed by a short dragonborn of gold dragon ancestry named [character:9442098]<b> the Page-Turner</b>, who lives on the third floor. [character:9442098], a member of the Watchful Order of Magists and Protectors, is a mage.\n</p><p>The shop contains books of all sorts. In addition, [character:9442098]\n has a small collection of spellbooks and charges wizards to copy spells\n from them. He can scribe any of these spells as a scroll, and allows \nthose with <a href=\"https://waterdeep.fandom.com/wiki/Watchful_Order_of_Magists_and_Protectors\" title=\"Watchful Order of Magists and Protectors\">guild</a> approval to copy spells from their source spellbooks for half this price.</p>",
+    "proposed_entry": "<p>The front of this bookstore is adorned with a charming sign of a gold dragon curled around a treasure hoard of books and scrolls. Inside, the shop is decorated with beautiful hardwood, and the earthy scent of old books permeates the air. The library fills two floors of this three-story building, and it somehow seems to contain more shelves than the building should be able to hold.</p>\n<p>The shop is managed by a short dragonborn of gold dragon ancestry named [character:9442098] the Page-Turner, who lives on the third floor. [character:9442098], a member of the Watchful Order of Magists and Protectors, is a mage.</p>\n<p>The shop contains books of all sorts. In addition, [character:9442098] has a small collection of spellbooks and charges wizards to copy spells from them. He can scribe any of these spells as a scroll, and allows those with guild approval to copy spells from their source spellbooks for half this price.</p>",
+    "change_summary": "No changes were made as the session notes did not contain any information regarding the Book Wyrm's Treasure.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419015,
+    "entity_kind": "location",
+    "entity_local_id": 2121756,
+    "entity_name": "Trollskull Alley",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p><span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\">Trollskull Alley</span></span> is a narrow, character-rich street in [location:9418490]’s North Ward, best known as the home of the famously restored [location:9418605]<span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\"></span></span>. Once a quieter, somewhat run-down part of the city, the alley has become a lively hub for adventurers, craftsmen, and eccentrics drawn to the revitalized manor and its ever-changing clientele. Its buildings are a mix of old stone townhouses and quirky shops, with an atmosphere that shifts between cozy neighborhood charm and the occasional burst of chaos when adventurers return from their latest misadventures. Though still part of a relatively safe district, Trollskull Alley has a habit of attracting strange events, secret meetings, and the attention of powerful factions who keep an eye on anyone bold enough to make the manor their base of operations.</p>",
+    "proposed_entry": "<p>Trollskull Alley is a narrow, character-rich street in [location:9418490]’s [location:9431893|North Ward], best known as the home of the famously restored [location:9418605]. Once a quieter, somewhat run-down part of the city, the alley has become a lively hub for adventurers, craftsmen, and eccentrics drawn to the revitalized manor and its ever-changing clientele. Its buildings are a mix of old stone townhouses and quirky shops, with an atmosphere that shifts between cozy neighborhood charm and the occasional burst of chaos when adventurers return from their latest misadventures.</p><p>Though still part of a relatively safe district, Trollskull Alley has a habit of attracting strange events, secret meetings, and the attention of powerful factions who keep an eye on anyone bold enough to make the manor their base of operations. Recently, the area has seen a shift in activity as [organisation:9419162|the party] took ownership of the manor, beginning a significant renovation project on the dilapidated property. The neighborhood now also contends with the presence of a resident poltergeist named Leif, a neat-freak spirit who demands the inn be kept in pristine condition.</p>",
+    "change_summary": "Added details regarding the party's recent acquisition of Trollskull Manor and the presence of a resident poltergeist named Leif.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423629,
+    "entity_kind": "character",
+    "entity_local_id": 2439003,
+    "entity_name": "Orlum",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat. During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half. During a recent investigation of a [location:9437421|Zhentarim Warehouse], Orlum successfully looted approximately 140 lbs of silver, a weight that left him heavily encumbered during the party's subsequent descent into the sewers.</p>",
+    "proposed_entry": "<p>[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat.</p><p>During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half. During a recent investigation of a [location:9437421|Zhentarim Warehouse], Orlum successfully looted approximately 140 lbs of silver, a weight that left him heavily encumbered during the party's subsequent descent into the sewers. More recently, while navigating the [location:9418490|Waterdeep] sewers, Orlum faced a Mind Flayer named [character:9432251|Nihiloor]. Orlum attempted to block the Mind Flayer's path but was briefly dominated by its overwhelming psychic powers. However, he managed to break free of the mind control and decisively killed a half-orc named [character:9432250|Grum'shar] in a single hit.</p>",
+    "change_summary": "Added details regarding Orlum's encounter with the Mind Flayer Nihiloor and his subsequent combat against the half-orc Grum'shar in the sewers.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Nihiloor",
+        "relation": "Enemy",
+        "attitude": -80,
+        "reason": "Nihiloor used psychic powers to dominate Orlum's mind during a confrontation in the sewers."
+      },
+      {
+        "action": "create",
+        "target_name": "Grum'shar",
+        "relation": "Enemy",
+        "attitude": -100,
+        "reason": "Orlum decisively killed Grum'shar in a single hit after breaking free from mind control."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9432251,
+        "target_name": "Nihiloor"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418259,
+    "entity_kind": "character",
+    "entity_local_id": 2437494,
+    "entity_name": "Volothamp Geddarm",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Volothamp Geddarm —better known simply as Volo—is a flamboyant, overly confident, and frequently unreliable travel writer, “expert,” and self-styled explorer of [location:9418260]. He is famous across the [location:9418394] for publishing sensational guidebooks such as Volo’s Guide to Monsters and Volo’s Guide to Waterdeep, which blend genuine observations with wild speculation, exaggerated anecdotes, and the occasional outright fabrication. Despite his tendency to overstate his expertise and underestimate danger, Volo has a knack for surviving situations that should absolutely kill him, often thanks to luck or intervention from more competent companions. He is charismatic, talkative to a fault, and always eager to turn any encounter into material for his next book—whether or not his subjects agree.\n\nRecently, Volo has been dealing with writer's block and has sought the help of adventurers to locate his friend, Floon Blagmaar, who has gone missing. While he presents himself as a \"chronicler, wizard, and celebrity,\" he is known by many as a braggart and notorious embellisher, though some perceive him to be soft-hearted and deeply caring toward his friends.</p>",
+    "proposed_entry": "<p>Volothamp Geddarm —better known simply as Volo—is a flamboyant, overly confident, and frequently unreliable travel writer, “expert,” and self-styled explorer of [location:9418260]. He is famous across the [location:9418394] for publishing sensational guidebooks such as Volo’s Guide to Monsters and Volo’s Guide to [location:9418490|Waterdeep], which blend genuine observations with wild speculation, exaggerated anecdotes, and the occasional outright fabrication. Despite his tendency to overstate his expertise and underestimate danger, Volo has a knack for surviving situations that should absolutely kill him, often thanks to luck or intervention from more competent companions. He is charismatic, talkative to a fault, and always eager to turn any encounter into material for his next book—whether or not his subjects agree.</p>\n\n<p>Recently, Volo has been dealing with writer's block and has sought the help of adventurers to locate his friend, Floon Blagmaar, who has gone missing. While he presents himself as a \"chronicler, wizard, and celebrity,\" he is known by many as a braggart and notorious embellisher, though some perceive him to be soft-hearted and deeply caring toward his friends. Following the successful rescue of [character:9431741|Floon Blagmaar] from the [organisation:9419437|Xanathar Guild], Volo revealed himself to be financially strapped while awaiting book royalties. In lieu of gold, he traded the party the deed to [location:418605|Trollskull Manor], a property he purchased to research his upcoming work, <em>Volo’s Guide to Spirits and Specters</em>.</p>",
+    "change_summary": "Updated the synopsis to include Volo's recent involvement in the rescue of Floon Blagmaar and his trade of the deed to Trollskull Manor for the party's services.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Floon Blagmaar",
+        "relation": "Friend of",
+        "attitude": 50,
+        "reason": "Volo successfully reunited with Floon after the latter was rescued from the Xanathar Guild."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9431741,
+        "target_name": "Floon Blagmaar",
+        "previous_relation": {
+          "id": 1051713,
+          "owner_id": 9418259,
+          "target_id": 9431741,
+          "relation": "Friend of",
+          "attitude": 50,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-27T01:00:13.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-27T01:00:13.000000Z"
+        }
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9442091,
+    "entity_kind": "location",
+    "entity_local_id": 2127336,
+    "entity_name": "Steam and Steel",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>During daylight hours, smoke and steam billow from the many windows \naround this indoor forge where metal weapons, armour, and tools are \nmade. The forge is owned an operated by a married couple: fire genasi \nnamed [character:9442093] and a water genasi named [character:9442092]. Both are members of the Most Careful Order of Skilled Smiths &amp; Metalforgers.</p><p> As an armourer, [character:9442092] also belongs to the Splendid Order of Armorers, Locksmiths, and Finesmiths.\n</p><p>[character:9442093] tends the forge and is an expert weaponsmith. He claims \ndescent from the efreet of Calimshan and is prone to extreme mood \nswings.\n</p><p>[character:9442092] worships Eldath, god of peace, and uses his magic to quench \nhot steel. He is an expert armorsmith. [character:9442092] is laid back and speaks \nplainly. \n</p>",
+    "proposed_entry": "<p>During daylight hours, smoke and steam billow from the many windows around this indoor forge where metal weapons, armour, and tools are made. The forge is owned and operated by a married couple: fire genasi named [character:9442093] and a water genasi named [character:9442092]. Both are members of the Most Careful Order of Skilled Smiths & Metalforgers. As an armourer, [character:9442092] also belongs to the Splendid Order of Armorers, Locksmiths, and Finesmiths.</p><p>[character:9442093] tends the forge and is an expert weaponsmith. He claims descent from the efreet of Calimshan and is prone to extreme mood swings. [character:9442092] worships Eldath, god of peace, and uses his magic to quench hot steel. He is an expert armorsmith. [character:9442092] is laid back and speaks plainly.</p>",
+    "change_summary": "No changes were made as the session notes did not contain any information regarding Steam and Steel.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9442092,
+    "entity_kind": "character",
+    "entity_local_id": 2444130,
+    "entity_name": "Avi",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Avi is a water genasi and a master armor smith that belongs to the \nSplendid Order of Armorers, Locksmiths, and Finesmiths. He worships \nEldath, the god of peace, and uses his magic to quench hot steel. He is \nlaid back and optimistic, balancing out his husband [character:9442093]'s personality. </p>",
+    "proposed_entry": "Avi is a water genasi and a master armor smith that belongs to the Splendid Order of Armorers, Locksmiths, and Finesmiths. He worships Eldath, the god of peace, and uses his magic to quench hot steel. He is laid back and optimistic, balancing out his husband [character:9442093]'s personality.\n\nRecently, Avi has been traveling with [organisation:9419162|the party] through the [location:9418490|Waterdeep] sewers and the [location:9418606|Dock Ward]. The group successfully rescued [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout and has since acquired the deed to [location:418605|Trollskull Manor] in [location:9419015|Trollskull Alley].",
+    "change_summary": "Added recent group activities including the rescue of Floon Blagmaar and the acquisition of Trollskull Manor.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9432250,
+    "entity_kind": "character",
+    "entity_local_id": 2441553,
+    "entity_name": "Grum’shar",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>A half-orc wizard that was working with the [organisation:9419437].  He helped [character:9432251] kidnap and torture [character:9431741]. [character:9423629] killed him with a single hit.</p>",
+    "proposed_entry": "<p>A half-orc wizard that was working with the [organisation:9419437]. He helped [character:9432251|Nihiloor] kidnap and torture [character:9431741|Floon Blagmaar]. During a confrontation in a [organisation:9419437|Xanathar Guild] hideout, Grum'shar was seen conjuring flames in his hand while holding [character:9431741|Floon] captive. He was eventually killed by [character:9423629|Orlum] with a single hit after breaking free of a psychic domination. [character:9419631|Raucous] later looted his body and claimed his spellbook.</p>",
+    "change_summary": "Updated the synopsis to include his specific actions during the kidnapping (conjuring flames) and the fact that his spellbook was looted by Raucous.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Nihiloor",
+        "relation": "Henchman of",
+        "attitude": 50,
+        "reason": "Notes state he worked with Nihiloor to kidnap and torture Floon Blagmaar on behalf of the Xanathar Guild."
+      },
+      {
+        "action": "create",
+        "target_name": "Orlum",
+        "relation": "Killed by",
+        "attitude": -100,
+        "reason": "Orlum broke free of mind control and decisively killed Grum'shar in a single hit."
+      },
+      {
+        "action": "create",
+        "target_name": "Raucous",
+        "relation": "Looted by",
+        "attitude": -50,
+        "reason": "Raucous looted Grum'shar's body and claimed his spellbook."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9432251,
+        "target_name": "Nihiloor"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9423629,
+        "target_name": "Orlum"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9419631,
+        "target_name": "Raucous"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9432251,
+    "entity_kind": "character",
+    "entity_local_id": 2441554,
+    "entity_name": "Nihiloor",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>A mindflayer working with the [organisation:9419437]. He kidnapped and tortured [character:9431741].</p>",
+    "proposed_entry": "<p>A mindflayer working with the [organisation:9419437|Xanathar Guild]. He orchestrated the kidnapping of [character:9431741|Floon Blagmaar], who was found being held captive, tortured, and beaten in a hidden room within a guild hideout.</p><p>During a confrontation with [organisation:9419162|the party], [character:9432251|Nihiloor] displayed overwhelming psychic powers, using them to dominate [character:9423629|Orlum] to clear his path. He also possessed a stone eye necklace and a pet [creature:9432254|Intellect Devourer]. After activating a magical portal with the stone eye key, he successfully escaped the hideout.</p>",
+    "change_summary": "Expanded the synopsis to include his role in the kidnapping of Floon Blagmaar, his use of psychic powers against Orlum, and his escape via a magical portal.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Floon Blagmaar",
+        "relation": "Kidnapper of",
+        "attitude": -100,
+        "reason": "Nihiloor orchestrated the kidnapping and torture of Floon Blagmaar on behalf of the Xanathar Guild."
+      },
+      {
+        "action": "create",
+        "target_name": "Orlum",
+        "relation": "Psychically dominated",
+        "attitude": -50,
+        "reason": "Nihiloor used his psychic powers to dominate Orlum's mind to clear his path during an escape."
+      },
+      {
+        "action": "create",
+        "target_name": "Eoula",
+        "relation": "Antagonist of",
+        "attitude": -50,
+        "reason": "Nihiloor effortlessly tossed Eula aside when she attempted to snatch his stone eye necklace."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431741,
+        "target_name": "Floon Blagmaar"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9423629,
+        "target_name": "Orlum"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431741,
+    "entity_kind": "character",
+    "entity_local_id": 2441403,
+    "entity_name": "Floon Blagmaar",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Floon Blagmaar is a well-known figure in [location:9418490|Waterdeep]'s social undercurrent, where charm and beauty can earn coin just as easily as a noble name. With wavy red-blond hair, aristocratic features, and an easy smile, Floon is frequently mistaken for his longtime friend [character:9431743|Renaer Neverember]—a resemblance that nearly cost him his life. Despite his good looks and access to elite parties, Floon is not of noble birth. He supports himself, in part as an escort, attending galas, dinners, and private events in the company of the city’s wealthy and powerful.\n\nHis affable nature and polished demeanor conceal a survivor’s instinct. Floon knows how to read a room, win favor, and disappear when danger arises. He was recently the victim of a kidnapping after being jumped in the streets alongside Renaer Neverember by members of the [organisation:9419438|Zhentarim]. Due to the chaos of the ambush, the [organisation:9419437|Xanathar Guild] mistook him for Renaer and snatched him, taking him to a [location:9437421|Zhentarim warehouse] in the [location:9431893|North Ward]. While the City Watch has refused to search the sewers for him, dismissing him as a potential spy, his fate remains tied to the search for the [item:9432044|Stone of Golorr].</p>",
+    "proposed_entry": "<p>Floon Blagmaar is a well-known figure in [location:9418490|Waterdeep]'s social undercurrent, where charm and beauty can earn coin just as easily as a noble name. With wavy red-blond hair, aristocratic features, and an easy smile, Floon is frequently mistaken for his longtime friend [character:9431743|Renaer Neverember]—a resemblance that nearly cost him his life. Despite his good looks and access to elite parties, Floon is not of noble birth. He supports himself, in part as an escort, attending galas, dinners, and private events in the company of the city’s wealthy and powerful.</p>\n\n<p>His affable nature and polished demeanor conceal a survivor’s instinct. Floon knows how to read a room, win favor, and disappear when danger arises. He was recently the victim of a kidnapping after being jumped in the streets alongside Renaer Neverember by members of the [organisation:9419438|Zhentarim]. Due to the chaos of the ambush, the [organisation:9419437|Xanathar Guild] mistook him for Renaer and snatched him, taking him to a [location:9437421|Zhentarim warehouse] in the [location:9431893|North Ward].</p>\n\n<p>Floon was recently rescued from the [organisation:9419437|Xanathar Guild] hideout, where he had been held captive, tortured, and beaten by a half-orc named [character:9432250|Grum’shar] under the direction of the Mind Flayer [character:9432251|Nihiloor]. After being stabilized and healed by [organisation:9419162|the party], he was escorted back to the [location:9431699|Yawning Portal] to reunite with his friend, [character:9418259|Volothamp Geddarm].</p>",
+    "change_summary": "Updated the synopsis to include Floon's rescue from the Xanathar Guild hideout, his treatment by the party, and his reunion with Volothamp Geddarm.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Volothamp Geddarm",
+        "relation": "Friend",
+        "attitude": 50,
+        "reason": "Floon was escorted back to the Yawning Portal to reunite with him after being rescued."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9418259,
+        "target_name": "Volothamp Geddarm"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9432255,
+    "entity_kind": "character",
+    "entity_local_id": 2441556,
+    "entity_name": "Kylynne Silmerhelve",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Magistrate Kylynne Silmerhelve is a city official who oversees property transactions and business registrations in the [location:9431892]. She presided over the legal transfer of [location:9418605] to the party following their rescue of [character:9431741].\n During the meeting, she conducted a formal interview, walking the party\n through a checklist of their intended uses for the property and \ninforming them of the required fees and documentation. Her demeanor was \nprofessional and by-the-book, providing the group with a clear, if \ndaunting, overview of the bureaucratic process for establishing a \nmixed-use residence and tavern.\n<span class=\"line-spacer d-block\"> </span>\nThough not particularly warm, Kylynne demonstrated no hostility, and her\n impartial efficiency left a neutral impression on the group. Her role \nmarked the party’s first formal interaction with [location:9418490]’s administrative infrastructure.</p>",
+    "proposed_entry": "<p>Magistrate Kylynne Silmerhelve is a city official who oversees property transactions and business registrations in the [location:9431892]. She presided over the legal transfer of [location:9418605] to the party following their rescue of [character:9431741].</p>\n<p>During the meeting, she conducted a formal interview, walking the party through a checklist of their intended uses for the property and informing them of the required fees and documentation. Her demeanor was professional and by-the-book, providing the group with a clear, if daunting, overview of the bureaucratic process for establishing a mixed-use residence and tavern. During the deed transfer, she enforced a 25 gp estate tax and issued a warning regarding future guild fees should the party reopen the property as a functioning inn.</p>\n<p>Though not particularly warm, Kylynne demonstrated no hostility, and her impartial efficiency left a neutral impression on the group. Her role marked the party’s first formal interaction with [location:9418490]’s administrative infrastructure.</p>",
+    "change_summary": "Updated the synopsis to include specific details from the deed transfer, including the 25 gp estate tax and the warning regarding future guild fees.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419465,
+    "entity_kind": "character",
+    "entity_local_id": 2437804,
+    "entity_name": "Xanathar",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Xanathar is a powerful beholder who rules the [organisation:9419437|Xanathar Guild] from the depths beneath [location:9418490|Waterdeep], serving as both its absolute master and its most volatile weakness. Obsessed with control, treasure, and above all else paranoia, Xanathar maintains a sprawling criminal empire that extends through every level of the city’s underworld—smuggling, extortion, assassination, and intelligence gathering all ultimately feeding back to its central, ever-watching eye. As a beholder, it possesses vast innate magical power and a terrifying array of eye rays, but its greatest threat to its own organization is its obsessive suspicion, as it constantly believes (often correctly) that its own lieutenants are plotting betrayal. This paranoia leads to frequent purges within the guild, making Xanathar both an immensely stable source of power and an unpredictable, dangerous master. The guild is known to engage in violent skirmishes with rival factions, such as the [organisation:9419438|Zhentarim], for control of the city's underworld. Recently, the guild has been actively hunting for the [item:9432044|Stone of Golorr], an artifact that was previously in their possession before being stolen.</p>",
+    "proposed_entry": "Xanathar is a powerful beholder who rules the [organisation:9419437|Xanathar Guild] from the depths beneath [location:9418490|Waterdeep], serving as both its absolute master and its most volatile weakness. Obsessed with control, treasure, and above all else paranoia, Xanathar maintains a sprawling criminal empire that extends through every level of the city’s underworld—smuggling, extortion, assassination, and intelligence gathering all ultimately feeding back to its central, ever-watching eye. As a beholder, it possesses vast innate magical power and a terrifying array of eye rays, but its greatest threat to its own organization is its obsessive suspicion, as it constantly believes (often correctly) that its own lieutenants are plotting betrayal. This paranoia leads to frequent purges within the guild, making Xanathar both an immensely stable source of power and an unpredictable, dangerous master.\n\nThe guild is known to engage in violent skirmishes with rival factions, such as the [organisation:9419438|Zhentarim], for control of the city's underworld. Recently, the guild has been actively hunting for the [item:9432044|Stone of Golorr], an artifact that was previously in their possession before being stolen. The guild's reach is further evidenced by its use of high-level assets, such as the Mind Flayer [character:9432251|Nihiloor], who was recently deployed to orchestrate the kidnapping and torture of [character:9431741|Floon Blagmaar].",
+    "change_summary": "Added a specific mention of the guild's use of the Mind Flayer Nihiloor to orchestrate the kidnapping of Floon Blagmaar as evidence of the guild's reach.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Nihiloor",
+        "relation": "Employer of",
+        "attitude": 50,
+        "reason": "Nihiloor orchestrated a kidnapping on behalf of the [organisation:9419437|Xanathar Guild]."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9432251,
+        "target_name": "Nihiloor"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425235,
+    "entity_kind": "character",
+    "entity_local_id": 2439421,
+    "entity_name": "Alyzira Galanodel",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster.\n\nRecently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining the party's presence and helping to avoid legal repercussions for the group.</p>",
+    "proposed_entry": "<p>[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster.</p>\n\n<p>Recently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining the party's presence and helping to avoid legal repercussions for the group.</p>\n\n<p>During a recent excursion into the [location:9418490|Waterdeep] sewers, [character:9425235|Alyzira] was briefly stunned and mentally incapacitated when a [creature:9432254|Intellect Devourer] leaped onto her during a skirmish with the [organisation:9419437|Xanathar Guild]. Following the battle, she gathered the remaining coin and valuables from the site. She also played a pivotal role in securing the party's new base, using her magic to probe and calm a resident poltergeist named Leif within [location:9418605|Trollskull Manor], successfully negotiating the spirit's demands for a thorough cleaning of the property.</p>",
+    "change_summary": "Added details regarding her encounter with an Intellect Devourer in the sewers and her interaction with the poltergeist Leif at Trollskull Manor.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Leif",
+        "relation": "Negotiated with",
+        "attitude": 0,
+        "reason": "Alyzira used her magic to calm the poltergeist and negotiated his demands for cleaning the manor."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425236,
+    "entity_kind": "character",
+    "entity_local_id": 2439422,
+    "entity_name": "Eoula Tealeaf",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm.\n\nDuring a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr].</p>",
+    "proposed_entry": "<p>[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm.</p>\n\n<p>During a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr].</p>\n\n<p>More recently, [character:9425236|Eoula] navigated the [location:9418490|Waterdeep] sewers and successfully rescued [character:9431741|Floon] from the clutches of the [organisation:9419437|Xanathar Guild]. During the confrontation, she attempted to snatch a stone eye necklace from the Mind Flayer [character:9432251|Nihiloor] but was tossed aside as he escaped through a magical portal. Following the rescue, [character:9425236|Eoula] initially expressed a desire for signed copies of [character:9418259|Volothamp Geddarm]’s books as payment for the rescue, though she ultimately agreed to the group's acquisition of [location:9418605|Trollskull Manor].</p>",
+    "change_summary": "Added details regarding the rescue of Floon, the confrontation with Nihiloor, and her interaction with Volo regarding book payments.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Tyde Undertow",
+        "relation": "Ally",
+        "attitude": 50,
+        "reason": "Joined the party together in the sewers."
+      },
+      {
+        "action": "update",
+        "target_name": "Renaer Neverember",
+        "relation": "Rescued",
+        "attitude": 0,
+        "reason": "Existing relationship maintained; no new interactions."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9425238,
+        "target_name": "Tyde Undertow"
+      },
+      {
+        "action_taken": "updated",
+        "target_id": 9431743,
+        "target_name": "Renaer Neverember",
+        "previous_relation": {
+          "id": 1051756,
+          "owner_id": 9425236,
+          "target_id": 9431743,
+          "relation": "Rescued",
+          "attitude": 0,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-27T02:20:50.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-27T02:20:50.000000Z"
+        }
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9431893,
+    "entity_kind": "location",
+    "entity_local_id": 2124867,
+    "entity_name": "North Ward",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Home to the many wealthier middle class, lesser nobles, and well-to-do merchants, North Ward is a quiet haven from the hustle and bustle of [location:9418490]'s commercial endeavors. Dominated by residences, this ward tends toward insular, walled villas and distinctly individual stone and timber houses. While, on the surface, it seems tedious compared to the rest of the city, North Ward seethes with intrigues of far-reaching effects hidden just beneath the surface. There is little for visitors to do within this ward beyond gawk at the marvelous houses and towers unless they are already linked into the nobles' or guilds' politics.  The city watch keeps this ward under tight control, suffering noise and disruption only from the local nobles and dandies while rousting noisy trespassers. Though lightly armed, the watch maintains a constant presence in North Ward, making it as safe as one can be in a city of this size. If ever a place \"closes down upon the cobbles at dusk,\" North Ward fits the bill.  North Ward's western boundaries consist on the High Road with a western arm extending to Shield Street along Vondril Street and Trader's Way. Andamaar's Street marks the southern border, while the walls of the [location:9438979|City of the Dead] and the Trollwall close out the rest of the ward. Despite its reputation for safety, the ward's alleys and warehouses can become the site of violent turf wars between criminal organizations like the [organisation:9419438|Zhentarim] and the [organisation:9419437|Xanathar Guild].</p>",
+    "proposed_entry": "<p>Home to the many wealthier middle class, lesser nobles, and well-to-do merchants, North Ward is a quiet haven from the hustle and bustle of [location:9418490]'s commercial endeavors. Dominated by residences, this ward tends toward insular, walled villas and distinctly individual stone and timber houses. While, on the surface, it seems tedious compared to the rest of the city, North Ward seethes with intrigues of far-reaching effects hidden just beneath the surface. There is little for visitors to do within this ward beyond gawk at the marvelous houses and towers unless they are already linked into the nobles' or guilds' politics. The city watch keeps this ward under tight control, suffering noise and disruption only from the local nobles and dandies while rousting noisy trespassers. Though lightly armed, the watch maintains a constant presence in North Ward, making it as safe as one can be in a city of this size. If ever a place \"closes down upon the cobbles at dusk,\" North Ward fits the bill.</p><p>North Ward's western boundaries consist on the High Road with a western arm extending to Shield Street along Vondril Street and Trader's Way. Andamaar's Street marks the southern border, while the walls of the [location:9438979|City of the Dead] and the Trollwall close out the rest of the ward. Despite its reputation for safety, the ward's alleys and warehouses can become the site of violent turf wars between criminal organizations like the [organisation:9419438|Zhentarim] and the [organisation:9419437|Xanathar Guild].</p><p>The ward is also home to [location:9431893|North Ward] property holdings, including [location:418605|Trollskull Manor], a majestic four-story property recently acquired by [organisation:9419162|the party] via a legal deed transfer overseen by Magistrate [character:9432255|Kylynne Silmerhelve].</p>",
+    "change_summary": "Added information regarding the acquisition of [location:418605|Trollskull Manor] within the ward and the involvement of Magistrate [character:9432255|Kylynne Silmerhelve].",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425238,
+    "entity_kind": "character",
+    "entity_local_id": 2439423,
+    "entity_name": "Tyde Undertow",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>\n <b>[character:9425238|Tyde Undertow]</b> is a striking, fey-touched or tiefling-like druid whose appearance beautifully bridges the gap between the wild earth and the deep ocean with vibrant blue skin transitioning into soft pink and silver tones across their limbs. \nThough her favorite wildshape forms for a fierce battle are a predatory wolf or a snapping crocodile, [character:9425238|Tyde]'s greatest challenge isn't a formidable enemy, but a simple map. Possessing absolutely zero sense of direction, she is blissfully incapable of getting from point A to point B without a guide, turning every simple journey into an accidental detour through the wilderness.\n\n</p><p>Was lost in the sewers of [location:9418490] when [organisation:9419162] came across them looking for [character:9431741]. Helped the party rescue [character:9431741] from [character:9432251] and [character:9432250] and quickly became friends and joined [organisation:9419162].</p>",
+    "proposed_entry": "<p>[character:9425238|Tyde Undertow] is a striking, fey-touched or tiefling-like druid whose appearance beautifully bridges the gap between the wild earth and the deep ocean with vibrant blue skin transitioning into soft pink and silver tones across their limbs. Though her favorite wildshape forms for a fierce battle are a predatory wolf or a snapping crocodile, [character:9425238|Tyde]'s greatest challenge isn't a formidable enemy, but a simple map. Possessing absolutely zero sense of direction, she is blissfully incapable of getting from point A to point B without a guide, turning every simple journey into an accidental detour through the wilderness.</p>\n\n<p>Tyde was found lost in the sewers of [location:9418490|Waterdeep] while searching for nature. After being spotted by [organisation:9419162|the party], she joined their ranks. She assisted the group in rescuing [character:9431741|Floon Blagmaar] from the clutches of [character:9432251|Nihiloor] and [character:9432250|Grum’shar] within a [organisation:9419437|Xanathar Guild] hideout. During the skirmish, she managed to scramble out of the path of a [creature:9432254|Intellect Devourer] before the party defeated it. She is now a member of [organisation:9419162|the party] and a resident of [location:9418605|Trollskull Manor].</p>",
+    "change_summary": "Updated the synopsis to include Tyde's specific actions during the sewer rescue, including her interaction with the Intellect Devourer and her current status as a resident of Trollskull Manor.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Floon Blagmaar",
+        "relation": "Ally",
+        "attitude": 50,
+        "reason": "Tyde joined the party and helped rescue Floon from captivity."
+      },
+      {
+        "action": "create",
+        "target_name": "Nihiloor",
+        "relation": "Enemy",
+        "attitude": -80,
+        "reason": "Tyde helped the party fight and rescue Floon from Nihiloor's captivity."
+      },
+      {
+        "action": "create",
+        "target_name": "Grum’shar",
+        "relation": "Enemy",
+        "attitude": -80,
+        "reason": "Tyde helped the party fight and rescue Floon from Grum’shar's captivity."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431741,
+        "target_name": "Floon Blagmaar"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9432251,
+        "target_name": "Nihiloor"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9432250,
+        "target_name": "Grum’shar"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418605,
+    "entity_kind": "location",
+    "entity_local_id": 2121684,
+    "entity_name": "Trollskull Manor",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p><span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\">Trollskull Manor</span></span> is a historic, formerly abandoned townhouse and tavern located in [location:9419015]<span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\"> </span></span>within [location:9418490]’s North Ward. Once a lively neighborhood tavern known as the “Trollskull,” the building fell into disrepair after a tragic fire and years of neglect, becoming a decaying but character-filled ruin with a distinctive troll skull mounted on its roof. In its modern state, it has been reclaimed and restored by adventurers, transforming it into a functional base of operations, tavern, and gathering place for allies, contacts, and faction agents. Its rooms include common halls, private chambers, and upper floors that often serve as living quarters, meeting spaces, and storage for quests and loot. Despite its renovation, Trollskull Manor retains a reputation for attracting unusual patrons, strange occurrences, and the kind of trouble that tends to follow adventuring parties wherever they go.</p>",
+    "proposed_entry": "<p>Trollskull Manor is a historic, formerly abandoned townhouse and tavern located in [location:9419015] within [location:9418490]’s [location:9431893|North Ward]. Once a lively neighborhood tavern known as the “Trollskull,” the building fell into disrepair after a tragic fire and years of neglect, becoming a decaying but character-filled ruin with a distinctive troll skull mounted on its roof. In its modern state, it has been reclaimed and restored by adventurers, transforming it into a functional base of operations, tavern, and gathering place for allies, contacts, and faction agents. Its rooms include common halls, private chambers, and upper floors that often serve as living quarters, meeting spaces, and storage for quests and loot.</p><p>The property was recently acquired by [organisation:9419162|the party] from [character:9418259|Volothamp Geddarm] following the rescue of [character:9431741|Floon Blagmaar]. While the manor is a majestic four-story property, it remains a significant renovation project. The rumors of a haunting were proven true upon the party's arrival; the manor is inhabited by a poltergeist who identifies as “Leif” (Lif). This ghost is a self-proclaimed neat-freak who has made it clear that he demands the messy, run-down inn be thoroughly cleaned.</p><p>Despite its renovation, Trollskull Manor retains a reputation for attracting unusual patrons, strange occurrences, and the kind of trouble that tends to follow adventuring parties wherever they go.</p>",
+    "change_summary": "Updated the synopsis to include the party's recent acquisition of the deed from Volo Geddarm and the discovery of the resident poltergeist, Leif.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Volothamp Geddarm",
+        "relation": "Former owner",
+        "attitude": 0,
+        "reason": "Volo sold the deed to the party as payment for rescuing Floon Blagmaar."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9418259,
+        "target_name": "Volothamp Geddarm"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419631,
+    "entity_kind": "character",
+    "entity_local_id": 2437854,
+    "entity_name": "Raucous",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch.</p>",
+    "proposed_entry": "<p>A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch.</p><p>Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:9418259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue.</p>",
+    "change_summary": "Added details regarding Raucous leading the rescue of Floon Blagmaar, looting a spellbook from Grum'shar, and leading the party to reunite Floon with Volothamp Geddarm.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Volothamp Geddarm",
+        "relation": "Associate",
+        "attitude": 50,
+        "reason": "Raucous led the party in escorting Floon to reunite with Volothamp."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9418259,
+        "target_name": "Volothamp Geddarm"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418490,
+    "entity_kind": "location",
+    "entity_local_id": 2121671,
+    "entity_name": "Waterdeep",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "previous_entry": "<p>Waterdeep —often called the City of Splendors—is one of the largest, richest, and most influential cities in the Forgotten Realms, a sprawling coastal metropolis where nobles, merchants, adventurers, and criminals all compete for power under a carefully balanced system of open governance and hidden influence. Ruled by the mysterious Lords of Waterdeep and publicly represented by the Open Lord, the city thrives on trade, magic, and politics, drawing in wealth and danger from across [location:9418260] through its vast harbor and strategic position on the [location:9418394]. Beneath its grand estates, bustling wards, and famed institutions lies a labyrinth of secrets: ancient ruins, hidden guild operations, and conspiracies that can shape the fate of nations. The city's various wards, such as the Castle Ward and the grim, shadow-filled Dock Ward, serve as the backdrop for intense factional violence between groups like the Xanathar Guild and the Zhentarim. Waterdeep is both a beacon of opportunity and a maze of intrigue, where fortunes are made quickly—but only by those clever enough to survive its many layers.</p>",
+    "proposed_entry": "<p>Waterdeep —often called the City of Splendors—is one of the largest, richest, and most influential cities in the Forgotten Realms, a sprawling coastal metropolis where nobles, merchants, adventurers, and criminals all compete for power under a carefully balanced system of open governance and hidden influence. Ruled by the mysterious Lords of Waterdeep and publicly represented by the Open Lord, the city thrives on trade, magic, and politics, drawing in wealth and danger from across [location:9418260] through its vast harbor and strategic position on the [location:9418394]. Beneath its grand estates, bustling wards, and famed institutions lies a labyrinth of secrets: ancient ruins, hidden guild operations, and conspiracies that can shape the fate of nations.</p><p>The city's various wards, such as the [location:9431892|Castle Ward] and the grim, shadow-filled [location:9418606|Dock Ward], serve as the backdrop for intense factional violence between groups like the [character:9419465|Xanathar] Guild and the Zhentarim. Waterdeep is both a beacon of opportunity and a maze of intrigue, where fortunes are made quickly—but only by those clever enough to survive its many layers. Recent events have seen the [organisation:9419162|the party] navigating the dangerous [location:9418490|Waterdeep] sewers to confront [organisation:9419437|Xanathar Guild] hideouts, eventually securing the deed to [location:9418605|Trollskull Manor] in the [location:9431893|North Ward] through a legal transfer overseen by Magistrate [character:9432255|Kylynne Silmerhelve].</p>",
+    "change_summary": "Added details regarding recent party activities in the sewers and the acquisition of Trollskull Manor in the North Ward.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Mr. Peabody",
+    "suggested_type": "character",
+    "draft_entry": "A resident of a private cellar who was scared half to death when the party emerged through the floorboards.",
+    "reason": "Named individual character.",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Jack",
+    "suggested_type": "character",
+    "draft_entry": "One of the children belonging to the halfling family living in the private cellar.",
+    "reason": "Named individual character.",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Jill",
+    "suggested_type": "character",
+    "draft_entry": "One of the children belonging to the halfling family living in the private cellar.",
+    "reason": "Named individual character.",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Leif",
+    "suggested_type": "character",
+    "draft_entry": "A poltergeist and resident ghost of Trollskull Manor who demands the inn be thoroughly cleaned.",
+    "reason": "Named spirit/character.",
+    "source_journal": "2024/01/27 - The sewer rescue & the haunted reward",
+    "status": "rejected"
+  }
+]

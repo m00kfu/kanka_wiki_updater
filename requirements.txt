@@ -1,0 +1,4 @@
+requests>=2.31
+python-dotenv>=1.0
+json_repair>=0.30
+colorama>=0.4
