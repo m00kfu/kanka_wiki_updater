@@ -159,8 +159,15 @@ def unlinked_mention_warning(text, index, exclude_entity_id=None):
     )
 
 
-def review_proposal(proposal, index, name_to_id, client):
-    print("\n" + colors.dim("=" * 70))
+def review_proposal(proposal, index, name_to_id, client, update_num=None, total_updates=None):
+    if update_num is not None and total_updates is not None:
+        banner = f"[ Update {update_num}/{total_updates} ]"
+        pad_len = max(0, 70 - len(banner))
+        left_pad = pad_len // 2
+        right_pad = pad_len - left_pad
+        print(colors.dim("=" * left_pad + banner + "=" * right_pad))
+    else:
+        print("\n" + colors.dim("=" * 70))
     print(colors.bold(colors.cyan(f"{proposal['entity_name']} ({proposal['entity_kind']})"))
           + colors.dim(f"  <-  {proposal['source_journal']}"))
     print(colors.dim("-" * 70))
@@ -337,10 +344,10 @@ def main():
         print(colors.dim(f"\nAuto-skipped {skipped} proposal(s) with no real change "
               f"(synopsis identical, no relationship changes)."))
 
+    total_updates = len(reviewable)
     for i, proposal in enumerate(reviewable, start=1):
         try:
-            review_proposal(proposal, index, name_to_id, client)
-            print(colors.dim(f"  [{i}/{len(reviewable)}]"))
+            review_proposal(proposal, index, name_to_id, client, update_num=i, total_updates=total_updates)
         except Exception as e:
             print(colors.red(f"\n  ! Unexpected error reviewing '{proposal.get('entity_name')}': {e}"))
             print(colors.red("    Leaving its status as-is and continuing with the rest. If "
