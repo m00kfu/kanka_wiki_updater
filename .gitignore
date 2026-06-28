@@ -23,3 +23,12 @@ ENV/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Runtime state data
+data/
+
+# Debug/temp scripts
+_inspect_pending.py
+
+# Superpowers tooling
+.superpowers/
