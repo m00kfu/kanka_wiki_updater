@@ -13,6 +13,7 @@ class ProgressTracker:
         self.total = max(total, 1)  # avoid division by zero if total is 0
         self.done = 0
         self._unicode = self._check_unicode()
+        self._max_width = 0
 
     @classmethod
     def _check_unicode(cls):
@@ -50,12 +51,18 @@ class ProgressTracker:
     def mark_done(self, label: str = "") -> None:
         """Increment done count and render the bar in-place."""
         self.done += 1
-        sys.stdout.write(f"\r{self._render(label)}")
+        rendered = self._render(label)
+        width = len(rendered)
+        if width > self._max_width:
+            self._max_width = width
+        sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}")
         sys.stdout.flush()
 
     def finish(self) -> None:
         """Final render with newline so cursor is clean for next journal or prompt."""
         if self.total == 0:
             return  # nothing to show
-        sys.stdout.write(f"\r{self._render('')}\n")
+        rendered = self._render('')
+        width = len(rendered)
+        sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}\n")
         sys.stdout.flush()
