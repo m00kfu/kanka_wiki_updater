@@ -1,8 +1,10 @@
 """In-memory progress tracker for sync_pipeline journal processing.
 
 Uses \\r carriage return to overwrite the same terminal line so the user
-always sees current progress without spammy output.
+always sees current progress without spammy output (disabled on Windows
+where PowerShell/cmd do not reliably handle \\r).
 """
+import os
 import sys
 
 
@@ -14,6 +16,9 @@ class ProgressTracker:
         self.done = 0
         self._unicode = self._check_unicode()
         self._max_width = 0
+        # Disable in-place updates on Windows — PowerShell and cmd do not
+        # reliably process \\r (carriage return), causing garbled output.
+        self._use_cr = os.name != 'nt'
 
     @classmethod
     def _check_unicode(cls):
@@ -49,13 +54,16 @@ class ProgressTracker:
         return header
 
     def mark_done(self, label: str = "") -> None:
-        """Increment done count and render the bar in-place."""
+        """Increment done count and render the bar."""
         self.done += 1
         rendered = self._render(label)
         width = len(rendered)
         if width > self._max_width:
             self._max_width = width
-        sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}")
+        if self._use_cr:
+            sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}")
+        else:
+            print(rendered)
         sys.stdout.flush()
 
     def finish(self) -> None:
@@ -64,5 +72,8 @@ class ProgressTracker:
             return  # nothing to show
         rendered = self._render('')
         width = len(rendered)
-        sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}\n")
+        if self._use_cr:
+            sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}\n")
+        else:
+            print(rendered)
         sys.stdout.flush()

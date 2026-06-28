@@ -79,24 +79,32 @@ class KankaClient:
     def get_locations(self):
         return self._get_all("locations", params={"related": 1})
 
-    def update_entity_entry(self, kind, entity_local_id, entry_html):
+    def update_entity_entry(self, kind, entity_local_id, entry_text):
         """kind is 'characters' or 'locations'; entity_local_id is the
-        type-specific `id` field (NOT `entity_id`)."""
-        return self._request("PATCH", f"{kind}/{entity_local_id}", json={"entry": entry_html})
+        type-specific `id` field (NOT `entity_id`).
+
+        Kanka's entry field expects HTML.  Convert \\n\\n sequences into
+        <br><br> so paragraph breaks render correctly in the wiki."""
+        html = entry_text.replace("\n\n", "<br><br>").replace("\n", "<br>")
+        return self._request("PATCH", f"{kind}/{entity_local_id}", json={"entry": html})
 
     def create_character(self, name, entry=None, **extra):
         """Create a new character. `name` is the only required field --
         everything else (entry, location_id, type, tags, ...) is optional."""
         body = {"name": name}
         if entry:
-            body["entry"] = entry
+            html = entry.replace("\n\n", "<br><br>").replace("\n", "<br>")
+            body["entry"] = html
         body.update(extra)
         return self._request("POST", "characters", json=body)
 
     def create_location(self, name, entry=None, **extra):
+        """Create a new location. `name` is the only required field --
+        everything else (entry, ...) is optional."""
         body = {"name": name}
         if entry:
-            body["entry"] = entry
+            html = entry.replace("\n\n", "<br><br>").replace("\n", "<br>")
+            body["entry"] = html
         body.update(extra)
         return self._request("POST", "locations", json=body)
 

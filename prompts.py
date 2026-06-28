@@ -23,16 +23,17 @@ Rules:
 6. Only propose a relationship change when the notes show a clear interaction, stated
    sentiment, or explicit relationship change involving this entity and another named
    entity from the provided relationship list or notes.
-7. Output ONLY a single JSON object matching the schema below. No markdown fences,
+7. FORMAT: Break the synopsis into multiple readable paragraphs separated by \\n\\n.
+   Each paragraph should cover one topic (e.g., character description, recent events,
+   notable achievements). Never produce a single wall-of-text paragraph longer than ~5 sentences.
+8. Output ONLY a single JSON object matching the schema below. No markdown fences,
    no commentary before or after it.
-8. The JSON must be syntactically valid. Inside every string value, escape double
-   quotes as \" and backslashes as \\\\. If you need a line break inside a string
-   (e.g. between paragraphs), use \\n -- never a literal newline. This matters
-   especially when quoting dialogue from the session notes.
+9. The JSON must be syntactically valid. Inside every string value, escape double
+   quotes as \" and backslashes as \\\\. Use \\n for line breaks (e.g. between paragraphs).
 
 JSON schema:
 {
-  "updated_entry": "<string, the full revised synopsis as plain text or simple HTML paragraphs>",
+  "updated_entry": "<string, the full revised synopsis broken into multiple paragraphs separated by \\n\\n>",
   "change_summary": "<string, 1-2 sentences describing what changed, for a human reviewer>",
   "relation_changes": [
     {
