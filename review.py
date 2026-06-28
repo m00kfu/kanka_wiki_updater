@@ -77,6 +77,7 @@ def review_new_entity_proposal(proposal, index, name_to_id, client, save_fn=None
         proposal["status"] = "rejected"
         if save_fn:
             save_fn()
+        print()
         return proposal
 
     entity_type = proposal["suggested_type"]
@@ -121,6 +122,7 @@ def review_new_entity_proposal(proposal, index, name_to_id, client, save_fn=None
     proposal["status"] = "applied"
     if save_fn:
         save_fn()
+    print()
     return proposal
 
 
@@ -213,6 +215,7 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
         proposal["status"] = "rejected"
         if save_fn:
             save_fn()
+        print()
         return proposal
 
     client.update_entity_entry(
@@ -303,6 +306,7 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
     proposal["status"] = "applied"
     if save_fn:
         save_fn()
+    print()
     return proposal
 
 
