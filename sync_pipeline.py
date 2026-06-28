@@ -22,6 +22,7 @@ from .prompts import (
     NEW_ENTITY_SYSTEM_PROMPT,
     NEW_ENTITY_USER_PROMPT_TEMPLATE,
 )
+from .progress import ProgressTracker
 
 
 def build_entity_index(client):
@@ -236,31 +237,40 @@ def main(limit=None):
     total_new_entities = 0
     for i, journal in enumerate(to_process, start=1):
         mentioned = find_mentioned_entities(journal.get("entry"), index)
-        print(f"  ({i}/{len(to_process)}) '{journal.get('name')}': "
-              f"mentions {len(mentioned)} known entit(y/ies)")
-        for entity_id in mentioned:
-            entity = index[entity_id]
-            proposal = propose_update(entity_id, entity, journal, index)
-            if proposal:
-                state.append_to_queue([proposal])
-                total_proposals += 1
-                # Carry the draft forward in memory so a later journal in
-                # this same run builds on it instead of the stale Kanka copy.
-                index[entity_id]["entry"] = proposal["proposed_entry"]
-                apply_relation_changes_locally(entity_id, proposal["relation_changes"], index, name_to_id)
-
         new_candidates = propose_new_entities(journal, known_names)
-        if new_candidates:
-            print(f"      + {len(new_candidates)} new entity suggestion(s): "
-                  + ", ".join(f"{c['entity_name']} ({c['suggested_type']})" for c in new_candidates))
-            for candidate in new_candidates:
-                state.append_to_queue([candidate])
-                known_names.add(candidate["entity_name"])
-            total_new_entities += len(new_candidates)
 
-        # Mark progress after each journal -- an interrupted run (Ctrl+C,
-        # crash, closed laptop mid-backfill) won't have to redo work that's
-        # already safely queued.
+        # Calculate total work units for this journal
+        total_units = len(mentioned) + (1 if new_candidates else 0)
+
+        if total_units > 0:
+            print(f"      {journal.get('name')}")
+            tracker = ProgressTracker(total_units)
+
+            for entity_id in mentioned:
+                entity = index[entity_id]
+                proposal = propose_update(entity_id, entity, journal, index)
+                tracker.mark_done(f"LLM for {entity['name']}...")
+                if proposal:
+                    state.append_to_queue([proposal])
+                    total_proposals += 1
+                    index[entity_id]["entry"] = proposal["proposed_entry"]
+                    apply_relation_changes_locally(entity_id, proposal["relation_changes"], index, name_to_id)
+
+            # New-entity scanning
+            if new_candidates:
+                print(f"      + {len(new_candidates)} new entity suggestion(s): "
+                      + ", ".join(f"{c['entity_name']} ({c['suggested_type']})" for c in new_candidates))
+                for candidate in new_candidates:
+                    state.append_to_queue([candidate])
+                    known_names.add(candidate["entity_name"])
+                total_new_entities += len(new_candidates)
+
+            tracker.mark_done("New-entity scan")
+            tracker.finish()
+        else:
+            print(f"  ({i}/{len(to_process)}) '{journal.get('name')}': no entities found")
+
+        # Always mark journal processed regardless of tracker usage
         state.mark_journal_processed(journal["id"])
 
     # Only advance the API's "lastSync" cursor once everything fetched this
