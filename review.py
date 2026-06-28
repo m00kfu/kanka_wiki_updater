@@ -55,7 +55,7 @@ def prompt_choice(prompt, choices="yna"):
             return answer[0]
 
 
-def review_new_entity_proposal(proposal, index, name_to_id, client):
+def review_new_entity_proposal(proposal, index, name_to_id, client, save_fn=None):
     print("\n" + colors.dim("=" * 70))
     print(colors.bold(colors.magenta(f"NEW {proposal['suggested_type'].upper()}: {proposal['entity_name']}"))
           + colors.dim(f"  <-  {proposal['source_journal']}"))
@@ -75,6 +75,8 @@ def review_new_entity_proposal(proposal, index, name_to_id, client):
     )
     if choice == "n":
         proposal["status"] = "rejected"
+        if save_fn:
+            save_fn()
         return proposal
 
     entity_type = proposal["suggested_type"]
@@ -117,6 +119,8 @@ def review_new_entity_proposal(proposal, index, name_to_id, client):
         ))
 
     proposal["status"] = "applied"
+    if save_fn:
+        save_fn()
     return proposal
 
 
@@ -159,7 +163,7 @@ def unlinked_mention_warning(text, index, exclude_entity_id=None):
     )
 
 
-def review_proposal(proposal, index, name_to_id, client, update_num=None, total_updates=None):
+def review_proposal(proposal, index, name_to_id, client, update_num=None, total_updates=None, save_fn=None):
     if update_num is not None and total_updates is not None:
         banner = f"[ Update {update_num}/{total_updates} ]"
         pad_len = max(0, 70 - len(banner))
@@ -209,6 +213,8 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
     )
     if choice == "n":
         proposal["status"] = "rejected"
+        if save_fn:
+            save_fn()
         return proposal
 
     client.update_entity_entry(
@@ -297,6 +303,8 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
 
     proposal["relation_results"] = relation_results
     proposal["status"] = "applied"
+    if save_fn:
+        save_fn()
     return proposal
 
 
@@ -315,13 +323,15 @@ def main():
     index = build_entity_index(client)
     name_to_id = {data["name"]: eid for eid, data in index.items()}
 
+    save_fn = lambda: state.save_queue(queue)
+
     # New entities first: approving one here makes it available as a
     # relation target for the "update" proposals reviewed right after.
     if new_entity_pending:
         print(colors.bold(f"\n{len(new_entity_pending)} new entity suggestion(s) to review first."))
         for i, proposal in enumerate(new_entity_pending, start=1):
             try:
-                review_new_entity_proposal(proposal, index, name_to_id, client)
+                review_new_entity_proposal(proposal, index, name_to_id, client, save_fn=save_fn)
                 print(colors.dim(f"  [{i}/{len(new_entity_pending)}]"))
             except Exception as e:
                 # Defense in depth on top of the per-relation/per-call
@@ -338,6 +348,7 @@ def main():
             reviewable.append(proposal)
         else:
             proposal["status"] = "no_change"
+            state.save_queue(queue)
             skipped += 1
 
     if skipped:
@@ -347,7 +358,7 @@ def main():
     total_updates = len(reviewable)
     for i, proposal in enumerate(reviewable, start=1):
         try:
-            review_proposal(proposal, index, name_to_id, client, update_num=i, total_updates=total_updates)
+            review_proposal(proposal, index, name_to_id, client, update_num=i, total_updates=total_updates, save_fn=save_fn)
         except Exception as e:
             print(colors.red(f"\n  ! Unexpected error reviewing '{proposal.get('entity_name')}': {e}"))
             print(colors.red("    Leaving its status as-is and continuing with the rest. If "
