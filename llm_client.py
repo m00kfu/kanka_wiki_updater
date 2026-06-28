@@ -23,22 +23,24 @@ class LLMError(RuntimeError):
 JSON_BLOCK_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
-def _extract_json(text):
+def _extract_json(text, finish_reason=None):
     """Models sometimes wrap JSON in prose or markdown fences despite
     instructions not to -- grab the largest {...} block first. Then try
     increasingly forgiving parses, since local models frequently produce
     JSON with a literal unescaped quote or raw newline inside a text field
     (very common in this task, since session notes and synopses often
-    contain quoted dialogue)."""
+    contain quoted dialogue).
+
+    If `finish_reason` is 'length', the model hit its token limit mid-response.
+    The parsed result may be valid JSON but with truncated string fields --
+    we append a warning to change_summary so review.py can flag it."""
     match = JSON_BLOCK_RE.search(text)
     if not match:
         raise LLMError(f"No JSON object found in model output:\n{text[:500]}")
     raw = match.group(0)
 
     try:
-        # strict=False allows literal control characters (raw newlines/tabs)
-        # inside strings instead of requiring \n -- a common minor mistake.
-        return json.loads(raw, strict=False)
+        result = json.loads(raw, strict=False)
     except json.JSONDecodeError as e:
         if repair_json is None:
             raise LLMError(
@@ -47,12 +49,27 @@ def _extract_json(text):
                 f"Parse error: {e}\nOutput was:\n{text[:500]}"
             )
         try:
-            return json.loads(repair_json(raw))
+            result = json.loads(repair_json(raw))
         except (json.JSONDecodeError, ValueError) as e2:
             raise LLMError(
                 f"Model produced JSON that couldn't be parsed even after attempting "
                 f"repair ({e2}). Output was:\n{text[:500]}"
             )
+
+    # Truncation can leave valid JSON with cut-off string values -- detect it
+    # and annotate the result so callers can surface a warning during review.
+    if finish_reason == "length" and isinstance(result, dict):
+        trunc_msg = (
+            f"[TRUNCATED: model hit token limit (max_tokens={config.LLM_MAX_TOKENS}). "
+            "Output may be incomplete -- review carefully.]"
+        )
+        summary = result.get("change_summary", "") or ""
+        if trunc_msg not in summary:
+            result["change_summary"] = f"{summary} {trunc_msg}".strip() if summary else trunc_msg
+        reason = result.get("reason", "") or ""
+        if trunc_msg not in reason:
+            result["reason"] = f"{reason} {trunc_msg}".strip() if reason else trunc_msg
+    return result
 
 
 def chat_json(system_prompt, user_prompt, temperature=0.2, max_tokens=None):
@@ -110,4 +127,4 @@ def chat_json(system_prompt, user_prompt, temperature=0.2, max_tokens=None):
             )
         raise LLMError(f"Model returned empty content (finish_reason={finish_reason}).")
 
-    return _extract_json(content)
+    return _extract_json(content, finish_reason=finish_reason)

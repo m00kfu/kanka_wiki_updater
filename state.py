@@ -93,11 +93,16 @@ def get_processed_journal_ids():
     """Journal IDs already turned into proposals, regardless of whether
     those proposals were later approved or rejected. Used so an interrupted
     or re-run sync doesn't redo (and re-queue) the same journal twice."""
-    return set(_load(PROCESSED_FILE, []))
+    entries = _load(PROCESSED_FILE, [])
+    return {e["id"] if isinstance(e, dict) else e for e in entries}
 
 
-def mark_journal_processed(journal_id):
-    ids = _load(PROCESSED_FILE, [])
-    if journal_id not in ids:
-        ids.append(journal_id)
-        _save(PROCESSED_FILE, ids)
+def mark_journal_processed(journal_id, title=None):
+    entries = _load(PROCESSED_FILE, [])
+    existing_ids = set(e["id"] if isinstance(e, dict) else e for e in entries)
+    if journal_id not in existing_ids:
+        entry = {"id": journal_id}
+        if title:
+            entry["title"] = title
+        entries.append(entry)
+        _save(PROCESSED_FILE, entries)

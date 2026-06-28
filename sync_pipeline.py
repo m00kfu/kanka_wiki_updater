@@ -271,7 +271,7 @@ def main(limit=None):
             print(f"  ({i}/{len(to_process)}) '{journal.get('name')}': no entities found")
 
         # Always mark journal processed regardless of tracker usage
-        state.mark_journal_processed(journal["id"])
+        state.mark_journal_processed(journal["id"], title=journal.get("name"))
 
     # Only advance the API's "lastSync" cursor once everything fetched this
     # run has actually been processed. If --limit left some journals

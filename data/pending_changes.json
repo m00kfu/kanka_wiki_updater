@@ -3211,7 +3211,8 @@
     "change_summary": "Updated the description of the fireball incident to identify the deceased gnome as [character:9443307] and clarify his role as a spy for Lord Neverember.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -3240,7 +3241,8 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -3254,7 +3256,8 @@
     "change_summary": "Updated the synopsis to include Tyde's participation in the battle at the Gralhund Villa, specifically noting her use of wildshape to defeat the attackers.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -3264,7 +3267,7 @@
     "entity_name": "Dalakhar",
     "source_journal": "2024/06/22 - Nothing of Note (Except Ten Dead Bodies)",
     "previous_entry": "<p>Dalakhar is a gnome thief and spy who served as a loyal operative for Lord Dagult Neverember, the former Open Lord of [location:9418490].</p>",
-    "proposed_entry": "Dalakhar is a gnome thief and spy who served as a loyal operative for Lord Dagult Neverember, the former Open Lord of [location:9418490]. He was reportedly tasked with watching [character:9431743] and intended to pay the party to safely deliver the [item:9432044] to Lord Neverember.",
+    "proposed_entry": "Dalakhar is a gnome thief and spy who served as a loyal operative for Lord [character:9457192|Dagult Neverember], the former Open Lord of [location:9418490]. He was reportedly tasked with watching [character:9431743] and intended to pay the party to safely deliver the [item:9432044] to Lord Neverember.",
     "change_summary": "Updated synopsis to include Dalakhar's specific mission of monitoring Renaer Neverember and his intent regarding the delivery of the stone.",
     "relation_changes": [
       {
@@ -3276,7 +3279,14 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9431743,
+        "target_name": "Renaer Neverember"
+      }
+    ]
   },
   {
     "proposal_type": "update",
@@ -3290,7 +3300,7 @@
     "change_summary": "No changes were made to the synopsis or relationships as the session notes did not mention Urstul Floxin.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "proposal_type": "update",
@@ -3319,7 +3329,8 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -3333,7 +3344,8 @@
     "change_summary": "Updated the synopsis to include the location of the Gralhund estate and mention of a recent violent raid involving [organisation:9419438] swordsmen.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -3347,7 +3359,7 @@
     "change_summary": "No changes were made; the new session notes did not contain information regarding Jarlaxle.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "proposal_type": "update",
@@ -3366,6 +3378,1039 @@
         "relation": "Monitored by",
         "attitude": -50,
         "reason": "Renaer confirmed that [character:9443307] was his father's spy who had been constantly watching him."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443968,
+    "entity_kind": "location",
+    "entity_local_id": 2127948,
+    "entity_name": "Cassalanter Villa",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>An extravagant estate in the [location:9431883] with dozens of lavish chambers for the masters of the house and their guests.</p>",
+    "proposed_entry": "An extravagant estate in [location:9418490|Waterdeep]. The party recently scouted the area, though their nimblewright tracking device remained silent near the premises.",
+    "change_summary": "Updated the synopsis to reflect that the party investigated the location with a tracker, which yielded no results.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443969,
+    "entity_kind": "character",
+    "entity_local_id": 2444653,
+    "entity_name": "Bonesnapper",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>A griffon in employ to the [organisation:9419404].  [character:9425238] befriended it when flying above [location:9418490] to locate the rogue nimblewright.</p>",
+    "proposed_entry": "A young griffon in employ to the [organisation:9419404|Order of the Gauntlet]. [character:9443969|Bonesnapper] is currently being trained for the city's Griffon Cavalry by a trainer named Al Borland. [character:9425238|Tyde] earned the griffon's trust, allowing them to soar above the city to assist in locating a rogue nimblewright.",
+    "change_summary": "Updated the synopsis to reflect that Bonesnapper is a young griffon being trained for the Griffon Cavalry and noted the specific interaction where [character:9425238|Tyde] earned its trust.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "[character:9425238|Tyde]",
+        "relation": "trusts",
+        "attitude": 50,
+        "reason": "[character:9425238|Tyde] used excellent animal handling skills to earn [character:9443969|Bonesnapper]'s trust."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423618,
+    "entity_kind": "character",
+    "entity_local_id": 2438997,
+    "entity_name": "Gladio",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.\n\nRecently, Gladio provided tactical plans for an infiltration of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], which led to the discovery of a hidden cache and the rescue of [character:9431743|Renaer Neverember]. Following the investigation, the party has ventured into the sewers to track the [organisation:9419437|Xanathar Guild] in an attempt to rescue [character:9431741|Floon].</p>",
+    "proposed_entry": "[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.\n\nRecently, Gladio provided tactical plans for an infiltration of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], which led to the discovery of a hidden cache and the rescue of [character:9431743|Renaer Neverember]. Following the investigation, the party has ventured into the sewers to track the [organisation:9419437|Xanathar Guild] in an attempt to rescue [character:9431741|Floon]. More recently, after the party encountered complications regarding a missing nimblewright automaton, Gladio suggested conducting a ward-by-ward aerial search using a griffon from the [organisation:9419404|Order of the Gauntlet].",
+    "change_summary": "Updated the synopsis to include Gladio's recent suggestion to use an Order of the Gauntlet griffon for an aerial search to track a missing automaton.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443968,
+    "entity_kind": "location",
+    "entity_local_id": 2127948,
+    "entity_name": "Cassalanter Villa",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>An extravagant estate in the [location:9431883] with dozens of lavish chambers for the masters of the house and their guests.</p>",
+    "proposed_entry": "An extravagant estate in [location:9418490|Waterdeep] with dozens of lavish chambers for the masters of the house and their guests.",
+    "change_summary": "The synopsis was updated to include the specific city (Waterdeep) where the villa is located, based on context from the session notes.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443969,
+    "entity_kind": "character",
+    "entity_local_id": 2444653,
+    "entity_name": "Bonesnapper",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>A griffon in employ to the [organisation:9419404].  [character:9425238] befriended it when flying above [location:9418490] to locate the rogue nimblewright.</p>",
+    "proposed_entry": "A young griffon in employ to the [organisation:9419404|Order of the Gauntlet]. It is currently being trained for the city's Griffon Cavalry by a trainer named Al Borland. [character:9425238|Tyde] earned [character:9443969|Bonesnapper]'s trust, allowing them to soar above [location:9418490|Waterdeep] to locate the rogue nimblewright.",
+    "change_summary": "Updated the synopsis to reflect that Bonesnapper is a young griffon being trained for the Griffon Cavalry and noted the specific method by which [character:9425238|Tyde] earned its trust.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "[character:9425238|Tyde]",
+        "relation": "trusted by",
+        "attitude": 50,
+        "reason": "[character:9425238|Tyde] used excellent animal handling skills to earn the griffon's trust for an aerial search."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423618,
+    "entity_kind": "character",
+    "entity_local_id": 2438997,
+    "entity_name": "Gladio",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.\n\nRecently, Gladio provided tactical plans for an infiltration of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], which led to the discovery of a hidden cache and the rescue of [character:9431743|Renaer Neverember]. Following the investigation, the party has ventured into the sewers to track the [organisation:9419437|Xanathar Guild] in an attempt to rescue [character:9431741|Floon].</p>",
+    "proposed_entry": "[character:9423618|Gladio] is a human fighter whose imposing, powerful build bears the unmistakable marks of a seasoned warrior. A veteran with a history of soldiering, his disciplined martial background is perfectly balanced by a grounded, humble heart; when he isn't wielding a blade on the battlefield, he can often be found back home putting his immense strength to good use helping his parents tend to their farm. His mother has recently suffered a fall, and with his father growing older, Gladio has been focused on assisting them with their farm work. He was recently seen traveling to market in Neverwinter with a cart full of produce, such as squash. Despite his formidable presence and rugged past, [character:9423618|Gladio] harbors a delightfully simple and passionate culinary joy: an absolute, unyielding love for a hearty cup of noodles.\n\nRecently, Gladio provided tactical plans for an infiltration of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], which led to the discovery of a hidden cache and the rescue of [character:9431743|Renaer Neverember]. Following the investigation, the party has ventured into the sewers to track the [organisation:9419437|Xanathar Guild] in an attempt to rescue [character:9431741|Floon]. More recently, after the party encountered complications regarding a missing automaton, Gladio suggested conducting a ward-by-ward aerial search using a griffon from the [organisation:9419404|Order of the Gauntlet].",
+    "change_summary": "Added details about Gladio suggesting an aerial search via griffon to assist the party in tracking a missing automaton.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9438979,
+    "entity_kind": "location",
+    "entity_local_id": 2126522,
+    "entity_name": "City of the Dead",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>The City of the Dead was a large cemetery and ward in [location:9418490]. Most of the city's dead were buried here. By day, it was used as a park and picnic area. At night it was off-limits to the public, but was still used by many for more nefarious activities. Recently, a dark development emerged within the [location:9438979]. A necromancer began animating bones within the cemetery, prompting an urgent request from the [organisation:9419386] for assistance in stopping the undead before they overflow into the city streets.\n\nDuring a recent investigation, it was discovered that Priest [character:9442159] had been acting under the control of a glowing geometric tablet within the [location:9442141]. After an ambush by skeletons, the priest was captured and taken into custody by Sir [character:9442110].</p>",
+    "proposed_entry": "The City of the Dead was a large cemetery and ward in [location:9418490]. Most of the city's dead were buried here. By day, it was used as a park and picnic area. At night it was off-limits to the public, but was still used by many for more nefarious activities. Recently, a dark development emerged within the [location:9438979]. A necromancer began animating bones within the cemetery, prompting an urgent request from the [organisation:9419386] for assistance in stopping the undead before they overflow into the city streets.\n\nDuring a recent investigation, it was discovered that Priest [character:9442159] had been acting under the control of a glowing geometric tablet within the [location:9442141]. After an ambush by skeletons, the priest was captured and taken into custody by Sir [character:9442110].\n\n[organisation:9419162|the party] recently met with [character:9443960|Istrid Horn] at Ahghairon’s Statue within the [location:9438979] to discuss the events at [location:9443309|Gralhund Villa].",
+    "change_summary": "Added a detail regarding the party's meeting with Istrid Horn at Ahghairon's Statue within the City of the Dead.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Istrid Horn",
+        "relation": "Met with",
+        "attitude": null,
+        "reason": "[organisation:9419162|the party] met with [character:9443960|Istrid Horn] at Ahghairon’s Statue in the [location:9438979] to discuss recent events."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443960,
+        "target_name": "Istrid Horn"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443973,
+    "entity_kind": "character",
+    "entity_local_id": 2444654,
+    "entity_name": "Zardoz Zord",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Zardoz Zord is a flamboyant, jovial, kind, and gracious man. Unconcerned\n with city politics, his only aim is to bring joy and wonder to the \nhearts of people everywhere. When not cavorting around the city \npromoting the debut of the Sea Maiden's Faire, he spends his time on his\n personal ship, The [location:9443986], anchored in the harbor, rehearsing with \nhis all-human crew, indulging in his weakness for delectable foods and \nlibations, or seducing any man or woman that stirs his loins.</p>",
+    "proposed_entry": "Zardoz Zord is a flamboyant, jovial, kind, and gracious man. Unconcerned with city politics, his only aim is to bring joy and wonder to the hearts of people everywhere. He is the owner of the Sea Maidens Faire, a traveling carnival that has brought three galleons—the Heartbreaker, the Hellraiser, and his flashy flagship, the [location:9443986|Eyecatcher]—to [location:9418490|Waterdeep]. \n\nWhen not cavorting around the city promoting the debut of the Sea Maiden's Faire, he spends his time on his personal ship, the [location:9443986|Eyecatcher], anchored in the harbor, rehearsing with his all-human crew, indulging in his weakness for delectable foods and libations, or seducing any man or woman that stirs his loins. He is known to visit the distant island of Lantan once a year, from which he recently purchased four nimblewrights to serve as performing automatons aboard his vessels.",
+    "change_summary": "Updated the synopsis to include details about his ownership of the Sea Maidens Faire carnival, his specific ships (including the flagship Eyecatcher), and his recent purchase of nimblewrights from Lantan. Added a new relationship regarding his affair with Lady Gralhund.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Lady Gralhund",
+        "relation": "is having an affair with",
+        "attitude": 50,
+        "reason": "Scandalous gossip uncovered by Eoula reveals that Lady Gralhund is having an affair with him."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9423629,
+    "entity_kind": "character",
+    "entity_local_id": 2439003,
+    "entity_name": "Orlum",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat.  During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half. During a recent investigation of a [location:9437421|Zhentarim Warehouse], Orlum successfully looted approximately 140 lbs of silver, a weight that left him heavily encumbered during the party's subsequent descent into the sewers. More recently, while navigating the [location:9418490|Waterdeep] sewers, Orlum faced a Mind Flayer named [character:9432251|Nihiloor]. Orlum attempted to block the Mind Flayer's path but was briefly dominated by its overwhelming psychic powers. However, he managed to break free of the mind control and decisively killed a half-orc named [character:9432250|Grum'shar] in a single hit. Recently, Orlum traveled to the [location:9435901|Lightsinger Theater] in the [location:9431883|Sea Ward] to attend an opera, where he slipped away with [character:9425238|Tyde] and [character:9419631|Raucous] to meet [character:9435899|Mirt] \"the Merciless.\" Following this meeting, the party has begun investigating leads regarding the [organisation:9419383|Harpers] and the [organisation:9419437|Xanathar Guild]. Most recently, Orlum assisted in a quest to stop living scarecrows terrorizing the farmlands of Undercliff Way. During the investigation, he cast Zone of Truth over a group of local farmers to help uncover the truth behind the terror, eventually leading to the capture of a witch named Donya who had animated the creatures.  Following a request from the [organisation:9419404], Orlum intervened in a gang war in the [location:9438959] to stop turf wars between rival thugs. For his efforts in keeping the peace, he was formally initiated into the [organisation:9419404] at the grand [location:9438976] in the [location:9431892], earning 1 Renown with the Order.  More recently, Orlum and his companions responded to an urgent request from the [organisation:9419386] regarding a necromantic threat in the [location:9438979]. While patrolling the graveyard, the party was ambushed by skeletons. During a confrontation at the [location:9442141], Orlum rushed through flames to smash a glowing geometric artifact tablet, which successfully freed Priest [character:9442159] from a dark thrall. Following the capture of the priest, Orlum and his allies earned 1 Renown with the [organisation:9419386].</p>",
+    "proposed_entry": "[character:9423629|Orlum] is a gray-green tortle paladin who cuts an imposing figure with his tall stature and immense, heavy build. Bound by holy oaths, he possesses a remarkably straightforward and earnest mind, though his social interactions are often marked by a charming quirk: he takes whatever people say entirely literally, often missing figures of speech or sarcasm completely. Despite his formidable presence and martial devotion, [character:9423629|Orlum] harbors a gentle appreciation for sweet simple comforts. This is best exemplified by his absolute favorite possession—a magical pumpkin cupcake that miraculously replenishes itself, ensuring he is never without his preferred treat.  During a recent skirmish in a Candle Lane alleyway, Orlum demonstrated his martial prowess by decisively cleaving one of the attackers in half. During a recent investigation of a [location:9437421|Zhentarim Warehouse], Orlum successfully looted approximately 140 lbs of silver, a weight that left him heavily encumbered during the party's subsequent descent into the sewers. More recently, while navigating the [location:9418490|Waterdeep] sewers, Orlum faced a Mind Flayer named [character:9432251|Nihiloor]. Orlum attempted to block the Mind Flayer's path but was briefly dominated by its overwhelming psychic powers. However, he managed to break free of the mind control and decisively killed a half-orc named [character:9432250|Grum'shar] in a single hit. Recently, Orlum traveled to the [location:9435901|Lightsinger Theater] in the [location:9431883|Sea Ward] to attend an opera, where he slipped away with [character:9425238|Tyde] and [character:9419631|Raucous] to meet [character:9435899|Mirt] \"the Merciless.\" Following this meeting, the party has begun investigating leads regarding the [organisation:9419383|Harpers] and the [organisation:9419437|Xanathar Guild]. More recently, Orlum assisted in a quest to stop living scarecrows terrorizing the farmlands of Undercliff Way. During the investigation, he cast Zone of Truth over a group of local farmers to help uncover the truth behind the terror, eventually leading to the capture of a witch named Donya who had animated the creatures.  Following a request from the [organisation:9419404], Orlum intervened in a gang war in the [location:9438959] to stop turf wars between rival thugs. For his efforts in keeping the peace, he was formally initiated into the [organisation:9419404] at the grand [location:9438976] in the [location:9431892], earning 1 Renown with the Order.  More recently, Orlum and his allies responded to an urgent request from the [organisation:9419386] regarding a necromantic threat in the [location:9438979]. While patrolling the graveyard, the party was ambushed by skeletons. During a confrontation at the [location:9442141], Orlum rushed through flames to smash a glowing geometric artifact tablet, which successfully freed Priest [character:9442159] from a dark thrall. Following the capture of the priest, Orlum and his allies earned 1 Renown with the [organisation:9419386].\n\nFollowing a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Orlum helped his companions search the estate. During the investigation, he provided a distraction for arriving City Watch guards while the party dealt with Lady [character:9443310|Yalah Gralhund] and her bodyguard. Later, at the request of [character:9438957|Savra Belabranta] of the [organisation:9419404], Orlum assisted in tracking a thief known as the \"[character:9443961|Black Viper].\" This investigation led the party to use a griffon named [character:9443969|Bonesnapper] for an aerial search, which eventually brought them to the Sea Maidens Faire. During a dinner aboard the flagship [location:9443986|Eyecatcher], Orlum performed a radical flute solo for the carnival master, [character:9443973|Zardoz Zord]. Most recently, the party has taken in [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent, who is currently residing at [location:9418605|Trollskull Manor] under the guise of a male dwarf named Jorn.",
+    "change_summary": "Updated the synopsis to include Orlum's involvement in the Gralhund Villa investigation, the search for the Black Viper, his flute performance during the dinner with Zardoz Zord, and the party's decision to host Istrid Horn at Trollskull Manor.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Zardoz Zord",
+        "relation": "Met",
+        "attitude": 0,
+        "reason": "Orlum performed a flute solo for him during a dinner aboard the Eyecatcher."
+      },
+      {
+        "action": "create",
+        "target_name": "Istrid Horn",
+        "relation": "Host to",
+        "attitude": 0,
+        "reason": "The party agreed to let her stay at their tavern, Trollskull Manor, while she hides from the law."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9443973,
+        "target_name": "Zardoz Zord",
+        "previous_relation": {
+          "id": 1052803,
+          "owner_id": 9423629,
+          "target_id": 9443973,
+          "relation": "Met",
+          "attitude": 0,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-28T16:46:23.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-28T16:46:23.000000Z"
+        }
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9443960,
+        "target_name": "Istrid Horn"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443986,
+    "entity_kind": "location",
+    "entity_local_id": 2127954,
+    "entity_name": "Eyecatcher",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>The <em class=\"eujQNb\" style=\"font-family:'Google Sans', Arial, sans-serif;font-size:16px;font-weight:400;margin:0px;text-decoration:none;border-bottom:0px rgb(230,232,240);\">Eyecatcher</em> is the ostentatious flagship of Captain [character:9443973] and serves as the command ship for the Sea Maidens Faire carnival.</p>",
+    "proposed_entry": "The [location:9443986|Eyecatcher] is the ostentatious flagship of Captain [character:9443973|Zardoz Zord] and serves as the command ship for the Sea Maidens Faire carnival. Anchored in Deepwater Harbor, the vessel features a luxurious interior, including a dining cabin decorated with golden filigree, purple silken curtains, and mahogany paneling scented with perfume. The ship's crew is described as incredibly attractive, and the vessel carries two nimblewright performing automatons.",
+    "change_summary": "Expanded the synopsis to include physical descriptions of the ship's interior, its location in Deepwater Harbor, and details about its crew and onboard nimblewrights.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443962,
+    "entity_kind": "character",
+    "entity_local_id": 2444651,
+    "entity_name": "Gaxly Rudderbust",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Gaxly Rudderbust is the publisher of the <i>Waterdeep Wazoo</i>, a highly sensationalist and bold broadsheet newspaper in the Forgotten Realms. Operating out of the [location:9431893], his office is famous for publishing rumors, exposés, and gossip that often target the city's nobility and elite</p>",
+    "proposed_entry": "Gaxly Rudderbust is the publisher of the [location:9418490|Waterdeep] Wazoo, a highly sensationalist and bold broadsheet newspaper in the Forgotten Realms. Operating out of his office, he is known for publishing rumors, exposés, and gossip that often target the city's nobility and elite. He holds information regarding the identity of the \"[character:9443961|Black Viper],\" whom he theorizes is the secret, disfigured twin sister of [character:9443363|Ammalia Cassalanter].",
+    "change_summary": "Updated the synopsis to include his theory regarding the 'Black Viper' and corrected the location link for the Waterdeep Wazoo.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Ammalia Cassalanter",
+        "relation": "Believes her sister is the Black Viper",
+        "attitude": 0,
+        "reason": "Gaxly revealed his leading theory that the Black Viper is the secret, evil twin sister of Ammalia Cassalanter."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9443963,
+        "target_name": "Ammalia Cassalanter",
+        "previous_relation": {
+          "id": 1052806,
+          "owner_id": 9443962,
+          "target_id": 9443963,
+          "relation": "Believes her sister is the Black Viper",
+          "attitude": 0,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-28T16:47:26.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-28T16:47:26.000000Z"
+        }
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425235,
+    "entity_kind": "character",
+    "entity_local_id": 2439421,
+    "entity_name": "Alyzira Galanodel",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster. \n\n Recently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining the party's presence and helping to avoid legal repercussions for the group. During a recent excursion into the [location:9418490|Waterdeep] sewers, [character:9425235|Alyzira] was briefly stunned and mentally incapacitated when a [creature:9432254|Intellect Devourer] leaped onto her during a skirmish with the [organisation:9419437|Xanathar Guild]. Following the battle, she gathered the remaining coin and valuables from the site. She also played a pivotal role in securing the party's new base, using her magic to probe and calm a resident poltergeist named Leif within [location:9418605|Trollskull Manor], successfully negotiating the spirit's demands for a thorough cleaning of the property. \n\n Alyzira has recently expanded her influence and connections within the city. She successfully distracted a theater attendant at the [location:9435901|Lightsinger Theater] to facilitate a clandestine meeting with [character:9435899|Mirt] \"the Merciless\" of the [organisation:9419383|Harpers]. Furthermore, she was formally welcomed into the [organisation:9419386|Emerald Enclave] by [character:9435919|Jeryth Phaulkon] at the [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration]. \n\n During a recent quest for the [organisation:9419386|Emerald Enclave], Alyzira helped investigate reports of living scarecrows terrorizing the [location:9437517] farmlands. She used her magic to detect the thoughts of one of the creatures, identifying its eerie mental chant, and destroyed it with a Fireball. She also played a key role in the investigation of the local farmers, eventually using her charm magic to compel a local woman named Donya to confess to animating the creatures. For her efforts in saving the farmlands, Alyzira earned +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\n In a recent skirmish in the [location:9438959|Field Ward], Alyzira was involved in a brawl between rival thugs. While attempting to use non-lethal means to break up the fight, she accidentally dealt fatal blows, killing two of the thugs. \n\n Most recently, while exploring the neighborhood around [location:9418605|Trollskull Manor], Alyzira engaged in community building by distributing invitations for a free drink to local shopkeepers. She also participated in a mission for the [organisation:9419386|Emerald Enclave] to investigate necromantic disturbances in the [location:9438979] cemetery. After patrolling the grounds and surviving an ambush of skeletons, she helped breach a shrine to confront Priest [character:9442159], who was being controlled by a glowing geometric tablet. Following the successful capture of the priest, Alyzira earned an additional +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\n Following a violent explosion in the alleyway outside [location:9418605|Trollskull Manor] that left eleven people dead, Alyzira assisted in investigating the scene. She successfully coaxed a frightened halfling boy into giving her a broken necklace containing magical fireball gems, which she analyzed with magic before surrendering it to the City Watch. To further the investigation, she bribed a cleric with 25 gold pieces to arrange a *Speak with Dead* ritual involving a deceased gnome at Mystra's shrine in the [location:9438979] cemetery. Additionally, during an investigation at the [location:9431883] [location:9442786|House of Inspired Hands], she promptly picked a locked attic door to reveal a mute nimblewright automaton, [character:9442788].</p>",
+    "proposed_entry": "[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster. \n\nRecently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining the party's presence and helping to avoid legal repercussions for the group. During a recent excursion into the [location:9418490|Waterdeep] sewers, [character:9425235|Alyzira] was briefly stunned and mentally incapacitated when a [creature:9432254|Intellect Devourer] leaped onto her during a skirmish with the [organisation:9419437|Xanathar Guild]. Following the battle, she gathered the remaining coin and valuables from the site. She also played a pivotal role in securing the party's new base, using her magic to probe and calm a resident poltergeist named Leif within [location:9418605|Trollskull Manor], successfully negotiating the spirit's demands for a thorough cleaning of the property. \n\nAlyzira has recently expanded her influence and connections within the city. She successfully distracted a theater attendant at the [location:9435901|Lightsinger Theater] to facilitate a clandestine meeting with [character:9435899|Mirt] \"the Merciless\" of the [organisation:9419383|Harpers]. Furthermore, she was formally welcomed into the [organisation:9419386|Emerald Enclave] by [character:9435919|Jeryth Phaulkon] at the [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration]. \n\nDuring a recent quest for the [organisation:9419386|Emerald Enclave], Alyzira helped investigate reports of living scarecrows terrorizing the [location:9437517] farmlands. She used her magic to detect the thoughts of one of the creatures, identifying its eerie mental chant, and destroyed it with a Fireball. She also played a key role in the investigation of the local farmers, eventually using her charm magic to compel a local woman named Donya to confess to animating the creatures. For her efforts in saving the farmlands, Alyzira earned +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\nIn a recent skirmish in the [location:9438959|Field Ward], Alyzira was involved in a brawl between rival thugs. While attempting to use non-lethal means to break up the fight, she accidentally dealt fatal blows, killing two of the thugs. \n\nMost recently, while exploring the neighborhood around [location:9418605|Trollskull Manor], Alyzira engaged in community building by distributing invitations for a free drink to local shopkeepers. She also participated in a mission for the [organisation:9419386|Emerald Enclave] to investigate necromantic disturbances in the [location:9438979] cemetery. After patrolling the grounds and surviving an ambush of skeletons, she helped breach a shrine to confront Priest [character:9442159], who was being controlled by a glowing geometric tablet. Following the successful capture of the priest, Alyzira earned an additional +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\nFollowing a violent explosion in the alleyway outside [location:9418605|Trollskull Manor] that left eleven people dead, Alyzira assisted in investigating the scene. She successfully coaxed a frightened halfling boy into giving her a broken necklace containing magical fireball gems, which she analyzed with magic before surrendering it to the City Watch. To further the investigation, she bribed a cleric with 25 gold pieces to arrange a *Speak with Dead* ritual involving a deceased gnome at Mystra's shrine in the [location:9438979] cemetery. Additionally, during an investigation at the [location:9431883] [location:9442786|House of Inspired Hands], she promptly picked a locked attic door to reveal a mute nimblewright automaton, [character:9442788].\n\nFollowing a chaotic battle at [location:9443309|Gralhund Villa], Alyzira used her magic to charm [character:9443308|Urstul Floxin], a prominent member of the [organisation:9419438|Zhentarim], uncovering his presence and motives regarding the [item:9432044|Stone of Golorr]. Later, while investigating rumors of the \"[character:9443961|Black Viper],",
+    "change_summary": "Updated the synopsis to include recent activities involving the Gralhund Villa investigation, bribing Gaxly Rudderbust regarding the Black Viper, dining with Zardoz Zord, and hosting the disguised Istrid Horn at Trollskull Manor.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Urstul Floxin",
+        "relation": "Charmed/Interrogated",
+        "attitude": 0,
+        "reason": "She used her magic to charm him during the investigation at Gralhund Villa."
+      },
+      {
+        "action": "create",
+        "target_name": "Zardoz Zord",
+        "relation": "Acquaintance/Dined with",
+        "attitude": 0,
+        "reason": "She struck up a conversation with him and was invited to dine on his flagship."
+      },
+      {
+        "action": "create",
+        "target_name": "Istrid Horn",
+        "relation": "Host of",
+        "attitude": 0,
+        "reason": "Alyzira's party agreed to let Istrid lay low at their tavern, Trollskull Manor."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9443308,
+        "target_name": "Urstul Floxin",
+        "previous_relation": {
+          "id": 1052807,
+          "owner_id": 9425235,
+          "target_id": 9443308,
+          "relation": "Charmed/Interrogated",
+          "attitude": 0,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-28T16:48:47.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-28T16:48:47.000000Z"
+        }
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9443973,
+        "target_name": "Zardoz Zord"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9443960,
+        "target_name": "Istrid Horn"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425236,
+    "entity_kind": "character",
+    "entity_local_id": 2439422,
+    "entity_name": "Eoula Tealeaf",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm. \n\n During a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr]. \n\n More recently, [character:9425236|Eoula] navigated the [location:9418490|Waterdeep] sewers and successfully rescued [character:9431741|Floon] from the clutches of the [organisation:9419437|Xanathar Guild]. During the confrontation, she attempted to snatch a stone eye necklace from the Mind Flayer [character:9432251|Nihiloor] but was tossed aside as he escaped through a magical portal. Following the rescue, [character:9425236|Eoula] initially expressed a desire for signed copies of [character:9418259|Volothamp Geddarm]’s books as payment for the rescue, though she ultimately agreed to the group's acquisition of [location:9418605|Trollskull Manor]. \n\n Eoula recently traveled to the [location:9435901|Lightsinger Theater] in the [location:9431883|Sea Ward] for an opera, where the party received a mission from the [organisation:9419383|Harpers] to locate a talking draft horse. She subsequently visited the [location:9435917|Phaulkononmere Villa] in the [location:9435916|South Ward], where she was formally welcomed as a member of the local Enclave by [character:9435919|Jeryth Phaulkon]. As part of this membership, she was bestowed with a [item:9435948|charm of restoration]. \n\n While investigating reports of living scarecrows terrorizing the [location:9437517|Undercliff Way], [character:9425236|Eoula] utilized her tracking skills to follow stick-like footprints heading west. She also consulted her magical diary to uncover a local secret regarding the motives of the villagers involved. Following the successful neutralization of the scarecrows and the capture of the witch Donya, [character:9425236|Eoula] earned renown with the [organisation:9419386|Emerald Enclave]. \n\n Eoula recently visited the [location:9438977] to purchase a curious volume titled The [item:9438978] for 25 gold pieces. She also participated in the group's efforts to fund the renovations and guild fees for [location:9418605|Trollskull Manor], which has now been successfully funded. During a neighborhood stroll through [location:9419015], she performed community outreach by handing out invitations for a free drink at [location:9418605|Trollskull Manor] to local shopkeepers.\n\n Most recently, while patrolling the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was ambushed by a group of skeletons. Following the skirmish, she used her [ability:9442180|Web] spell to restrain Priest [character:9442159], who was under the influence of a dark artifact. Her efforts, along with those of her companions, resulted in the successful capture of the priest and earned her additional renown with the [organisation:9419386|Emerald Enclave].\n\n Following a devastating fireball explosion outside [location:9418605] that left eleven people dead, [character:9425236|Eoula] assisted in an investigation. Using her [item:9437393], she uncovered local trivia regarding Sergeant Barnibus's toupee. The party subsequently traveled to the [location:9442786] (the Temple of Gond) to investigate a rogue nimblewright automaton. There, they met Lady [character:9442787], who offered a 500 gold piece reward for the destruction of the creature. After interacting with a mute nimblewright named [character:9442788], the party received a copper tracking device to aid in their hunt.\n\n Following this, while investigating the aftermath of the explosion, [character:9425236|Eoula] used her [item:9437393] to record information regarding Lady [character:9443310], uncovering that she has a secret lover, the drow [character:9443318]. The party then infiltrated [location:9443309], the estate of the Gralhund family, where they engaged in a skirmish with members of the [organisation:9419438] to defend house guards in the upstairs foyer.</p>",
+    "proposed_entry": "[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm. \n\n During a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr]. \n\n More recently, [character:9425236|Eoula] navigated the [location:9418490|Waterdeep] sewers and successfully rescued [character:9431741|Floon] from the clutches of the [organisation:9419437|Xanathar Guild]. During the confrontation, she attempted to snatch a stone eye necklace from the Mind Flayer [character:9432251|Nihiloor] but was tossed aside as he escaped through a magical portal. Following the rescue, [character:9425236|Eoula] initially expressed a desire for signed copies of [character:9418259|Volothamp Geddarm]’s books as payment for the rescue, though she ultimately agreed to the group's acquisition of [location:9418605|Trollskull Manor]. \n\n Eoula recently traveled to the [location:9435901|Lightsinger Theater] in the [location:9431883|Sea Ward] for an opera, where the party received a mission from the [organisation:9419383|Harpers] to locate a talking draft horse. She subsequently visited the [location:9435917|Phaulkononmere Villa] in the [location:9435916|South Ward], where she was formally welcomed as a member of the local Enclave by [character:9435919|Jeryth Phaulkon]. As part of this membership, she was bestowed with a [item:9435948|charm of restoration]. \n\n While investigating reports of living scarecrows terrorizing the [location:9437517|Undercliff Way], [character:9425236|Eoula] utilized her tracking skills to follow stick-like footprints heading west. She also consulted her magical diary to uncover a local secret regarding the motives of the villagers involved. Following the successful neutralization of the scarecrows and the capture of the witch Donya, [character:9425236|Eoula] earned renown with the [organisation:9419386|Emerald Enclave]. \n\n Eoula recently visited the [location:9438977] to purchase a curious volume titled The [item:9438978] for 25 gold pieces. She also participated in the group's efforts to fund the renovations and guild fees for [location:9418605|Trollskull Manor], which has now been successfully funded. During a neighborhood stroll through [location:9419015], she performed community outreach by handing out invitations for a free drink at [location:9418605|Trollskull Manor] to local shopkeepers.\n\n Most recently, while patrolling the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was ambushed by a group of skeletons. Following the skirmish, she used her [ability:9442180|Web] spell to restrain Priest [character:9442159], who was under the influence of a dark artifact. Her efforts, along with those of her companions, resulted in the successful capture of the priest and earned her additional renown with the [organisation:9419386|Emerald Enclave].\n\n Following a devastating fireball explosion outside [location:9418605] that left eleven people dead, [character:9425236|Eoula] assisted in an investigation. Using her [item:9437393], she uncovered local trivia regarding Sergeant Barnibus's toupee. The party subsequently traveled to the [location:9442786] (the Temple of Gond) to investigate a rogue nimblewright automaton. There, they met Lady [character:9442787], who offered a 500 gold piece reward for the destruction of the creature. After interacting with a mute nimblewright named [character:9442788], the party received a copper tracking device to aid in their hunt.\n\n Following this, while investigating the aftermath of the explosion, [character:9425236|Eoula] used her [item:9437393] to record information regarding Lady [character:9443310], uncovering that she has a secret lover, the drow [character:9443318]. The party then infiltrated [location:9443309], the estate of the Gralhund family, where they engaged in a skirmish with members of the [organisation:9419438] to defend house guards in the upstairs foyer. During this infiltration, [character:9425236|Eoula] uncovered scandalous gossip that [character:9443310|Lady Gralhund] is having an affair with the carnival master, [character:9443973|Zardoz Zord]. Additionally, while investigating a potential lead on the \"[character:9443961|Black Viper],\" she used her Gossiper's Diary to magically confirm that the thief is likely a disfigured woman.\n\n Following the Gralhund affair, [character:9425236|Eoula] and her companions met with [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent. After receiving payment for the meeting, the group agreed to allow [character:9443960|Istrid Horn] to hide out at [location:9418605|Trollskull Manor] under a disguise.",
+    "change_summary": "Updated the synopsis to include Eoula's discovery of Lady Gralhund's affair, her use of the Gossiper's Diary regarding the Black Viper, and the group's agreement to host Istrid Horn at Trollskull Manor.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Lady Gralhund",
+        "relation": "Investigated",
+        "attitude": -20,
+        "reason": "Eoula uncovered scandalous gossip about her affair and noted her suspicious behavior during the investigation at the villa."
+      },
+      {
+        "action": "create",
+        "target_name": "Istrid Horn",
+        "relation": "Allied with (as host)",
+        "attitude": 20,
+        "reason": "The party met with her and agreed to let her hide out at their tavern/manor."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443960,
+        "target_name": "Istrid Horn"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425238,
+    "entity_kind": "character",
+    "entity_local_id": 2439423,
+    "entity_name": "Tyde Undertow",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>[character:9425238|Tyde Undertow] is a striking, fey-touched or tiefling-like druid whose appearance beautifully bridges the gap between the wild earth and the deep ocean with vibrant blue skin transitioning into soft pink and silver tones across their limbs. Though her favorite wildshape forms for a fierce battle are a predatory wolf or a snapping crocodile, [character:9425238|Tyde]'s greatest challenge isn't a formidable enemy, but a simple map. Possessing absolutely zero sense of direction, she is blissfully incapable of getting from point A to point B without a guide, turning every simple journey into an accidental detour through the wilderness. \n\n Tyde was found lost in the sewers of [location:9418490|Waterdeep] while searching for nature. After being spotted by [organisation:9419162|the party], she joined their ranks. She assisted the group in rescuing [character:9431741|Floon Blagmaar] from the clutches of [character:9432251|Nihiloor] and [character:9432250|Grum’shar] within a [organisation:9419437|Xanathar Guild] hideout. During the skirmish, she managed to scramble out of the path of a [creature:9432254|Intellect Devourer] before the party defeated it. She is now a member of [organisation:9419162|the party] and a resident of [location:9418605|Trollskull Manor]. \n\n Recently, Tyde has begun expanding her ties with local factions. She was invited to join the [organisation:9419386|Emerald Enclave] after a speaking cat approached her and [character:9425235|Alyzira]. She is particularly eager to work with the Enclave to locate her missing group of coastal druids. She was formally granted membership by [character:9435919|Jeryth Phaulkon] at [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration] and a promise of assistance in finding her lost kin. Additionally, Tyde recently attended an opera at the [location:9435901|Lightsinger Theater] in a sparkly silver-and-blue gown to maintain the party's social standing and investigate leads for the [organisation:9419383|Harpers]. \n\n Tyde recently assisted the party in investigating reports of living scarecrows terrorizing the [location:9437517] on Undercliff Way. For her role in defeating the scarecrows and saving the farmlands, she was awarded 20 Gold Pieces and gained +1 Renown with the [organisation:9419386|Emerald Enclave].\n\n Most recently, while patrolling the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], Tyde and her companions were ambushed by skeletons. During a subsequent confrontation with Priest [character:9442159] at the [location:9442141], Tyde was struck by a devastating spell that caused her to drop unconscious and die for the first time in her adventuring career, though she was quickly revived by [character:9423629]. Following the successful capture of the priest, Tyde earned an additional 10 gold pieces and +1 Renown with the [organisation:9419386|Emerald Enclave].\n\n During an infiltration of [location:9443309], Tyde wildshaped into a wolf to help the party and house guards dispatch five [organisation:9419438] swordsmen in the upstairs foyer of the estate.</p>",
+    "proposed_entry": "[character:9425238|Tyde Undertow] is a striking, fey-touched or tiefling-like druid whose appearance beautifully bridges the gap between the wild earth and the deep ocean with vibrant blue skin transitioning into soft pink and silver tones across their limbs. Though her favorite wildshape forms for a fierce battle are a predatory wolf or a snapping crocodile, [character:9425238|Tyde]'s greatest challenge isn't a formidable enemy, but a simple map. Possessing absolutely zero sense of direction, she is blissfully incapable of getting from point A to point B without a guide, turning every simple journey into an accidental detour through the wilderness. \n\n Tyde was found lost in the sewers of [location:9418490|Waterdeep] while searching for nature. After being spotted by [organisation:9419162|the party], she joined their ranks. She assisted the group in rescuing [character:9431741|Floon Blagmaar] from the clutches of [character:9432251|Nihiloor] and [character:9432250|Grum’shar] within a [organisation:9419437|Xanathar Guild] hideout. During the skirmish, she managed to scramble out of the path of a [creature:9432254|Intellect Devourer] before the party defeated it. She is now a member of [organisation:9419162|the party] and a resident of [location:9418605|Trollskull Manor]. \n\n Recently, Tyde has begun expanding her ties with local factions. She was invited to join the [organisation:9419386|Emerald Enclave] after a speaking cat approached her and [character:9425235|Alyzira]. She is particularly eager to work with the Enclave to locate her missing group of coastal druids. She was formally granted membership by [character:9435919|Jeryth Phaulkon] at [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration] and a promise of assistance in finding her lost kin. Additionally, Tyde recently attended an opera at the [location:9435901|Lightsinger Theater] in a sparkly silver-and-blue gown to maintain the party's social standing and investigate leads for the [organisation:9419383|Harpers]. \n\n Tyde recently assisted the party in investigating reports of living scarecrows terrorizing the [location:9437517] on Undercliff Way. For her role in defeating the scarecrows and saving the farmlands, she was awarded 20 Gold Pieces and gained +1 Renown with the [organisation:9419386|Emerald Enclave]. During a patrol of the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was struck by a devastating spell and died temporarily, but was quickly revived by [character:9423629]. Following the capture of a priest, she earned an additional 10 gold pieces and +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\n During an infiltration of [location:9443309], Tyde wildshaped into a wolf to help the party dispatch five [organisation:9419438] swordsmen. She also utilized her ability to wildshape into a spider to bypass a barricaded door in the same villa, allowing the group to discover Lord [character:9443311|Orond Gralhund]. \n\n Most recently, Tyde used her animal handling skills to earn the trust of [character:9443969|Bonesnapper], a young griffon. She utilized the mount to perform an aerial search of the [location:9418606|Dock Ward] to track a missing automaton, coordinating with the party from the skies.",
+    "change_summary": "Updated the synopsis to include Tyde's use of spider wildshape during the Gralhund Villa infiltration and her recent aerial reconnaissance using the griffon Bonesnapper.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Bonesnapper",
+        "relation": "Bonded with",
+        "attitude": 70,
+        "reason": "Tyde used her animal handling skills to earn the trust of the young griffon [character:9443969|Bonesnapper]."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443969,
+        "target_name": "Bonesnapper"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443308,
+    "entity_kind": "character",
+    "entity_local_id": 2444454,
+    "entity_name": "Urstul Floxin",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>A glorified thug-turned-assassin with all the charm and breeding of a true snake, Urstul Floxin is the suspected leader of the splinter cell of [organisation:9419438]<span>.</span></p>",
+    "proposed_entry": "A prominent member of the [organisation:9419438|Zhentarim] gang, [character:9443308|Urstul Floxin] is a heavily beaten 40-year-old man. He was recently discovered tied up at [location:9443309|Gralhund Villa], where he had been attempting to secure the [item:9432044|Stone of Golorr]. During his time at the villa, he was caught in a blast from a nimblewright equipped with a necklace of fireballs, which was sent by [character:9443310|Lady Gralhund] to retrieve the artifact. After being released by [organisation:9419162|the party], he taunted them before fleeing into the city.",
+    "change_summary": "Updated the synopsis to reflect Urstul's true identity as a prominent Zhentarim member, his recent capture at Gralhund Villa, and his attempt to secure the Stone of Golorr.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "[organisation:9419438|Zhentarim]",
+        "relation": "prominent member of",
+        "attitude": 0,
+        "reason": "The session notes explicitly identify him as a 'prominent member of the [organisation:9419438|Zhentarim] gang'."
+      },
+      {
+        "action": "create",
+        "target_name": "[organisation:9419162|the party]",
+        "relation": "taunted by",
+        "attitude": -50,
+        "reason": "Upon being released, he immediately taunted the party by shouting \"Suckers!\" and fled."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443309,
+    "entity_kind": "location",
+    "entity_local_id": 2127775,
+    "entity_name": "Gralhund Villa",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Gralhund Villa rises behind twelve-foot stone walls in [location:9418490]’s [location:9431893], an imposing noble estate that projects wealth, power, and secrecy in equal measure. Ornate iron gates open onto manicured grounds dotted with flowering trees and winding paths that lead to a grand two-story mansion of polished brick and dark timber. Inside, soaring ceilings, crystal chandeliers, rich mahogany furnishings, family portraits, and lavish tapestries speak to generations of prosperity, while the atmosphere carries an undercurrent of tension—as though every polished surface conceals a hidden agenda.\n\nThough outwardly the home of Lady [character:9443310] and Lord [character:9443311], the villa has recently become a site of violent chaos. Following a raid, the estate's ground floor shows signs of significant bloodshed, including the deaths of the butler and a halfling cook. The villa serves as a residence for members of the [organisation:9419438], who have been involved in skirmishes within the foyer against house guards defending the master bedroom doors.</p>",
+    "proposed_entry": "Gralhund Villa rises behind twelve-foot stone walls in [location:9418490]’s [location:9431893], an imposing noble estate that projects wealth, power, and secrecy in equal measure. Ornate iron gates open onto manicured grounds dotted with flowering trees and winding paths that lead to a grand two-story mansion of polished brick and dark timber. Inside, soaring ceilings, crystal chandeliers, rich mahogany furnishings, family portraits, and lavish tapestries speak to generations of prosperity.\n\nThough outwardly the home of Lady [character:9443310|Yalah Gralhund] and Lord [character:9443311|Orond Gralhund], the villa has recently been a site of violent chaos. Following a raid by the [organisation:9419438|Zhentarim], the estate's ground floor shows signs of significant bloodshed, including the deaths of the butler and a halfling cook. The conflict was partially triggered by a nimblewright automaton equipped with a necklace of fireballs, which accidentally caught members of the [organisation:9419438|Zhentarim] in a blast while attempting to retrieve the [item:9432044|Stone of Golorr]. \n\nInvestigations within the villa revealed that the Gralhunds have been secretly bankrolling [organisation:9419438|Zhentarim] operations, with funding provided by the agent [character:9443960|Istrid Horn]. The estate also contains a guest room featuring a teleportation circle and evidence of a struggle involving [character:9443308|Urstul Floxin], who had been staying there before turning on the family.",
+    "change_summary": "Updated the synopsis to include details regarding the cause of the violence (the nimblewright/fireball incident), the secret financial ties between the Gralhunds and the Zhentarim via Istrid Horn, and the specific involvement of Urstul Floxin.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Istrid Horn",
+        "relation": "Secretly funded by",
+        "attitude": 0,
+        "reason": "Istrid Horn revealed she personally provided the funding to the Gralhunds to bankroll Zhentarim operations."
+      },
+      {
+        "action": "create",
+        "target_name": "Urstul Floxin",
+        "relation": "Was a guest of",
+        "attitude": -50,
+        "reason": "Urstul Floxin had been staying in a guest room at the villa before turning on the family during an attack."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443960,
+        "target_name": "Istrid Horn"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9443308,
+        "target_name": "Urstul Floxin"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443310,
+    "entity_kind": "character",
+    "entity_local_id": 2444455,
+    "entity_name": "Yalah Gralhund",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Matriarch of the noble Gralhund family. The family trades in arms and mercenaries. She and her husband sent their nimblewright to steal the [item:9432044].</p>",
+    "proposed_entry": "Matriarch of the noble Gralhund family, which trades in arms and mercenaries. She is described as snobby and overbearing, showing little gratitude toward those who assist her. While she claimed ignorance regarding the missing nimblewright or the [item:9432044|Stone of Golorr], it was revealed that she had personally purchased a nimblewright and equipped it with a necklace of fireballs to retrieve the artifact.\n\nShe is currently involved in a scandalous affair with the carnival master, [character:9443973|Zardoz Zord].",
+    "change_summary": "Updated synopsis to include her personality, her direct involvement in sending the nimblewright to retrieve the Stone of Golorr, and her secret affair with Zardoz Zord.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Zardoz Zord",
+        "relation": "Having an affair with",
+        "attitude": 50,
+        "reason": "The session notes reveal scandalous gossip that Lady Gralhund is having an affair with the carnival master, [character:9443973|Zardoz Zord]."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443973,
+        "target_name": "Zardoz Zord"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419631,
+    "entity_kind": "character",
+    "entity_local_id": 2437854,
+    "entity_name": "Raucous",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:9418259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue. Raucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service.\n\nRecently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159].</p>",
+    "proposed_entry": "A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:9418259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue. Raucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service.\n\nRecently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159].\n\nDuring a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Raucous untied the Zhentarim member [character:9443308|Urstul Floxin]. In the same encounter, he expertly pickpocketed [character:9443311|Lord Orond Gralhund], stealing 50 gold pieces and a strange compass. Later, while investigating a lead regarding the \"[character:9443961|Black Viper]\", Raucous smoothly pickpocketed [character:9443962|Gaxly Rudderbust], stealing back 30 gold pieces that had been used as a bribe.",
+    "change_summary": "Updated the synopsis to include Raucous's involvement in the battle at Gralhund Villa, specifically his actions involving Urstul Floxin and Lord Orond Gralhund, as well as his pickpocketing of Gaxly Rudderbust.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Urstul Floxin",
+        "relation": "Assisted",
+        "attitude": 0,
+        "reason": "Raucous untied him during the battle at Gralhund Villa."
+      },
+      {
+        "action": "update",
+        "target_name": "Lord Orond Gralhund",
+        "relation": "Pickpocketed",
+        "attitude": -20,
+        "reason": "Raucous stole 50 gold pieces and a strange compass from him during the investigation of the villa."
+      },
+      {
+        "action": "update",
+        "target_name": "Gaxly Rudderbust",
+        "relation": "Pickpocketed",
+        "attitude": -20,
+        "reason": "Raucous stole 30 gold pieces from him during the investigation into the Black Viper."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443308,
+        "target_name": "Urstul Floxin"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9443962,
+        "target_name": "Gaxly Rudderbust"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443311,
+    "entity_kind": "character",
+    "entity_local_id": 2444456,
+    "entity_name": "Orond Gralhund",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Patriarch of the noble Gralhund family. The Gralhunds trade in arms and mercenaries. He and his wife sent their nimblewright to steal the [item:9432044]. The family resides at [location:9443309], an estate that recently experienced a violent raid by [organisation:9419438] swordsmen.</p>",
+    "proposed_entry": "Patriarch of the noble Gralhund family, which trades in arms and mercenaries. He resides at [location:9443309|Gralhund Villa], an estate that recently experienced a violent raid by [organisation:9419438|Zhentarim] swordsmen. During the chaos, he was found cowering in a guest room, where he revealed that his family is hiding the [item:9432044|Stone of Golorr]—an ancient creature transformed into a stone that holds the secret to a massive gold vault in [location:9418490|Waterdeep]. He also disclosed that his wife, [character:9443310|Lady Gralhund], had sent a nimblewright equipped with a necklace of fireballs to retrieve the artifact, which inadvertently caused part of the conflict.",
+    "change_summary": "Updated the synopsis to reflect Orond's discovery by the party, his role in revealing the true nature of the Stone of Golorr, and the details regarding his wife's involvement with the nimblewright.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Lady Gralhund",
+        "relation": "husband of",
+        "attitude": null,
+        "reason": "The session notes confirm Lady Gralhund is his wife."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418605,
+    "entity_kind": "location",
+    "entity_local_id": 2121684,
+    "entity_name": "Trollskull Manor",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Trollskull Manor is a historic, formerly abandoned townhouse and tavern located in [location:9419015] within [location:9418490]’s [location:9431893|North Ward]. Once a lively neighborhood tavern known as the “Trollskull,” the building fell into disrepair after a tragic fire and years of neglect, becoming a decaying but character-filled ruin with a distinctive troll skull mounted on its roof. In its modern state, it has been reclaimed and restored by adventurers, transforming it into a functional base of operations, tavern, and gathering place for allies, contacts, and faction agents. Its rooms include common halls, private chambers, and upper floors that often serve as living quarters, meeting spaces, and storage for quests and loot. The property was recently acquired by [organisation:9419162|the party] from [character:9418259|Volothamp Geddarm] following the rescue of [character:9431741|Floon Blagmaar]. While the manor is a majestic four-story property, it remains a significant renovation project. The rumors of a haunting were proven true upon the party's arrival; the manor is inhabited by a poltergeist who identifies as “Leif” (Lif). This ghost is a self-proclaimed neat-freak who has made it clear that he demands the messy, run-down inn be thoroughly cleaned.\n\nRecent efforts to renovate the manor have drawn attention from the Fellowship of Innkeepers. [character:9435898|Broxley Fairkettle] has visited the property to urge [organisation:9419162|the party] to join the guild to avoid harassment from city officials, noting that structural repairs and standard operations require various guild contracts and licenses. A detailed 12-day repair schedule and cost breakdown for the manor's renovations have been provided by [character:9435898|Broxley]'s son, Buxley. The party has since accepted an invitation from the Fellowship to host the upcoming [event:9438944] and has officially finalized their entrance into the Innkeepers Guild, paying the necessary fees to fund the manor's massive renovations. Despite its ongoing restoration, Trollskull Manor retains a reputation for attracting unusual patrons, strange occurrences, and the kind of trouble that tends to follow adventuring parties wherever they go.</p>",
+    "proposed_entry": "Trollskull Manor is a historic, formerly abandoned townhouse and tavern located in [location:9419015] within [location:9418490]’s [location:9431893|North Ward]. Once a lively neighborhood tavern known as the “Trollskull,” the building fell into disrepair after a tragic fire and years of neglect, becoming a decaying but character-filled ruin with a distinctive troll skull mounted on its roof. In its modern state, it has been reclaimed and restored by adventurers, transforming it into a functional base of operations, tavern, and gathering place for allies, contacts, and faction agents. Its rooms include common halls, private chambers, and upper floors that often serve as living quarters, meeting spaces, and storage for quests and loot. The property was recently acquired by [organisation:9419162|the party] from [character:9418259|Volothamp Geddarm] following the rescue of [character:9431741|Floen Blagmaar]. While the manor is a majestic four-story property, it remains a significant renovation project. The rumors of a haunting were proven true upon the party's arrival; the manor is inhabited by a poltergeist who identifies as “Leif” (Lif). This ghost is a self-proclaimed neat-freak who has made it clear that he demands the messy, run-down inn be thoroughly cleaned.\n\nRecent efforts to renovate the manor have drawn attention from the Fellowship of Innkeepers. [character:9435898|Broxley Fairkettle] has visited the property to urge [organisation:9419162|the party] to join the guild to avoid harassment from city officials, noting that structural repairs and standard operations require various guild contracts and licenses. A detailed 12-day repair schedule and cost breakdown for the manor's renovations have been provided by [character:9435898|Broxley]'s son, Buxley. The party has since accepted an invitation from the Fellowship to host the upcoming [event:9438944] and has officially finalized their entrance into the Innkeepers Guild, paying the necessary fees to fund the manor's massive renovations. Despite its ongoing restoration, Trollskull Manor retains a reputation for attracting unusual patrons, strange occurrences, and the kind of trouble that tends to follow adventuring parties wherever they go.\n\nCurrently, with only 12 days remaining until the grand opening, the manor is serving as a temporary safehouse for [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent and illegal currency-lender. Disguised as a male dwarf named Jorn, she has moved into the manor to lay low from the City Watch, promising to assist with chores around the property in exchange for shelter.",
+    "change_summary": "Updated the synopsis to reflect that the manor is currently serving as a safehouse for Istrid Horn (disguised as Jorn) during its final 12 days of renovation.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Istrid Horn",
+        "relation": "Temporary resident and safehouse occupant",
+        "attitude": 0,
+        "reason": "She has moved into the manor under a disguise to hide from the City Watch, promising to perform chores in exchange for staying there."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443960,
+        "target_name": "Istrid Horn"
+      }
+    ]
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9438957,
+    "entity_kind": "character",
+    "entity_local_id": 2443223,
+    "entity_name": "Savra Belabranta",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p><b>Savra Belabranta</b> is a member of the Belabrantas, a noble <a href=\"https://waterdeep.fandom.com/wiki/Waterdeep\" title=\"Waterdeep\">Waterdhavian</a> family whose main activity was raising griffons to serve as mounts for the Griffon Cavalry. She is also a member of the [organisation:9419404].</p>",
+    "proposed_entry": "Savra Belabranta is a member of the Belabrantas, a noble Waterdhavian family whose main activity was raising griffons to serve as mounts for the Griffon Cavalry. She is also a member of the [organisation:9419404|Order of the Gauntlet].\n\nRecently, she requested assistance from [character:9423629|Orlum] and [organisation:9419162|the party] to track down a notorious thief known as the \"[character:9443961|Black Viper].\"",
+    "change_summary": "Updated the synopsis to include Savra's recent request for help tracking the 'Black Viper'.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "[organisation:9419162|the party]",
+        "relation": "Requested assistance from",
+        "attitude": 0,
+        "reason": "She sent a message to the party requesting their help in tracking down the Black Viper."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418606,
+    "entity_kind": "location",
+    "entity_local_id": 2121685,
+    "entity_name": "Dock Ward",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p><span class=\"hover:entity-accent entity-underline inline cursor-pointer align-baseline\"><span class=\"whitespace-normal\">The Dock Ward of </span></span>[location:9418490] is the rough, bustling heart of the city’s working waterfront, where sailors, dockworkers, fishmongers, merchants, and smugglers all collide in a constant churn of commerce and chaos. It is one of the most densely packed and colorful districts in Waterdeep, filled with creaking warehouses, leaning tenements, noisy taverns, and narrow streets that smell of saltwater, tar, and spilled ale. Ships from across the [location:9418394] and beyond crowd its piers, bringing goods, rumors, and trouble in equal measure. While officially under the protection of the City Watch, the Dock Ward is notoriously difficult to police completely, and many of its darker dealings are quietly influenced by criminal factions and dockside power brokers. Despite its grime and danger, it is also a place of opportunity, where fortunes can be made quickly—and lost even faster.</p><p><em>\"If you want to understand Waterdeep, don’t start in the palace halls or noble villas—start at the docks. Everything that enters the city passes through here, and so does everything the city would rather forget.\"</em></p>",
+    "proposed_entry": "The Dock Ward of [location:9418490] is the rough, bustling heart of the city’s working waterfront, where sailors, dockworkers, fishmongers, merchants, and smugglers all collide in a constant churn of commerce and chaos. It is one of the most densely packed and colorful districts in Waterdeep, filled with creaking warehouses, leaning tenements, noisy taverns, and narrow streets that smell of saltwater, tar, and spilled ale. Ships from across the [location:9418394] and beyond crowd its piers, bringing goods, rumors, and trouble in equal measure.\n\nRecent activity has seen a fleet of ships belonging to the Sea Maidens Faire carnival, owned by [character:9443973|Zardoz Zord], docking at the ward's piers. This includes the galleons Heartbreaker and Hellraiser, while their flagship, the [location:9443986|Eyecatcher], remains anchored in Deepwater Harbor. The area remains a focal point for tracking rogue automatons, as recent aerial searches have identified high concentrations of signal activity near these docked vessels.\n\nWhile officially under the protection of the City Watch, the Dock Ward is notoriously difficult to police completely, and many of its darker dealings are quietly influenced by criminal factions and dockside power brokers. Despite its grime and danger, it is also a place of opportunity, where fortunes can be made quickly—and lost even faster. \"If you want to understand Waterdeep, don’t start in the palace halls or noble villas—start at the docks. Everything that enters the city passes through here, and so does everything the city would rather forget.\"",
+    "change_summary": "Added details regarding the presence of the Sea Maidens Faire fleet (the Heartbreaker and Hellraiser) and its relevance to tracking nimblewrights.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443960,
+    "entity_kind": "character",
+    "entity_local_id": 2444649,
+    "entity_name": "Istrid Horn",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>lstrid is regarded as the Black Network's Master of\nTrade and Coin in [location:9418490]. The shield dwarf operates an illegal lending operation out of a heavily guarded\nwarehouse in the [location:9418606]. offering loans to those in\nneed of coin. Her interest rates are comparable to those\nof her competitors {including noble families of bankers\nsuch as the Cassalanters and the Irlingstars), but the\npenalties for not paying back lstrid's loans are severe.\nlstrid worships Vergadain, the dwarven god of wealth\nand luck. She likes having others indebted to her, and\nshe employs thugs and enforcers to collect on her loans. If those resources prove inadequate, Istrid can call on\nher old adventuring companions for assistance.</p><p>She paid the party 50 platinum to let her hide at [location:9418605] after the massacre at [location:9443309].</p>",
+    "proposed_entry": "Istrid is regarded as the Black Network's Master of Trade and Coin in [location:9418490]. The shield dwarf operates an illegal lending operation out of a heavily guarded warehouse in the [location:9418606], offering loans to those in need of coin. Her interest rates are comparable to those of her competitors (including noble families of bankers such as the Cassalanters and the Irlingstars), but the penalties for not paying back Istrid's loans are severe.\n\nIstrid worships Vergadain, the dwarven god of wealth and luck. She likes having others indebted to her, and she employs thugs and enforcers to collect on her loans. If those resources prove inadequate, Istrid can call on her old adventuring companions for assistance. \n\nFollowing the events at [location:9443309], Istrid reached out to [organisation:9419162|the party] to discuss the fallout of the Gralhund Villa massacre. She revealed that she had personally provided funding to the Gralhunds, who had been secretly bankrolling [organisation:9419438|Zhentarim] operations. Fearing arrest by the City Watch due to her underground banking, she paid the party 10 platinum just to meet and offered an additional 40 platinum for them to let her hide at [location:9418605]. She is currently residing at [location:9418605] in disguise as a male dwarf named Jorn, promising to perform chores while she lays low.",
+    "change_summary": "Updated the synopsis to reflect Istrid's meeting with the party, her revelation regarding funding the Gralhunds, and her current status hiding at Trollskull Manor under a disguise.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "the party",
+        "relation": "hired ally of",
+        "attitude": 50,
+        "reason": "Istrid reached out to the party, paid them for their time, and offered a significant sum of platinum to allow her to hide at their tavern."
+      },
+      {
+        "action": "create",
+        "target_name": "Lady Gralhund",
+        "relation": "secret financier of",
+        "attitude": 0,
+        "reason": "Istrid revealed she personally provided the funding to the Gralhunds, who were bankrolling Zhentarim operations."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443961,
+    "entity_kind": "character",
+    "entity_local_id": 2444650,
+    "entity_name": "Black Viper",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>The Black Viper is nimble and clever. The Black Viper is apparently the twin sister of [character:9443963], and she wears a mask to hide her face.</p>",
+    "proposed_entry": "The Black Viper is nimble and clever. She is suspected to be a local noblewoman and is believed to be the secret, evil twin sister of [character:9443963], suffering from a disfigured face.",
+    "change_summary": "Updated the synopsis to include her reputation as a notorious thief/noblewoman and the specific detail regarding her disfigurement and relationship to Ammalia Cassalanter.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "[character:9443963]",
+        "relation": "evil twin sister of",
+        "attitude": -50,
+        "reason": "The publisher Gaxly Rudderbust identifies her as the 'secret, evil twin sister' of [character:9443963]."
+      }
+    ],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418490,
+    "entity_kind": "location",
+    "entity_local_id": 2121671,
+    "entity_name": "Waterdeep",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Waterdeep —often called the City of Splendors—is one of the largest, richest, and most influential cities in the Forgotten Realms, a sprawling coastal metropolis where nobles, merchants, adventurers, and criminals all compete for power under a carefully balanced system of open governance and hidden influence. Ruled by the mysterious Lords of Waterdeep and publicly represented by the Open Lord, the city thrives on trade, magic, and politics, drawing in wealth and danger from across [location:9418260] through its vast harbor and strategic position on the [location:9418394]. Beneath its grand estates, bustling wards, and famed institutions lies a labyrinth of secrets: ancient ruins, hidden guild operations, and conspiracies that can shape the fate of nations. The city's various wards, such as the Castle Ward and the grim, shadow-filled Dock Ward, serve as the backdrop for intense factional violence between groups like the Xanathar Guild and the Zhentarim. Waterdeep is both a beacon of opportunity and a maze of intrigue, where fortunes are made quickly—but only by those clever enough to survive its many layers.</p>",
+    "proposed_entry": "Waterdeep —often called the City of Splendors—is one of the largest, richest, and most influential cities in the Forgotten Realms, a sprawling coastal metropolis where nobles, merchants, adventurers, and criminals all compete for power under a carefully balanced system of open governance and hidden influence. Ruled by the mysterious Lords of Waterdeep and publicly represented by the Open Lord, the city thrives on trade, magic, and politics, drawing in wealth and danger from across [location:9418260] through its vast harbor and strategic position on the [location:9418394]. Beneath its grand estates, bustling wards, and famed institutions lies a labyrinth of secrets: ancient ruins, hidden guild operations, and conspiracies that can shape the fate of nations. The city's various wards, such as the [location:9431892|Castle Ward], the shadow-filled [location:9418606|Dock Ward], and the parkland cemetery known as the [location:9438979|City of the Dead], serve as backdrops for intense factional violence between groups like the [character:9419465|Xanathar] Guild and the Zhentarim. Waterdeep is both a beacon of opportunity and a maze of intrigue, where fortunes are made quickly—such as the rumored half-million gold vault hidden somewhere within its streets—but only by those clever enough to survive its many layers.",
+    "change_summary": "Added the [location:9438979|City of the Dead] to the list of wards/locations and incorporated the mention of a rumored half-million gold vault into the final paragraph.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "applied",
+    "relation_results": []
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443963,
+    "entity_kind": "character",
+    "entity_local_id": 2444652,
+    "entity_name": "Ammalia Cassalanter",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "previous_entry": "<p>Ammalia Cassalanter is the matron of House Cassalanter and the wife of Victoro Cassalanter. She is known in [location:9418490]’s noble circles as a graceful and devout woman, frequently attending high-holiday ceremonies and temple functions. Alongside her husband, she is credited with donating the Dagger of the Mountain King to the Gralhund Gala auction—a contribution praised in the <i>Waterdeep Wazoo</i> and cited as another example of House Cassalanter’s commitment to civic welfare. </p>",
+    "proposed_entry": "Ammalia Cassalanter is the matron of House Cassalanter and the wife of Victoro Cassalanter. She is known in [location:9418490]’s noble circles as a graceful and devout woman, frequently attending high-holiday ceremonies and temple functions. Alongside her husband, she is credited with donating the Dagger of the Mountain King to the Gralhund Gala auction—a contribution praised in the Waterdeep Wazoo and cited as another example of House Cassalanter’s commitment to civic welfare.\n\nRecent rumors from the publisher of the Waterdeep Wazoo suggest that a notorious thief known as the \"[character:9443961|Black Viper]\" is actually Ammalia's secret, evil twin sister, who reportedly suffers from a disfigured face.",
+    "change_summary": "Added information regarding a rumor linking Ammalia to the 'Black Viper' identity via a supposed twin sister.",
+    "relation_changes": [
+      {
+        "action": "create",
+        "target_name": "Black Viper",
+        "relation": "alleged twin sister of",
+        "attitude": null,
+        "reason": "The publisher Gaxly Rudderbust claims the Black Viper is Ammalia's secret, evil twin sister."
+      }
+    ],
+    "uncertain": [
+      "The identity of the 'Black Viper' as Ammalia's twin sister is based on a theory from a broadsheet publisher and is not yet confirmed fact."
+    ],
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9443961,
+        "target_name": "Black Viper"
+      }
+    ]
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Hrabbaz",
+    "suggested_type": "character",
+    "draft_entry": "A well-dressed half-orc bodyguard who confronted the party at Gralhund Villa.",
+    "reason": "Flagged as a named NPC.",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Al Borland",
+    "suggested_type": "character",
+    "draft_entry": "A trainer for the city's Griffon Cavalry who is currently training Bonesnapper.",
+    "reason": "Flagged as a named person.",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "new_entity",
+    "entity_name": "Jorn",
+    "suggested_type": "character",
+    "draft_entry": "A male dwarf identity used by Istrid Horn while hiding at Trollskull Manor.",
+    "reason": "Flagged as a named persona/character.",
+    "source_journal": "2024/07/12 - Suckers, Spiders, and Scarlet Captains",
+    "status": "rejected"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9438977,
+    "entity_kind": "location",
+    "entity_local_id": 2126521,
+    "entity_name": "Book Wyrm's Treasure",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>The front of this bookstore is adorned with a charming sign of a gold \ndragon curled around a treasure hoard of books and scrolls. Inside, the \nshop is decorated with beautiful hardwood, and the earthy scent of old \nbooks permeates the air. The library fills two floors of this \nthree-story building, and it somehow seems to contain more shelves than \nthe building should be able to hold.\n</p><p>The shop is managed by a short dragonborn of gold dragon ancestry named [character:9442098]<b> the Page-Turner</b>, who lives on the third floor. [character:9442098], a member of the Watchful Order of Magists and Protectors, is a mage.\n</p><p>The shop contains books of all sorts. In addition, [character:9442098]\n has a small collection of spellbooks and charges wizards to copy spells\n from them. He can scribe any of these spells as a scroll, and allows \nthose with <a href=\"https://waterdeep.fandom.com/wiki/Watchful_Order_of_Magists_and_Protectors\" title=\"Watchful Order of Magists and Protectors\">guild</a> approval to copy spells from their source spellbooks for half this price.</p>",
+    "proposed_entry": "The front of this bookstore is adorned with a charming sign of a gold dragon curled around a treasure hoard of books and scrolls. Inside, the shop is decorated with beautiful hardwood, and the earthy scent of old books permeates the air. The library fills two floors of this three-story building, and it somehow seems to contain more shelves than the building should be able to hold.\n\nThe shop is managed by a short dragonborn of gold dragon ancestry named [character:9442098]  the Page-Turner , who lives on the third floor. [character:9442098], a member of the Watchful Order of Magists and Protectors, is a mage.\n\nThe shop contains books of all sorts. In addition, [character:9442098] has a small collection of spellbooks and charges wizards to copy spells from them. He can scribe any of these spells as a scroll, and allows those with guild approval to copy spells from their source spellbooks for half this price.\n\nRecently, the shop was plagued by an urgent monster problem involving a floating gazer that had taken over the premises and chased the shopkeeper's cat, Philippa, into the attic. The shop is currently managed/owned by [character:9445757].",
+    "change_summary": "Updated the synopsis to reflect a recent encounter with a gazer in the shop and noted a discrepancy regarding the shopkeeper's identity.",
+    "relation_changes": [],
+    "uncertain": [
+      "The existing synopsis states the shop is managed by [character:9442098], but the new session notes identify the frantic shopkeep as [character:9445757]. It is unclear if they are the same person, if one is an employee of the other, or if the previous information was incorrect."
+    ],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9445765,
+    "entity_kind": "character",
+    "entity_local_id": 2445086,
+    "entity_name": "Dasher Snobeedle",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "",
+    "proposed_entry": "(no synopsis yet)",
+    "change_summary": "The entity has no existing synopsis or relationships to update.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9445766,
+    "entity_kind": "character",
+    "entity_local_id": 2445087,
+    "entity_name": "Kelso Fiddlewick",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "",
+    "proposed_entry": "(no synopsis yet)",
+    "change_summary": "The entity has no existing synopsis or relationships to update based on the provided session notes.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425235,
+    "entity_kind": "character",
+    "entity_local_id": 2439421,
+    "entity_name": "Alyzira Galanodel",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster. Recently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining [organisation:9419162|the party]'s presence and helping to avoid legal repercussions for the group. During a recent excursion into the [location:9418490|Waterdeep] sewers, [character:9425235|Alyzira] was briefly stunned and mentally incapacitated when an [creature:9432254|Intellect Devourer] leaped onto her during a skirmish with the [organisation:9419437|Xanathar Guild]. Following the battle, she gathered the remaining coin and valuables from the site. She also played a pivotal role in securing [organisation:9419162|the party]'s new base, using her magic to probe and calm a resident poltergeist named Leif within [location:9418605|Trollskull Manor], successfully negotiating the spirit's demands for a thorough cleaning of the property. \n\n[character:9425235|Alyzira] has recently expanded her influence and connections within the city. She successfully distracted a theater attendant at the [location:9435901|Lightsinger Theater] to facilitate a clandestine meeting with [character:9435899|Mirt] \"the Merciless\" of the [organisation:9419383|Harpers]. Furthermore, she was formally welcomed into the [organisation:9419386|Emerald Enclave] by [character:9435919|Jeryth Phaulkon] at the [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration]. During a recent quest for the [organisation:9419386|Emerald Enclave], [character:9425235|Alyzira] helped investigate reports of living scarecrows terrorizing the outlying farmlands. She used her magic to detect the thoughts of one of the creatures, identifying its eerie mental chant, and destroyed it with a Fireball . She also played a key role in the investigation of the local farmers, eventually using her charm magic to compel a local woman named Donya to confess to animating the creatures. For her efforts in saving the farmlands, [character:9425235|Alyzira] earned +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\nFollowing a violent explosion in the alleyway outside [location:9418605|Trollskull Manor] that left eleven people dead, [character:9425235|Alyzira] assisted in investigating the scene. She successfully coaxed a frightened halfling boy into giving her a broken necklace containing magical fireball gems, which she analyzed with magic before surrendering it to the City Watch. To further the investigation, she bribed a cleric with 25 gold pieces to arrange a Speak with Dead ritual involving a deceased gnome at Mystra's shrine in the [location:9438979|City of the Dead] cemetery. Additionally, during an investigation at the [location:9431883|Sea Ward] [location:9442786|House of Inspired Hands], she promptly picked a locked attic door to reveal a mute nimblewright automaton, [character:9442788|Nim]. Following a chaotic battle at [location:9443309|Gralhund Villa], [character:9425235|Alyzira] used her magic to charm [character:9443308|Urstul Floxin], a prominent member of the [organisation:9419438|Zhentarim], uncovering vital intelligence regarding the [item:9432044|Stone of Golorr], a hidden half-million gold piece vault, and the Gralhund family's involvement in the alleyway explosion. Though she tried to secure his future cooperation, her party members prematurely released the untrustworthy thug, who immediately fled. To further their investigation into a mysterious rival thief known as the \"[character:9443961|Black Viper],\" [character:9425235|Alyzira] paid a 30 gold piece bribe to the publisher of the [location:9418490|Waterdeep] Wazoo , uncovering a lead that the thief might be the disfigured secret twin sister of [character:9443963|Ammalia Cassalanter]. \n\nIn an effort to track the missing nimblewright, [character:9425235|Alyzira] coordinated with her ally [character:9423618|Gladio] to arrange an aerial search via a griffon. When the tracker led [organisation:9419162|the party] to the Sea Maidens Faire carnival in the [location:9418606|Dock Ward], [character:9425235|Alyzira] utilized her social charms to strike up a conversation with the crew, securing an exclusive invitation to dine with the flamboyant carnival master, [character:9443973|Zardoz Zord], aboard his flagship, the [location:9443986|Eyecatcher]. Though she was mortified when her companion [character:9423629|Orlum] performed a radical flute solo during the luxury feast, the dinner allowed [organisation:9419162|the party] to inspect [character:9443973|Zord]’s legally owned nimblewrights and deduce that [character:9442788|Nim]'s rogue creation was still loose in the city. Most recently, [character:9425235|Alyzira] and her party met secretly with high-ranking [organisation:9419438|Zhentarim] agent [character:9443960|Istrid Horn] at Ahghairon’s Statue in the [location:9438979|City of the Dead]. Recognizing the benefits of a wealthy and well-connected ally, [character:9425235|Alyzira] and her party agreed to harbor the fugitive loan shark, helping disguise her as a male dwarf named Jorn to safely lay low at [location:9418605|Trollskull Manor] ahead of the tavern's grand opening. \n\nWith construction on [location:9418605|Trollskull Manor] complete, [character:9425235|Alyzira] helped neutralize a rogue nimblewright in the [location:9435900|Trades Ward], which resulted in her receiving functional stilts as a reward from [location:9442786|House of Inspired Hands]. Following this, she and her party assisted [organisation:9419383|the Harpers] by defeating a gazer that had taken over a bookstore at [location:9445758], rescuing the shopkeeper's cat in the process. After the battle, she celebrated the tavern's opening with an \"acceptable\" musical rendition of Darude's \"Sandstorm.\"</p>",
+    "proposed_entry": "[character:9425235|Alyzira Galanodel] is a half-elf bard who carries herself with a slender yet athletic build. Strikingly charming and inherently charismatic, she naturally steps forward as the eloquent, persuasive \"face\" of her adventuring party during high-stakes negotiations and social maneuvers. Her true passion lies in performance—where her sharp wits and musical talents shine beautifully in private or casual settings. However, [character:9425235|Alyzira] harbors a hilarious and deeply ironic curse: the moment a formal audience gathers to watch her perform, her standard bardic grace utterly vanishes, transforming her otherwise masterful art into a brilliantly comedic disaster. Recently, [character:9425235|Alyzira] assisted in an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], where she successfully picked a front door lock to grant her party entry. During a confrontation with the City Watch, she utilized her persuasive skills to fast-talk Captain [character:9432045|Hyustus Staget], successfully explaining [organisation:9419162|the party]'s presence and helping to avoid legal repercussions for the group. During a recent excursion into the [location:9418490|Waterdeep] sewers, [character:9425235|Alyzira] was briefly stunned and mentally incapacitated when an [creature:9432254|Intellect Devourer] leaped onto her during a skirmish with the [organisation:9419437|Xanathar Guild]. Following the battle, she gathered the remaining coin and valuables from the site. She also played a pivotal role in securing [organisation:9419162|the party]'s new base, using her magic to probe and calm a resident poltergeist named Leif within [location:9418605|Trollskull Manor], successfully negotiating the spirit's demands for a thorough cleaning of the property. \n\n[character:9425235|Alyzira] has recently expanded her influence and connections within the city. She successfully distracted a theater attendant at the [location:9435901|Lightsinger Theater] to facilitate a clandestine meeting with [character:9435899|Mirt] \"the Merciless\" of the [organisation:9419383|Harpers]. Furthermore, she was formally welcomed into the [organisation:9419386|Emerald Enclave] by [character:9435919|Jeryth Phaulkon] at the [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration]. During a recent quest for the [organisation:9419386|Emerald Enclave], [character:9425235|Alyzira] helped investigate reports of living scarecrows terrorizing the outlying farmlands. She used her magic to detect the thoughts of one of the creatures, identifying its eerie mental chant, and destroyed it with a Fireball . She also played a key role in the investigation of the local farmers, eventually using her charm magic to compel a local woman named Donya to confess to animating the creatures. For her efforts in saving the farmlands, [character:9425235|Alyzira] earned +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\nFollowing a violent explosion in the alleyway outside [location:9418605|Trollskull Manor] that left eleven people dead, [character:9425235|Alyzira] assisted in investigating the scene. She successfully coaxed a frightened halfling boy into giving her a broken necklace containing magical fireball gems, which she analyzed with magic before surrendering it to the City Watch. To further the investigation, she bribed a cleric with 25 gold pieces to arrange a Speak with Dead ritual involving a deceased gnome at Mystra's shrine in the [location:9438979|City of the Dead] cemetery. Additionally, during an investigation at the [location:9431883|Sea Ward] [location:9442786|House of Inspired Hands], she promptly picked a locked attic door to reveal a mute nimblewright automaton, [character:9442788|Nim]. Following a chaotic battle at [location:9443309|Gralhund Villa], [character:9425235|Alyzira] used her magic to charm [character:9443308|Urstul Floxin], a prominent member of the [organisation:9419438|Zhentarim], uncovering vital intelligence regarding the [item:9432044|Stone of Golorr], a hidden half-million gold piece vault, and the Gralhund family's involvement in the alleyway explosion. Though she tried to secure his future cooperation, her party members prematurely released the untrustworthy thug, who immediately fled. To further their investigation into a mysterious rival thief known as the \"[character:9443961|Black Viper],\" [character:9425235|Alyzira] paid a 30 gold piece bribe to the publisher of the [location:9418490|Waterdeep] Wazoo , uncovering a lead that the thief might be the disfigured secret twin sister of [character:9443963|Ammalia Cassalanter]. \n\nIn an effort to track the missing nimblewright, [character:9425235|Alyzira] coordinated with her ally [character:9423618|Gladio] to arrange an aerial search via a griffon. When the tracker led [organisation:9419162|the party] to the Sea Maidens Faire carnival in the [location:9418606|Dock Ward], [character:9425235|Alyzira] utilized her social charms to strike up a conversation with the crew, securing an exclusive invitation to dine with the flamboyant carnival master, [character:9443973|Zardoz Zord], aboard his flagship, the [location:9443986|Eyecatcher]. Though she was mortified when her companion [character:9423629|Orlum] performed a radical flute solo during the luxury feast, the dinner allowed [organisation:9419162|the party] to inspect [character:9443973|Zord]’s legally owned nimblewrights and deduce that [character:9442788|Nim]'s rogue creation was still loose in the city. Most recently, [character:9425235|Alyzira] and her party met secretly with high-ranking [organisation:9419438|Zhentarim] agent [character:9443960|Istrid Horn] at Ahghairon’s Statue in the [location:9438979|City of the Dead]. Recognizing the benefits of a wealthy and well-connected ally, [character:9425235|Alyzira] and her party agreed to harbor the fugitive loan shark, helping disguise her as a male dwarf named Jorn to safely lay low at [location:9418605|Trollskull Manor] ahead of the tavern's grand opening. \n\nWith construction on [location:9418605|Trollskull Manor] complete, [character:9425235|Alyzira] helped neutralize a rogue nimblewright in the [location:9435900|Trades Ward], which resulted in her receiving functional stilts as a reward from [location:9442786|House of Inspired Hands]. Following this, she and her party assisted [organisation:9419383|the Harpers] by defeating a gazer that had taken over a bookstore at [location:9445758], rescuing the shopkeeper's cat, Philippa, in the process. After the battle, she celebrated the tavern's opening with an \"acceptable\" musical rendition of Darude's \"Sandstorm.\" Following this victory, she and her party received 100 gold pieces each from [character:9442787|Lady Gralhund] at the [location:9442786|House of Inspired Hands]. Most recently, she has encountered two suspicious halfling job applicants, [character:9445765|Halfling 1] and [character:9445766|Halfling 2], who are seeking employment at the newly opened inn.",
+    "change_summary": "Updated the synopsis to include the reward from Lady Gralhund for neutralizing the rogue nimblewright, the rescue of Philippa the cat, and the encounter with two suspicious halfling job applicants. Note: The session notes use different character IDs for Alyzira (9425236/9425238) than the current synopsis (9425235), which I have treated as a continuity error/uncertainty.",
+    "relation_changes": [],
+    "uncertain": [
+      "The session notes refer to Alyzira using IDs 9425236 and 9425238, whereas the existing synopsis uses 9425235. I have assumed these are the same person."
+    ],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425236,
+    "entity_kind": "character",
+    "entity_local_id": 2439422,
+    "entity_name": "Eoula Tealeaf",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm. \\n\\n During a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr]. \\n\\n More recently, [character:9425236|Eoula] navigated the [location:9418490|Waterdeep] sewers and successfully rescued [character:9431741|Floon] from the clutches of the [organisation:9419437|Xanathar Guild]. During the confrontation, she attempted to snatch a stone eye necklace from the Mind Flayer [character:9432251|Nihiloor] but was tossed aside as he escaped through a magical portal. Following the rescue, [character:9425236|Eoula] initially expressed a desire for signed copies of [character:9418259|Volothamp Geddarm]’s books as payment for the rescue, though she ultimately agreed to the group's acquisition of [location:9418605|Trollskull Manor]. \\n\\n [character:9425236|Eoula] recently traveled to the [location:9435901|Lightsinger Theater] in the [location:9431883|Sea Ward] for an opera, where [organisation:9419162|the party] received a mission from the [organisation:9419383|Harpers] to locate a talking draft horse. She subsequently visited the [location:9435917|Phaulkononmere Villa] in the [location:9435916|South Ward], where she was formally welcomed as a member of the local Enclave by [character:9435919|Jeryth Phaulkon]. As part of this membership, she was bestowed with a [item:9435948|charm of restoration]. \\n\\n While investigating reports of living scarecrows terrorizing the [location:9437517|Undercliff Way], [character:9425236|Eoula] utilized her tracking skills to follow stick-like footprints heading west. She also consulted her magical diary to uncover a local secret regarding the motives of the villagers involved. Following the successful neutralization of the scarecrows and the capture of the witch Donya, [character:9425236|Eoula] earned renown with the [organisation:9419386|Emerald Enclave]. \\n\\n [character:9425236|Eoula] recently visited the [location:9438977] to purchase a curious volume titled The [item:9438978] for 25 gold pieces. She also participated in the group's efforts to fund the renovations and guild fees for [location:9418605|Trollskull Manor], which has now been successfully funded. During a neighborhood stroll through [location:9419015], she performed community outreach by handing out invitations for a free drink at [location:9418605|Trollskull Manor] to local shopkeepers.\\n\\n Most recently, while patrolling the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was ambushed by a group of skeletons. Following the skirmish, she used her [ability:9442180|Web] spell to restrain Priest [character:9442159], who was under the influence of a dark artifact. Her efforts, along with those of her companions, resulted in the successful capture of the priest and earned her additional renown with the [organisation:9419386|Emerald Enclave].\\n\\n Following a devastating fireball explosion outside [location:9418605] that left eleven people dead, [character:9425236|Eoula] assisted in an investigation. Using her [item:9437393], she uncovered local trivia regarding Sergeant [character:9442769|Barnibus]'s toupee. [organisation:9419162|The party] subsequently traveled to the [location:9442786] (the Temple of Gond) to investigate a rogue nimblewright automaton. There, they met Lady [character:9442787], who offered a 500 gold piece reward for the destruction of the creature. After interacting with a mute nimblewright named [character:9442788], [organisation:9419162|the party] received a copper tracking device to aid in their hunt.\\n\\n Following this, while investigating the aftermath of the explosion, [character:9425236|Eoula] used her [item:9437393] to record information regarding Lady [character:9443310], uncovering that she has a secret lover, the drow [character:9443318]. [organisation:9419162|The party] then infiltrated [location:9443309], the estate of the Gralhund family, where they engaged in a skirmish with members of the [organisation:9419438] to defend house guards in the upstairs foyer. During this infiltration, [character:9425236|Eoula] uncovered scandalous gossip that [character:9443310|Lady Gralhund] is having an affair with the carnival master, [character:9443973|Zardoz Zord]. Additionally, while investigating a potential lead on the \\\"[character:9443961|Black Viper],\\\" she used her Gossiper's Diary to magically confirm that the thief is likely a disfigured woman.\\n\\n Following the Gralhund affair, [character:9425236|Eoula] and her companions met with [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent. After receiving payment for the meeting, the group agreed to allow [character:9443960|Istrid Horn] to hide out at [location:9418605|Trollskull Manor] under a disguise.</p>",
+    "proposed_entry": "[character:9425236|Eoula] is a diminutive female halfling ranger of mature years, possessing an exceptionally light and delicate frame. Deeply intellectual, she harbors a profound love for books and reading, though this quiet studiousness leaves her horribly awkward and out of her element in social situations. In combat, she primarily trusts her shortbow, but she also delights in unleashing sticky webs from her prized spider staff—a choice of weaponry wrapped in deep irony, given her intense dislike of actual spiders. Above all, [character:9425236|Eoula] possesses a fiercely compassionate heart for animals, driven by a protective nature that simply cannot bear to see creatures of the wild come to any harm. \n\n During a recent investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], [character:9425236|Eoula] demonstrated her tactical utility by using her [ability:9442180|Web] spell to neutralize a group of Kenku ambushers. During the same investigation, she discovered [character:9431743|Renaer Neverember] hiding in a small room, where he provided crucial information regarding the disappearance of [character:9431741|Floon] and the search for the [item:9432044|Stone of Golorr]. \n\n More recently, [character:9425236|Eoula] navigated the [location:9418490|Waterdeep] sewers and successfully rescued [character:9431741|Floon] from the clutches of the [organisation:9419437|Xanathar Guild]. During the confrontation, she attempted to snatch a stone eye necklace from the Mind Flayer [character:9432251|Nihiloor] but was tossed aside as he escaped through a magical portal. Following the rescue, [character:9425236|Eoula] initially expressed a desire for signed copies of [character:9418259|Volothamp Geddarm]’s books as payment for the rescue, though she ultimately agreed to the group's acquisition of [location:9418605|Trollskull Manor]. \n\n [character:9425236|Eoula] recently traveled to the [location:9435901|Lightsinger Theater] in the [location:9431883|Sea Ward] for an opera, where [organisation:9419162|the party] received a mission from the [organisation:9419383|Harpers] to locate a talking draft horse. She subsequently visited the [location:9435917|Phaulkononmere Villa] in the [location:9435916|South Ward], where she was formally welcomed as a member of the local Enclave by [character:9435919|Jeryth Phaulkon]. As part of this membership, she was bestowed with a [item:9435948|charm of restoration]. \n\n While investigating reports of living scarecrows terrorizing the [location:9437517|Undercliff Way], [character:9425236|Eoula] utilized her tracking skills to follow stick-like footprints heading west. She also consulted her magical diary to uncover a local secret regarding the motives of the villagers involved. Following the successful neutralization of the scarecrows and the capture of the witch Donya, [character:9425236|Eoula] earned renown with the [organisation:9419386|Emerald Enclave]. \n\n [character:9425236|Eoula] recently visited the [location:9438977] to purchase a curious volume titled The [item:9438978] for 25 gold pieces. She also participated in the group's efforts to fund the renovations and guild fees for [location:9418605|Trollskull Manor], which has now been successfully funded. During a neighborhood stroll through [location:9419015], she performed community outreach by handing out invitations for a free drink at [location:9418605|Trollskull Manor] to local shopkeepers.\n\n Most recently, while patrolling the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was ambushed by a group of skeletons. Following the skirmish, she used her [ability:9442180|Web] spell to restrain Priest [character:9442159], who was under the influence of a dark artifact. Her efforts, along with those of her companions, resulted in the successful capture of the priest and earned her additional renown with the [organisation:9419386|Emerald Enclave].\n\n Following a devastating fireball explosion outside [location:9418605] that left eleven people dead, [character:9425236|Eoula] assisted in an investigation. Using her [item:9437393], she uncovered local trivia regarding Sergeant [character:9442769|Barnibus]'s toupee. [organisation:9419162|The party] subsequently traveled to the [location:9442786] (the Temple of Gond) to investigate a rogue nimblewright automaton. There, they met Lady [character:9442787], who offered a 500 gold piece reward for the destruction of the creature. After interacting with a mute nimblewright named [character:9442788], [organisation:9419162|the party] received a copper tracking device to aid in their hunt.\n\n Following this, while investigating the aftermath of the explosion, [character:9425236|Eoula] used her [item:9437393] to record information regarding Lady [character:9443310], uncovering that she has a secret lover, the drow [character:9443318]. [organisation:9419162|The party] then infiltrated [location:9443309], the estate of the Gralhund family, where they engaged in a skirmish with members of the [organisation:9419438] to defend house guards in the upstairs foyer. During this infiltration, [character:9425236|Eoula] uncovered scandalous gossip that [character:9443310|Lady Gralhund] is having an affair with the carnival master, [character:9443973|Zardoz Zord]. Additionally, while investigating a potential lead on the \"[character:9443961|Black Viper],\" she used her Gossiper's Diary to magically confirm that the thief is likely a disfigured woman.\n\n Following the Gralhund affair, [character:9425236|Eoula] and her companions met with [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent. After receiving payment for the meeting, the group agreed to allow [character:9443960|Istrid Horn] to hide out at [location:9418605|Trollskull Manor] under a disguise. \n\n Following the completion of construction on [location:9418605|Trollskull Manor], [character:9425236|Eoula] helped the party neutralize a rogue nimblewright in the [location:9435900], for which she received 100 gold pieces and a pair of functional stilts as a reward from Lady [character:9442787]. She also assisted the [organisation:9419383|Harpers] in resolving a monster problem at a bookstore, where the party rescued a cat named Philippa. During this time, she used her [item:9437393] to record further scandalous information regarding [character:9443973|Zardoz Zord]'s affair with Lady [character:9443310].",
+    "change_summary": "Updated the synopsis to include the completion of Trollskull Manor, the neutralization of the rogue nimblewright (and her reward), the bookstore mission involving Philippa the cat, and new gossip recorded in her diary.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9425238,
+    "entity_kind": "character",
+    "entity_local_id": 2439423,
+    "entity_name": "Tyde Undertow",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>[character:9425238|Tyde Undertow] is a striking, fey-touched or tiefling-like druid whose appearance beautifully bridges the gap between the wild earth and the deep ocean with vibrant blue skin transitioning into soft pink and silver tones across their limbs. Though her favorite wildshape forms for a fierce battle are a predatory wolf or a snapping crocodile, [character:9425238|Tyde]'s greatest challenge isn't a formidable enemy, but a simple map. Possessing absolutely zero sense of direction, she is blissfully incapable of getting from point A to point B without a guide, turning every simple journey into an accidental detour through the wilderness. \n\n Tyde was found lost in the sewers of [location:9418490|Waterdeep] while searching for nature. After being spotted by [organisation:9419162|the party], she joined their ranks. She assisted the group in rescuing [character:9431741|Floon Blagmaar] from the clutches of [character:9432251|Nihiloor] and [character:9432250|Grum’shar] within a [organisation:9419437|Xanathar Guild] hideout. During the skirmish, she managed to scramble out of the path of a [creature:9432254|Intellect Devourer] before the party defeated it. She is now a member of [organisation:9419162|the party] and a resident of [location:9418605|Trollskull Manor]. \n\n Recently, Tyde has begun expanding her ties with local factions. She was invited to join the [organisation:9419386|Emerald Enclave] after a speaking cat approached her and [character:9425235|Alyzira]. She is particularly eager to work with the Enclave to locate her missing group of coastal druids. She was formally granted membership by [character:9435919|Jeryth Phaulkon] at [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration] and a promise of assistance in finding her lost kin. Additionally, Tyde recently attended an opera at the [location:9435901|Lightsinger Theater] in a sparkly silver-and-blue gown to maintain the party's social standing and investigate leads for the [organisation:9419383|Harpers]. \n\n Tyde recently assisted the party in investigating reports of living scarecrows terrorizing the [location:9437517] on Undercliff Way. For her role in defeating the scarecrows and saving the farmlands, she was awarded 20 Gold Pieces and gained +1 Renown with the [organisation:9419386|Emerald Enclave]. During a patrol of the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was struck by a devastating spell and died temporarily, but was quickly revived by [character:9423629]. Following the capture of a priest, she earned an additional 10 gold pieces and +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\n During an infiltration of [location:9443309], Tyde wildshaped into a wolf to help the party dispatch five [organisation:9419438] swordsmen. She also utilized her ability to wildshape into a spider to bypass a barricaded door in the same villa, allowing the group to discover Lord [character:9443311|Orond Gralhund]. \n\n Most recently, Tyde used her animal handling skills to earn the trust of [character:9443969|Bonesnapper], a young griffon. She utilized the mount to perform an aerial search of the [location:9418606|Dock Ward] to track a missing automaton, coordinating with the party from the skies.</p>",
+    "proposed_entry": "[character:9425238|Tyde Undertow] is a striking, fey-touched or tiefling-like druid whose appearance beautifully bridges the gap between the wild earth and the deep ocean with vibrant blue skin transitioning into soft pink and silver tones across their limbs. Though her favorite wildshape forms for a fierce battle are a predatory wolf or a snapping crocodile, [character:9425238|Tyde]'s greatest challenge isn't a formidable enemy, but a simple map. Possessing absolutely zero sense of direction, she is blissfully incapable of getting from point A to point B without a guide, turning every simple journey into an accidental detour through the wilderness. \n\n Tyde was found lost in the sewers of [location:9418490|Waterdeep] while searching for nature. After being spotted by [organisation:9419162|the party], she joined their ranks. She assisted the group in rescuing [character:9431741|Floon Blagmaar] from the clutches of [character:9432251|Nihiloor] and [character:9432250|Grum’shar] within a [organisation:9419437|Xanathar Guild] hideout. During the skirmish, she managed to scramble out of the path of a [creature:9432254|Intellect Devourer] before the party defeated it. She is now a member of [organisation:9419162|the party] and a resident of [location:9418605|Trollskull Manor]. \n\n Recently, Tyde has begun expanding her ties with local factions. She was invited to join the [organisation:9419386|Emerald Enclave] after a speaking cat approached her and [character:9425235|Alyzira]. She is particularly eager to work with the Enclave to locate her missing group of coastal druids. She was formally granted membership by [character:9435919|Jeryth Phaulkon] at [location:9435917|Phaulkonmere Villa], where she received a [item:9435948|charm of restoration] and a promise of assistance in finding her lost kin. Additionally, Tyde recently attended an opera at the [location:9435901|Lightsinger Theater] in a sparkly silver-and-blue gown to maintain the party's social standing and investigate leads for the [organisation:9419383|Harpers]. \n\n Tyde recently assisted the party in investigating reports of living scarecrows terrorizing the [location:9437517] on Undercliff Way. For her role in defeating the scarecrows and saving the farmlands, she was awarded 20 Gold Pieces and gained +1 Renown with the [organisation:9419386|Emerald Enclave]. During a patrol of the [location:9438979] (the local cemetery) on behalf of the [organisation:9419386|Emerald Enclave], she was struck by a devastating spell and died temporarily, but was quickly revived by [character:9423629]. Following the capture of a priest, she earned an additional 10 gold pieces and +1 Renown with the [organisation:9419386|Emerald Enclave]. \n\n During an infiltration of [location:9443309], Tyde wildshaped into a wolf to help the party dispatch five [organisation:9419438] swordsmen. She also utilized her ability to wildshape into a spider to bypass a barricaded door in the same villa, allowing the group to discover Lord [character:9443311|Orond Gralhund]. \n\n Most recently, Tyde used her animal handling skills to earn the trust of [character:9443969|Bonesnapper], a young griffon. She utilized the mount to perform an aerial search of the [location:9418606|Dock Ward] to track a missing automaton, coordinating with the party from the skies. Following the neutralization of the rogue nimblewright in the [location:9435900], Tyde was awarded 100 gold pieces and a backpack parachute that negates fall damage.",
+    "change_summary": "Updated the synopsis to include Tyde's participation in the hunt for the rogue nimblewright, her reward of 100 gold pieces, and her new item (a backpack parachute).",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9442786,
+    "entity_kind": "location",
+    "entity_local_id": 2127637,
+    "entity_name": "House of Inspired Hands",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>The House of Inspired Hands is a large temple complex dedicated to Gond, the wonderbringer, located in the [location:9431883]. The oldest buildings in the complex are also some of the oldest buildings in the city, having been constructed as a walled monastery and trade mission by merchant-monks.\n\nThe complex is known for its mechanical innovations and contains the [location:9442786] (the Temple of Gond). Recent events include an investigation into a rogue nimblewright automaton that fled the temple. The temple is overseen by Lady [character:9442787], a bronze dragonborn priestess, and houses [character:9442788], a mute and emotionless \"nimblewright\" automaton made of wood and metal.</p>",
+    "proposed_entry": "The House of Inspired Hands is a large temple complex dedicated to Gond, the wonderbringer, located in the [location:9431883]. The oldest buildings in the complex are also some of the oldest buildings in the city, having been constructed as a walled monastery and trade mission by merchant-monks.\n\nThe complex is known for its mechanical innovations and contains the [location:9442786] (the Temple of Gond). Recent events include an investigation into a rogue nimblewright automaton that fled the temple; the machine was eventually neutralized by adventurers, who returned its broken parts to Lady [character:9442787] at the [location:9442786]. The temple is overseen by Lady [character:9442787], a bronze dragonborn priestess, and houses [character:9442788], a mute and emotionless \"nimblewright\" automaton made of wood and metal.",
+    "change_summary": "Updated the synopsis to reflect the resolution of the rogue nimblewright investigation, noting that the party returned its broken parts to Lady [character:9442787] in exchange for rewards.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9442787,
+    "entity_kind": "character",
+    "entity_local_id": 2444269,
+    "entity_name": "Valetta",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>She is a bronze dragonborn priestess of Gond at the [location:9442786] in [location:9418490]. She met with the party at the temple to discuss an investigation into a rogue nimblewright automaton.</p>",
+    "proposed_entry": "She is a bronze dragonborn priestess of Gond at the [location:9442786] in [location:9418490]. After the party successfully neutralized a rogue nimblewright automaton, they returned its broken parts to Lady [character:9442787] at the [location:9442786]. In exchange for the destruction of the machine, the temple rewarded each party member with 100 gold pieces and a unique invention.",
+    "change_summary": "Updated the synopsis to reflect that the rogue nimblewright investigation was completed and that the party received rewards from the temple (Lady [character:9442787]) for their success.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Lady [character:9442787]",
+        "relation": "Employer/Rewarder of the party",
+        "attitude": 0,
+        "reason": "The party brought the broken parts of the rogue nimblewright to her at the temple in exchange for gold and inventions."
+      }
+    ],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9442788,
+    "entity_kind": "character",
+    "entity_local_id": 2444270,
+    "entity_name": "Nim",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>Nim is a unique, sentient nimblewright residing at the [location:9442786] (the temple of Gond) in [location:9418490]. As a miraculous, non-speaking construct of wood and brass, he spends his time inventing things and tinkering.\n\nIt was recently discovered that Nim has grown terribly lonely and built a secondary nimblewright friend for company. This creation panicked, fled the temple in terror, and has been missing for a month.</p>",
+    "proposed_entry": "Nim is a unique, sentient nimblewright residing at the [location:9442786] (the temple of Gond) in [location:9418490]. As a miraculous, non-speaking construct of wood and brass, he spends his time inventing things and tinkering.\n\nIt was recently discovered that Nim has grown terribly lonely and built a secondary nimblewright friend for company. This creation panicked, fled the temple in terror, and has been missing for a month. The rogue automaton was eventually located in [location:9435900], where it had been stealing clothes to disguise itself as a human; it was subsequently neutralized by the party.",
+    "change_summary": "Updated the synopsis to reflect that Nim's secondary nimblewright friend (the rogue automaton) was found and neutralized by the party in [location:9435900].",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443308,
+    "entity_kind": "character",
+    "entity_local_id": 2444454,
+    "entity_name": "Urstul Floxin",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>A prominent member of the [organisation:9419438|Zhentarim] gang, [character:9443308|Urstul Floxin] is a heavily beaten 40-year-old man. He was recently discovered tied up at [location:9443309|Gralhund Villa], where he had been attempting to secure the [item:9432044|Stone of Golorr]. During his time at the villa, he was caught in a blast from a nimblewright equipped with a necklace of fireballs, which was sent by [character:9443310|Lady Gralhund] to retrieve the artifact. After being released by [organisation:9419162|the party], he taunted them before fleeing into the city.</p>",
+    "proposed_entry": "A prominent member of the [organisation:9419438|Zhentarim] gang, [character:9443308|Urstul Floxin] is a heavily beaten 40-year-old man. He was recently discovered tied up at [location:9443309|Gralhund Villa], where he had been attempting to secure the [item:9432044|Stone of Golorr]. During his time at the villa, he was caught in a blast from a nimblewright equipped with a necklace of fireballs, which was sent by [character:9443310|Lady Gralhund] to retrieve the artifact. Following the incident, [character:9443310|Lady Gralhund] spun a web of lies to the City Watch, claiming that [character:9443308|Urstul Floxin] and his organization had held her family hostage for ten days. After being released by [organisation:9162|the party], he taunted them before fleeing into the city.",
+    "change_summary": "Updated the synopsis to include details regarding Lady Gralhund's lies to the City Watch concerning Urstul Floxin holding her family hostage.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Lady Gralhund",
+        "relation": "Accused by of holding her family hostage",
+        "attitude": -50,
+        "reason": "Lady Gralhund told the City Watch that Urstul Floxin and the Zhentarim had held her family hostage for ten days following the fireball incident."
+      }
+    ],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9418605,
+    "entity_kind": "location",
+    "entity_local_id": 2121684,
+    "entity_name": "Trollskull Manor",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>Trollskull Manor is a historic, formerly abandoned townhouse and tavern located in [location:9419015] within [location:9418490]’s [location:9431893|North Ward]. Once a lively neighborhood tavern known as the “Trollskull,” the building fell into disrepair after a tragic fire and years of neglect, becoming a decaying but character-filled ruin with a distinctive troll skull mounted on its roof. In its modern state, it has been reclaimed and restored by adventurers, transforming it into a functional base of operations, tavern, and gathering place for allies, contacts, and faction agents. Its rooms include common halls, private chambers, and upper floors that often serve as living quarters, meeting spaces, and storage for quests and loot. The property was recently acquired by [organisation:9419162|the party] from [character:9418259|Volothamp Geddarm] following the rescue of [character:9431741|Floen Blagmaar]. While the manor is a majestic four-story property, it remains a significant renovation project. The rumors of a haunting were proven true upon the party's arrival; the manor is inhabited by a poltergeist who identifies as “Leif” (Lif). This ghost is a self-proclaimed neat-freak who has made it clear that he demands the messy, run-down inn be thoroughly cleaned.\n\nRecent efforts to renovate the manor have drawn attention from the Fellowship of Innkeepers. [character:9435898|Broxley Fairkettle] has visited the property to urge [organisation:9419162|the party] to join the guild to avoid harassment from city officials, noting that structural repairs and standard operations require various guild contracts and licenses. A detailed 12-day repair schedule and cost breakdown for the manor's renovations have been provided by [character:9435898|Broxley]'s son, Buxley. The party has since accepted an invitation from the Fellowship to host the upcoming [event:9438944] and has officially finalized their entrance into the Innkeepers Guild, paying the necessary fees to fund the manor's massive renovations. Despite its ongoing restoration, Trollskull Manor retains a reputation for attracting unusual patrons, strange occurrences, and the kind of trouble that tends to follow adventuring parties wherever they go.\n\nCurrently, with only 12 days remaining until the grand opening, the manor is serving as a temporary safehouse for [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent and illegal currency-lender. Disguised as a male dwarf named Jorn, she has moved into the manor to lay low from the City Watch, promising to assist with chores around the property in exchange for shelter.</p>",
+    "proposed_entry": "Trollskull Manor is a historic, formerly abandoned townhouse and tavern located in [location:9419015] within [location:9418490]’s [location:9431893|North Ward]. Once a lively neighborhood tavern known as the “Trollskull,” the building fell into disrepair after a tragic fire and years of neglect, becoming a decaying but character-filled ruin with a distinctive troll skull mounted on its roof. In its modern state, it has been reclaimed and restored by adventurers, transforming it into a functional base of operations, tavern, and gathering place for allies, contacts, and faction agents. Its rooms include common halls, private chambers, and upper floors that often serve as living quarters, meeting spaces, and storage for quests and loot. The property was recently acquired by [organisation:9419162|the party] from [character:9418259|Volothamp Geddarm] following the rescue of [character:9431741|Floen Blagmaar]. While the manor is a majestic four-story property, it remains a significant renovation project. The rumors of a haunting were proven true upon the party's arrival; the manor is inhabited by a poltergeist who identifies as “Leif” (Lif). This ghost is a self-proclaimed neat-freak who has made it clear that he demands the messy, run-down inn be thoroughly cleaned.\n\nRecent efforts to renovate the manor have drawn attention from the Fellowship of Innkeepers. [character:9435898|Broxley Fairkettle] has visited the property to urge [organisation:9419162|the party] to join the guild to avoid harassment from city officials, noting that structural repairs and standard operations require various guild contracts and licenses. A detailed 12-day repair schedule and cost breakdown for the manor's renovations have been provided by [character:9435898|Broxley]'s son, Buxley. The party has since accepted an invitation from the Fellowship to host the upcoming [event:9438944] and has officially finalized their entrance into the Innkeepers Guild, paying the necessary fees to fund the manor's massive renovations. Despite its ongoing restoration, Trollskull Manor retains a reputation for attracting unusual patrons, strange occurrences, and the kind of trouble that tends to follow adventuring parties wherever they go.\n\nConstruction on [location:9418605] is officially finished, and the inn is now fully open for business! While it previously served as a temporary safehouse for [character:9443960|Istrid Horn], a high-ranking [organisation:9419438|Zhentarim] agent, the manor has transitioned into its role as a completed tavern. Recently, two halflings named [character:9445765] and [character:9445766] arrived at the door seeking employment, though they have been viewed with suspicion by [character:9425235].",
+    "change_summary": "Updated the synopsis to reflect that construction is officially finished and the inn is open for business. Removed the mention of the 12-day countdown and updated Istrid Horn's status, while adding the arrival of two suspicious halfling job applicants.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "Istrid Horn",
+        "relation": "Temporary resident and safehouse occupant",
+        "attitude": 0,
+        "reason": "The manor is now fully complete and open for business, implying her period as a temporary safehouse occupant has concluded."
+      }
+    ],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9443309,
+    "entity_kind": "location",
+    "entity_local_id": 2127775,
+    "entity_name": "Gralhund Villa",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>Gralhund Villa rises behind twelve-foot stone walls in [location:9418490]’s [location:9431893], an imposing noble estate that projects wealth, power, and secrecy in equal measure. Ornate iron gates open onto manicured grounds dotted with flowering trees and winding paths that lead to a grand two-story mansion of polished brick and dark timber. Inside, soaring ceilings, crystal chandeliers, rich mahogany furnishings, family portraits, and lavish tapestries speak to generations of prosperity.\n\nThough outwardly the home of Lady [character:9443310|Yalah Gralhund] and Lord [character:9443311|Orond Gralhund], the villa has recently been a site of violent chaos. Following a raid by the [organisation:9419438|Zhentarim], the estate's ground floor shows signs of significant bloodshed, including the deaths of the butler and a halfling cook. The conflict was partially triggered by a nimblewright automaton equipped with a necklace of fireballs, which accidentally caught members of the [organisation:9419438|Zhentarim] in a blast while attempting to retrieve the [item:9432044|Stone of Golorr]. \n\nInvestigations within the villa revealed that the Gralhunds have been secretly bankrolling [organisation:9419438|Zhentarim] operations, with funding provided by the agent [character:9443960|Istrid Horn]. The estate also contains a guest room featuring a teleportation circle and evidence of a struggle involving [character:9443308|Urstul Floxin], who had been staying there before turning on the family.</p>",
+    "proposed_entry": "Gralhund Villa rises behind twelve-foot stone walls in [location:9418490]’s [location:9431893], an imposing noble estate that projects wealth, power, and secrecy in equal measure. Ornate iron gates open onto manicured grounds dotted with flowering trees and winding paths that lead to a grand two-story mansion of polished brick and dark timber. Inside, soaring ceilings, crystal chandeliers, rich mahogany furnishings, family portraits, and lavish tapestries speak to generations of prosperity.\n\nThough outwardly the home of Lady [character:9443310|Yalah Gralhund] and Lord [character:9443311|Orond Gralhund], the villa has recently been a site of violent chaos. Following a raid by the [organisation:9419438|Zhentarim], the estate's ground floor shows signs of significant bloodshed, including the deaths of the butler and a halfling cook. The conflict was partially triggered by a nimblewright automaton equipped with a necklace of fireballs, which accidentally caught members of the [organisation:9419438|Zhentarim] in a blast while attempting to retrieve the [item:9432044|Stone of Golorr]. \n\nInvestigations within the villa revealed that the Gralhunds have been secretly bankrolling [organisation:9419438|Zhentarim] operations, with funding provided by the agent [character:9443960|Istrid Horn]. The estate also contains a guest room featuring a teleportation circle and evidence of a struggle involving [character:9443308|Urstul Floxin], who had been staying there before turning on the family. Lady [character:9443310|Yalah Gralhund] has since provided conflicting accounts to the City Watch, claiming that [character:9443308|Urstul Floxin] held her family hostage for ten days following the fireball incident.",
+    "change_summary": "Updated the synopsis to include Lady Gralhund's specific lies told to the City Watch regarding the hostage situation involving Urstul Floxin.",
+    "relation_changes": [],
+    "uncertain": [
+      "Lady [character:9443310|Yalah Gralhund] claimed that [character:9443308|Urstul Floxin] held her family hostage for ten days, which may contradict the previous note regarding him 'turning on the family' after staying there."
+    ],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9419631,
+    "entity_kind": "character",
+    "entity_local_id": 2437854,
+    "entity_name": "Raucous",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:9418259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue. Raucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service.\n\nRecently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159].\n\nDuring a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Raucous untied the Zhentarim member [character:9443308|Urstul Floxin]. In the same encounter, he expertly pickpocketed [character:9443311|Lord Orond Gralhund], stealing 50 gold pieces and a strange compass. Later, while investigating a lead regarding the \"[character:9443961|Black Viper]\", Raucous smoothly pickpocketed [character:9443962|Gaxly Rudderbust], stealing back 30 gold pieces that had been used as a bribe.</p>",
+    "proposed_entry": "A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:9418259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue. Raucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service.\n\nRecently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159]. Following the completion of construction on [location:9418605|Trollskull Manor], Raucous and the rest of the party have been managing the new inn.\n\nDuring a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Raucous untied the Zhentarim member [character:9443308|Urstul Floxin]. In the same encounter, he expertly pickpocketed [character:9443311|Lord Orond Gralhund], stealing 50 gold pieces and a strange compass. Later, while investigating a lead regarding the \"[character:9443961|Black Viper]\", Raucous smoothly pickpocketed [character:9443962|Gaxly Rudderbust], stealing back 30 gold pieces that had been used as a bribe.",
+    "change_summary": "Updated the synopsis to reflect that construction on Trollskull Manor is complete and the inn is now open for business. No new relationships were established in this session.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9445748,
+    "entity_kind": "character",
+    "entity_local_id": 2445080,
+    "entity_name": "Fenerus Stormcastle",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "",
+    "proposed_entry": "(no synopsis yet)",
+    "change_summary": "The entity has no existing synopsis or relationships to update based on the provided session notes.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9445757,
+    "entity_kind": "character",
+    "entity_local_id": 2445083,
+    "entity_name": "Uza Solizeph",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p><span>A bookseller in the </span>[location:9435900]<span>, Uza Solizeph is known for her many cats and her panicky tales.</span></p>",
+    "proposed_entry": "A bookseller in the [location:9435900], Uza Solizeph is known for her many cats and her panicky tales.",
+    "change_summary": "No changes were made to the synopsis as the session notes refer to a different shopkeeper, [character:9445757], rather than Uza Solizeph.",
+    "relation_changes": [],
+    "uncertain": [],
+    "status": "pending"
+  },
+  {
+    "proposal_type": "update",
+    "entity_id": 9445758,
+    "entity_kind": "location",
+    "entity_local_id": 2128357,
+    "entity_name": "Uza's Bookstore",
+    "source_journal": "2024/07/28 - The nimblewright's new clothes",
+    "previous_entry": "<p>Uza’s Bookstore is a three-story establishment located on Sorn Street in the [location:9435900] of [location:9418490]. Owned and operated by the elderly, paranoid bookkeeper [character:9445757], the shop is famous for its overcrowded, towering shelves, resident cats (like Filipa), and the occasional tale of panic.</p>",
+    "proposed_entry": "Uza’s Bookstore is a three-story establishment located on Sorn Street in the [location:9435900] of [location:9418490]. Owned and operated by the elderly, paranoid bookkeeper [character:9445757], the shop is famous for its overcrowded, towering shelves, resident cats (like Filipa), and the occasional tale of panic. Recently, a monstrous gazer aberration invaded the shop, chasing the resident cat Philippa into the attic before being defeated by adventurers.",
+    "change_summary": "Updated the synopsis to include the recent encounter with a gazer aberration that invaded the shop.",
+    "relation_changes": [
+      {
+        "action": "update",
+        "target_name": "[character:9445757]",
+        "relation": "owner of",
+        "attitude": 0,
+        "reason": "The session notes confirm [character:9445757] is the 'frantic shopkeep' and owner of the bookstore."
       }
     ],
     "uncertain": [],
