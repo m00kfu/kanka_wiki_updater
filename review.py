@@ -166,10 +166,8 @@ def unlinked_mention_warning(text, index, exclude_entity_id=None):
 def review_proposal(proposal, index, name_to_id, client, update_num=None, total_updates=None, save_fn=None):
     if update_num is not None and total_updates is not None:
         banner = f"[ Update {update_num}/{total_updates} ]"
-        pad_len = max(0, 70 - len(banner))
-        left_pad = pad_len // 2
-        right_pad = pad_len - left_pad
-        print(colors.dim("=" * left_pad + banner + "=" * right_pad))
+        right_pad = 70 - len("===") - len(banner)
+        print(colors.dim("=" * 3 + banner + "=" * max(0, right_pad)))
     else:
         print("\n" + colors.dim("=" * 70))
     print(colors.bold(colors.cyan(f"{proposal['entity_name']} ({proposal['entity_kind']})"))
