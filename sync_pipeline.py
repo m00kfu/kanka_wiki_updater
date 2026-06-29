@@ -11,6 +11,7 @@ Usage:
 import argparse
 import re
 import sys
+import time
 
 from . import config, state
 from .kanka_client import KankaClient
@@ -236,6 +237,7 @@ def main(limit=None):
     total_proposals = 0
     total_new_entities = 0
     for i, journal in enumerate(to_process, start=1):
+        t0 = time.time()
         mentioned = find_mentioned_entities(journal.get("entry"), index)
         new_candidates = propose_new_entities(journal, known_names)
 
@@ -272,6 +274,9 @@ def main(limit=None):
 
         # Always mark journal processed regardless of tracker usage
         state.mark_journal_processed(journal["id"], title=journal.get("name"))
+        elapsed = time.time() - t0
+        mins, secs = divmod(int(elapsed), 60)
+        print(f"      ({i}/{len(to_process)}) '{journal.get('name')}' processed in {mins:02d}:{secs:02d}")
 
     # Only advance the API's "lastSync" cursor once everything fetched this
     # run has actually been processed. If --limit left some journals
