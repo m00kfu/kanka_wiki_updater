@@ -21,6 +21,7 @@ Limitations:
 Usage:
     python -m kanka_wiki_updater.revert
 """
+
 from . import colors, state
 from .kanka_client import KankaClient
 
@@ -30,92 +31,102 @@ def revert_relation_result(entity_id, rr, client):
     relations and matches by target_id rather than trusting a cached
     relation id, since that id may not have been available at apply time."""
     current = client.get_relations(entity_id)
-    existing = next((r for r in current if r.get("target_id") == rr["target_id"]), None)
-    action_taken = rr["action_taken"]
+    existing = next((r for r in current if r.get('target_id') == rr['target_id']), None)
+    action_taken = rr['action_taken']
 
-    if action_taken == "created":
-        if existing and existing.get("id"):
-            client.delete_relation(entity_id, existing["id"])
-            print(colors.green(f"  - Removed relation -> {rr['target_name']} (undoing a create)"))
+    if action_taken == 'created':
+        if existing and existing.get('id'):
+            client.delete_relation(entity_id, existing['id'])
+            print(colors.green(f'  - Removed relation -> {rr["target_name"]} (undoing a create)'))
         else:
-            print(colors.yellow(
-                f"  ! Couldn't find the relation -> {rr['target_name']} to remove -- it "
-                f"may already be gone, or the API isn't returning an id for it."
-            ))
-    elif action_taken == "updated":
-        prev = rr.get("previous_relation") or {}
-        if existing and existing.get("id"):
-            client.update_relation(entity_id, existing["id"], relation=prev.get("relation"), attitude=prev.get("attitude"))
-            print(colors.green(f"  - Restored relation -> {rr['target_name']} to its previous label/attitude"))
+            print(
+                colors.yellow(
+                    f"  ! Couldn't find the relation -> {rr['target_name']} to remove -- it "
+                    f"may already be gone, or the API isn't returning an id for it."
+                )
+            )
+    elif action_taken == 'updated':
+        prev = rr.get('previous_relation') or {}
+        if existing and existing.get('id'):
+            client.update_relation(
+                entity_id, existing['id'], relation=prev.get('relation'), attitude=prev.get('attitude')
+            )
+            print(colors.green(f'  - Restored relation -> {rr["target_name"]} to its previous label/attitude'))
         else:
             print(colors.yellow(f"  ! Couldn't find the relation -> {rr['target_name']} to restore."))
-    elif action_taken == "deleted":
-        prev = rr.get("previous_relation") or {}
+    elif action_taken == 'deleted':
+        prev = rr.get('previous_relation') or {}
         if existing:
-            print(colors.dim(f"  (Relation -> {rr['target_name']} already exists -- not re-creating it.)"))
+            print(colors.dim(f'  (Relation -> {rr["target_name"]} already exists -- not re-creating it.)'))
         else:
-            client.create_relation(entity_id, rr["target_id"], prev.get("relation", "Related to"), prev.get("attitude"))
-            print(colors.green(f"  - Re-created relation -> {rr['target_name']} (undoing a delete)"))
+            client.create_relation(entity_id, rr['target_id'], prev.get('relation', 'Related to'), prev.get('attitude'))
+            print(colors.green(f'  - Re-created relation -> {rr["target_name"]} (undoing a delete)'))
 
 
 def revert_update_entry(entry, client):
-    print(colors.bold(colors.cyan(f"{entry['entity_name']} ({entry['entity_kind']})"))
-          + colors.dim(f"  <-  {entry['source_journal']}"))
+    print(
+        colors.bold(colors.cyan(f'{entry["entity_name"]} ({entry["entity_kind"]})'))
+        + colors.dim(f'  <-  {entry["source_journal"]}')
+    )
 
     # Reverse of application order: relations were applied after the
     # synopsis, so undo them first.
-    for rr in reversed(entry.get("relation_results", [])):
-        revert_relation_result(entry["entity_id"], rr, client)
+    for rr in reversed(entry.get('relation_results', [])):
+        revert_relation_result(entry['entity_id'], rr, client)
 
     client.update_entity_entry(
-        "characters" if entry["entity_kind"] == "character" else "locations",
-        entry["entity_local_id"],
-        entry["previous_entry"],
+        'characters' if entry['entity_kind'] == 'character' else 'locations',
+        entry['entity_local_id'],
+        entry['previous_entry'],
     )
-    print(colors.green("  - Synopsis restored to its pre-review version."))
+    print(colors.green('  - Synopsis restored to its pre-review version.'))
 
 
 def revert_new_entity_entry(entry, client):
-    kind = entry.get("created_kind")
-    local_id = entry.get("created_local_id")
-    print(colors.bold(colors.magenta(f"NEW {(kind or '?').upper()}: {entry['entity_name']}")))
+    kind = entry.get('created_kind')
+    local_id = entry.get('created_local_id')
+    print(colors.bold(colors.magenta(f'NEW {(kind or "?").upper()}: {entry["entity_name"]}')))
 
     if not local_id or not kind:
-        print(colors.yellow(
-            "  ! No record of this entity's Kanka ID -- can't delete it automatically. "
-            "Remove it manually in Kanka if you don't want to keep it."
-        ))
+        print(
+            colors.yellow(
+                "  ! No record of this entity's Kanka ID -- can't delete it automatically. "
+                "Remove it manually in Kanka if you don't want to keep it."
+            )
+        )
         return
 
-    if kind == "character":
+    if kind == 'character':
         client.delete_character(local_id)
     else:
         client.delete_location(local_id)
-    print(colors.green(f"  - Deleted the {kind} created during the last review."))
+    print(colors.green(f'  - Deleted the {kind} created during the last review.'))
 
 
 def main():
     batch = state.get_last_applied_batch()
     if not batch:
-        print("Nothing to revert. Either nothing's been applied yet, the most recent "
-              "run was already reverted, or it predates this revert tool and wasn't "
-              "recorded in enough detail to undo automatically.")
+        print(
+            "Nothing to revert. Either nothing's been applied yet, the most recent "
+            "run was already reverted, or it predates this revert tool and wasn't "
+            'recorded in enough detail to undo automatically.'
+        )
         return
 
-    entries = batch["entries"]
-    new_entity_entries = [e for e in entries if e.get("proposal_type") == "new_entity"]
-    update_entries = [e for e in entries if e.get("proposal_type") != "new_entity"]
+    entries = batch['entries']
+    new_entity_entries = [e for e in entries if e.get('proposal_type') == 'new_entity']
+    update_entries = [e for e in entries if e.get('proposal_type') != 'new_entity']
 
-    print(colors.bold(f"Last review run ({batch['run_id']}) applied {len(entries)} change(s):"))
+    print(colors.bold(f'Last review run ({batch["run_id"]}) applied {len(entries)} change(s):'))
     for e in update_entries:
-        rel_note = f", {len(e['relation_results'])} relation change(s)" if e.get("relation_results") else ""
-        print(f"  - update: {e['entity_name']} ({e['entity_kind']}){rel_note}")
+        rel_note = f', {len(e["relation_results"])} relation change(s)' if e.get('relation_results') else ''
+        print(f'  - update: {e["entity_name"]} ({e["entity_kind"]}){rel_note}')
     for e in new_entity_entries:
-        print(f"  - new {e.get('created_kind') or e.get('suggested_type')}: {e['entity_name']}")
+        print(f'  - new {e.get("created_kind") or e.get("suggested_type")}: {e["entity_name"]}')
 
-    confirm = input(colors.cyan("\nRevert all of this? [y/n] ")).strip().lower()
-    if confirm != "y":
-        print("Cancelled -- nothing was reverted.")
+    confirm = input(colors.cyan('\nRevert all of this? [y/n] ')).strip().lower()
+    if confirm != 'y':
+        print('Cancelled -- nothing was reverted.')
         return
 
     client = KankaClient()
@@ -123,22 +134,24 @@ def main():
     # relation changes) get undone before the new entities they might
     # reference, since new entities were always applied first.
     for entry in reversed(entries):
-        print("\n" + colors.dim("-" * 70))
+        print('\n' + colors.dim('-' * 70))
         try:
-            if entry.get("proposal_type") == "new_entity":
+            if entry.get('proposal_type') == 'new_entity':
                 revert_new_entity_entry(entry, client)
             else:
                 revert_update_entry(entry, client)
         except Exception as e:
-            print(colors.red(f"  ! Failed to revert this entry: {e}"))
+            print(colors.red(f'  ! Failed to revert this entry: {e}'))
 
-    state.mark_batch_reverted(batch["run_id"])
-    print(colors.bold("\nDone reverting the most recent review run."))
-    print(colors.dim(
-        "Note: the underlying journal(s) are still marked as processed, so "
-        "re-running sync_pipeline won't regenerate these proposals on its own."
-    ))
+    state.mark_batch_reverted(batch['run_id'])
+    print(colors.bold('\nDone reverting the most recent review run.'))
+    print(
+        colors.dim(
+            'Note: the underlying journal(s) are still marked as processed, so '
+            "re-running sync_pipeline won't regenerate these proposals on its own."
+        )
+    )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

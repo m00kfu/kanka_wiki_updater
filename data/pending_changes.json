@@ -5851,7 +5851,8 @@
     "change_summary": "Updated the final paragraph to detail the specific tactical advice Gladio provided during the Vault of Dragons expedition.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -5865,7 +5866,8 @@
     "change_summary": "Updated the final paragraph to reflect new details regarding Jarlaxle's manipulation of the party and his use of various magical disguises during their quest for the dragon hoard.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -5879,7 +5881,8 @@
     "change_summary": "Updated the final paragraph to include details regarding the discovery and breach of the dragon's vault in the Sea Ward, specifically mentioning the guardian Aurinax and the involvement of Jarlaxle.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -5901,7 +5904,14 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9423629,
+        "target_name": "Orlum"
+      }
+    ]
   },
   {
     "proposal_type": "update",
@@ -5915,7 +5925,8 @@
     "change_summary": "Updated the final paragraph to reflect that the stuffed beholder was specifically purchased to serve as an 'eyestalk' component for the dragon hoard keys.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -5929,7 +5940,8 @@
     "change_summary": "No changes were made to the synopsis as the new session notes did not contain information regarding Xanathar's current activities or status.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -5943,7 +5955,8 @@
     "change_summary": "Updated the synopsis to include details about her minor injury during the bridge crossing in the windmill vault. The rest of the narrative remains consistent with previous events.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -5965,7 +5978,14 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9438945,
+        "target_name": "Emmek Frewn"
+      }
+    ]
   },
   {
     "proposal_type": "update",
@@ -5979,7 +5999,8 @@
     "change_summary": "Added the deity's alias 'Fire Eyes' and noted the location of his painted statue within the vault.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6008,7 +6029,8 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6022,7 +6044,8 @@
     "change_summary": "Added details regarding a specific riddle associated with the deity and how it functions as a mechanical trigger in a vault.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6044,7 +6067,8 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6066,7 +6090,8 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6088,7 +6113,29 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "updated",
+        "target_id": 9438945,
+        "target_name": "Emmek Frewn",
+        "previous_relation": {
+          "id": 1052911,
+          "owner_id": 9418605,
+          "target_id": 9438945,
+          "relation": "Rival seen lurking near the manor",
+          "attitude": -20,
+          "colour": "",
+          "visibility_id": 1,
+          "is_star": false,
+          "is_pinned": false,
+          "mirror_id": null,
+          "created_at": "2026-06-28T20:06:40.000000Z",
+          "created_by": 398018,
+          "updated_at": "2026-06-28T20:06:40.000000Z"
+        }
+      }
+    ]
   },
   {
     "proposal_type": "update",
@@ -6102,7 +6149,8 @@
     "change_summary": "No changes were made to the synopsis as the new session notes described events occurring in the Sea Ward and within a vault, rather than within the Dock Ward itself. The mention of the [location:9431744|Old Xoblob Shop] being visited in the Dock Ward was noted but did not warrant an update to the existing descriptive text.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6112,11 +6160,12 @@
     "entity_name": "Raucous",
     "source_journal": "2025/04/12 - The Vault of the Golden Dragon",
     "previous_entry": "<p>A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:918259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue. <br><br>Raucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service. Recently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159]. During a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Raucous untied the Zhentarim member [character:9443308|Urstul Floxin]. In the same encounter, he expertly pickpocketed [character:9443311|Lord Orond Gralhund], stealing 50 gold pieces and a strange compass. Later, while investigating a lead regarding the \"[character:9443961|Black Viper]\", Raucous smoothly pickpocketed [character:9443962|Gaxly Rudderbust], stealing back 30 gold pieces that had been used as a bribe. <br><br>Following the completion of construction on [location:9418605|Trollskull Manor], Raucous has continued performing faction-related tasks. He recently participated in an investigation at [location:9453202] in Endshift Alley to address muggings by a gang of wererats known as the \"[organisation:9453215]\"; during the ensuing confrontation, he successfully pickpocketed the combatants while they were distracted. He also assisted the party in hunting grells in the [location:9418606|Dock Ward] at the request of the [organisation:9419386]. During a heist at a courthouse in the [location:9431892|Castle Ward], Raucous used mimicry to distract guards, allowing him to pick the locks on every cell door and trigger a massive prison break. Following the chaos, he successfully delivered the bandit [character:9445748|Fenerus Stormcastle] back to the party.<br><br>While investigating a dead-magic tower, Raucous engaged in a high-stakes rooftop chase through the [location:9418606|Dock Ward] and [location:9457007|Mistshore], pursuing fleeing drow gunslingers. During a subsequent confrontation at a beached ship in [location:9457007|Mistshore], Raucous used the assistance of [character:9425238|Tyde] to sneak up on the drow gunslingers Fel’rekt Lafeen and Krebbyg Masq’il’yr, successfully pickpocketing them for gunpowder, a [item:9432044|Tankard of Sobriety], and an oval stone. <br><br>Raucous has since identified and attuned to the true [item:9432044|Stone of Golorr], discovering it is actually an ancient Aboleth. This attunement has cursed him with blindness if he moves more than 10 feet away from the stone, though it allows him to cast *Legend Lore* three times a day. While investigating a lead in the [location:9431883|Sea Ward], Raucous used his keen eyes to locate a hidden stone trapdoor beneath the residence of [character:9457182|Kalain], which led the party to the entrance of the Vault of Dragons.</p>",
-    "proposed_entry": "A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:918259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue.   \n\nRaucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service. Recently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159]. During a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Raucous untied the Zhentarim member [character:9443308|Urstul Floxin]. In the same encounter, he expertly pickpocketed [character:9443311|Lord Orond Gralhund], stealing 50 gold pieces and a strange compass. Later, while investigating a lead regarding the \"[character:9443961|Black Viper]\", Raucous smoothly pickpocketed [character:9443962|Gaxly Rudderbust], stealing back 30 gold pieces that had been used as a bribe.   \n\nFollowing the completion of construction on [location:9418605|Trollskull Manor], Raucous has continued performing faction-related tasks. He recently participated in an investigation at [location:9453202] in Endshift Alley to address muggings by a gang of wererats known as the \"[organisation:9453215]\"; during the ensuing confrontation, he successfully pickpocketed the combatants while they were distracted. He also assisted the party in hunting grells in the [location:9418606|Dock Ward] at the request of the [organisation:9419386]. During a heist at a courthouse in the [location:9431892|Castle Ward], Raucous used mimicry to distract guards, allowing him to pick the locks on every cell door and trigger a massive prison break. Following the chaos, he successfully delivered the bandit [character:9445748|Fenerus Stormcastle] back to the party.  While investigating a dead-magic tower, Raucous engaged in a high-stakes rooftop chase through the [location:9418606|Dock Ward] and [location:9457007|Mistshore], pursuing fleeing drow gunslingers. During a subsequent confrontation at a beached ship in [location:9457007|Mistshore], Raucous used the assistance of [character:9425238|Tyde] to sneak up on the drow gunslingers Fel’rekt Lafeen and Krebbyg Masq’il’yr, successfully pickpocketing them for gunpowder, a [item:9432044|Tankard of Sobriety], and an oval stone.   \n\nRaucous has since identified and attuned to the true [item:9432044|Stone of Golorr], discovering it is actually an ancient Aboleth. This attunement has cursed him with blindness if he moves more than 10 feet away from the stone, though it allows him to cast *Legend Lore* three times a day. While investigating a lead in the [location:9431883|Sea Ward], Raucous used his keen eyes to locate a hidden stone trapdoor beneath the residence of [character:9457182|Kalain], which led the party to the entrance of the Vault of Dragons. During the infiltration of the vault, Raucous successfully crossed a bridge and unlocked an adamantine door, revealing a chamber housing a statue of Gorm Gulthyn.",
+    "proposed_entry": "A local [location:9418490|Waterdeep] butcher and friend of [character:9423618|Gladio], Raucous joined the party at the [location:9431699|Yawning Portal] amidst a tavern brawl and a monster outbreak from the central well. He has been acting as a guide for the group, leading them through the [location:9418606|Dock Ward] in their search for [character:9431741|Floon Blagmaar]. During an investigation of a [location:9437421|Zhentarim Warehouse] in the [location:9431893|North Ward], Raucous accidentally triggered an alarm while exploring the upper level, which drew the attention of the City Watch. Raucous recently led the party in a successful rescue of [character:9431741|Floon Blagmaar] from a [organisation:9419437|Xanathar Guild] hideout in the sewers. During the skirmish, he looted a spellbook from the body of a half-orc named [character:9432250|Grum’shar]. Following the rescue, Raucous took the lead in escorting [character:9431741|Floon] back to the [location:9431699|Yawning Portal] to reunite with [character:918259|Volothamp Geddarm]. The party subsequently acquired the deed to [location:9418605|Trollskull Manor] in [location:9419015|Trollskull Alley] as payment for the rescue.   \n\nRaucous was recently recruited into the [organisation:9419383|Harpers] by [character:9435899|Mirt] \"the Merciless\" after attending an opera at the [location:9435901|Lightsinger Theater]. He was tasked with locating a talking draft horse mare named [character:9435910|Maxeene], who serves as a spy for the faction. After the horse was located, Raucous received a sealed envelope containing 100 gp and 1 Renown with the [organisation:9419383|Harpers] as a reward for his service. Recently, Raucous has been involved in the party's efforts to fund the renovations of [location:9418605|Trollskull Manor] and prepare for the upcoming [event:9438944]. He participated in a mission to the [location:9438958] in the [location:9438959] to break up a gang war between rival thugs on behalf of the [organisation:9419404]. Most recently, he was part of the group that investigated a necromantic threat in the [location:9438979] at the request of the [organisation:9419386], resulting in the capture of Priest [character:9442159]. During a chaotic battle against the [organisation:9419438|Zhentarim] at [location:9443309|Gralhund Villa], Raucous untied the Zhentarim member [character:9443308|Urstul Floxin]. In the same encounter, he expertly pickpocketed [character:9443311|Lord Orond Gralhund], stealing 50 gold pieces and a strange compass. Later, while investigating a lead regarding the \"[character:9443961|Black Viper]\", Raucous smoothly pickpocketed [character:9443962|Gaxly Rudderbust], stealing back 30 gold pieces that had been used as a bribe.   \n\nFollowing the completion of construction on [location:9418605|Trollskull Manor], Raucous has continued performing faction-related tasks. He recently participated in an investigation at [location:9453202] in Endshift Alley to address muggings by a gang of wererats known as the \"[organisation:9453215]\"; during the ensuing confrontation, he successfully pickpocketed the combatants while they were distracted. He also assisted the party in hunting grells in the [location:9418606|Dock Ward] at the request of the [organisation:9419386]. During a heist at a courthouse in the [location:9431892|Castle Ward], Raucous used mimicry to distract guards, allowing him to pick the locks on every cell door and trigger a massive prison break. Following the chaos, he successfully delivered the bandit [character:9445748|Fenerus Stormcastle] back to the party.  While investigating a dead-magic tower, Raucous engaged in a high-stakes rooftop chase through the [location:9418606|Dock Ward] and [location:9457007|Mistshore], pursuing fleeing drow gunslingers. During a subsequent confrontation at a beached ship in [location:9457007|Mistshore], Raucous used the assistance of [character:9425238|Tyde] to sneak up on the drow gunslingers Fel’rekt Lafeen and Krebbyg Masq’il’yr, successfully pickpocketing them for gunpowder, a [item:9432044|Tankard of Sobriety], and an oval stone.   \n\nRaucous has since identified and attuned to the true [item:9432044|Stone of Golorr], discovering it is actually an ancient Aboleth. This attunement has cursed him with blindness if he moves more than 10 feet away from the stone, though it allows him to cast *Legend Lore* three times a day. While investigating a lead in the [location:9431883|Sea Ward], Raucous used his keen eyes to locate a hidden stone trapdoor beneath the residence of [character:9457182|Kalain], which led the party to the entrance of the Vault of Dragons. During the infiltration of the vault, Raucous successfully crossed a bridge and unlocked an adamantine door, revealing a chamber housing a statue of [character:9493972|Gorm Gulthyn].",
     "change_summary": "Added details regarding Raucous's participation in the infiltration of the Vault of Dragons, specifically his success in crossing a bridge and unlocking an adamantine door.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6152,7 +6201,24 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": [
+      {
+        "action_taken": "created",
+        "target_id": 9418614,
+        "target_name": "Laerel Silverhand"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9443973,
+        "target_name": "Zardoz Zord"
+      },
+      {
+        "action_taken": "created",
+        "target_id": 9456996,
+        "target_name": "Rongquan Mystere"
+      }
+    ]
   },
   {
     "proposal_type": "update",
@@ -6174,7 +6240,8 @@
       }
     ],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "update",
@@ -6188,7 +6255,8 @@
     "change_summary": "No changes were made to the synopsis as the new session notes did not contain information regarding the Trades Ward; they focused on events in the Sea Ward and Dock Ward.",
     "relation_changes": [],
     "uncertain": [],
-    "status": "pending"
+    "status": "applied",
+    "relation_results": []
   },
   {
     "proposal_type": "new_entity",
@@ -6197,7 +6265,7 @@
     "draft_entry": "An old dwarf who guards a massive treasure hoard. He is revealed to be the ancient gold dragon, Aurinax.",
     "reason": "New character mentioned; note that he is also identified as Aurinax (who is in the known list).",
     "source_journal": "2025/04/12 - The Vault of the Golden Dragon",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "proposal_type": "new_entity",
@@ -6206,7 +6274,7 @@
     "draft_entry": "A drow gunslinger who accompanies the party into the lower cavern and attempts to trade gemstones for the Dragonstaff of Ahghairon.",
     "reason": "New character mentioned.",
     "source_journal": "2025/04/12 - The Vault of the Golden Dragon",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "proposal_type": "new_entity",
@@ -6215,6 +6283,6 @@
     "draft_entry": "A massive treasure hoard located within a windmill vault, guarded by Barok Clanghammer/Aurinax.",
     "reason": "New specific location mentioned.",
     "source_journal": "2025/04/12 - The Vault of the Golden Dragon",
-    "status": "pending"
+    "status": "rejected"
   }
 ]

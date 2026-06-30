@@ -3,37 +3,39 @@
 Everything lives in plain JSON files under DATA_DIR so it's easy to inspect,
 back up, or hand-edit if something looks wrong.
 """
+
 import json
 import os
 from datetime import datetime, timezone
+
 from . import config
 
 os.makedirs(config.DATA_DIR, exist_ok=True)
 
-SYNC_FILE = os.path.join(config.DATA_DIR, "sync_state.json")
-QUEUE_FILE = os.path.join(config.DATA_DIR, "pending_changes.json")
-APPLIED_LOG = os.path.join(config.DATA_DIR, "applied_log.json")
-PROCESSED_FILE = os.path.join(config.DATA_DIR, "processed_journals.json")
+SYNC_FILE = os.path.join(config.DATA_DIR, 'sync_state.json')
+QUEUE_FILE = os.path.join(config.DATA_DIR, 'pending_changes.json')
+APPLIED_LOG = os.path.join(config.DATA_DIR, 'applied_log.json')
+PROCESSED_FILE = os.path.join(config.DATA_DIR, 'processed_journals.json')
 
 
 def _load(path, default):
     if not os.path.exists(path):
         return default
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
 def _save(path, data):
-    with open(path, "w", encoding="utf-8") as f:
+    with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def get_last_sync():
-    return _load(SYNC_FILE, {}).get("lastSync")
+    return _load(SYNC_FILE, {}).get('lastSync')
 
 
 def set_last_sync(value):
-    _save(SYNC_FILE, {"lastSync": value})
+    _save(SYNC_FILE, {'lastSync': value})
 
 
 def load_queue():
@@ -57,11 +59,13 @@ def log_applied_batch(entries):
     if not entries:
         return
     log = _load(APPLIED_LOG, [])
-    log.append({
-        "run_id": datetime.now(timezone.utc).isoformat(),
-        "entries": entries,
-        "reverted": False,
-    })
+    log.append(
+        {
+            'run_id': datetime.now(timezone.utc).isoformat(),
+            'entries': entries,
+            'reverted': False,
+        }
+    )
     _save(APPLIED_LOG, log)
 
 
@@ -73,8 +77,8 @@ def get_last_applied_batch():
     revert automatically."""
     log = _load(APPLIED_LOG, [])
     for item in reversed(log):
-        if isinstance(item, dict) and "entries" in item and "run_id" in item:
-            if not item.get("reverted"):
+        if isinstance(item, dict) and 'entries' in item and 'run_id' in item:
+            if not item.get('reverted'):
                 return item
             continue  # already reverted -- keep looking further back
         return None  # hit older, less-detailed log data; nothing further back helps
@@ -84,8 +88,8 @@ def get_last_applied_batch():
 def mark_batch_reverted(run_id):
     log = _load(APPLIED_LOG, [])
     for item in log:
-        if isinstance(item, dict) and item.get("run_id") == run_id:
-            item["reverted"] = True
+        if isinstance(item, dict) and item.get('run_id') == run_id:
+            item['reverted'] = True
     _save(APPLIED_LOG, log)
 
 
@@ -94,15 +98,15 @@ def get_processed_journal_ids():
     those proposals were later approved or rejected. Used so an interrupted
     or re-run sync doesn't redo (and re-queue) the same journal twice."""
     entries = _load(PROCESSED_FILE, [])
-    return {e["id"] if isinstance(e, dict) else e for e in entries}
+    return {e['id'] if isinstance(e, dict) else e for e in entries}
 
 
 def mark_journal_processed(journal_id, title=None):
     entries = _load(PROCESSED_FILE, [])
-    existing_ids = set(e["id"] if isinstance(e, dict) else e for e in entries)
+    existing_ids = {e['id'] if isinstance(e, dict) else e for e in entries}
     if journal_id not in existing_ids:
-        entry = {"id": journal_id}
+        entry = {'id': journal_id}
         if title:
-            entry["title"] = title
+            entry['title'] = title
         entries.append(entry)
         _save(PROCESSED_FILE, entries)

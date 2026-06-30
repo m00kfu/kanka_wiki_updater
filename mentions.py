@@ -6,20 +6,27 @@ or [character:123|Display Name]. We use that directly when present (cheap
 and 100% accurate), and fall back to fuzzy name matching against the known
 character/location list for plain prose mentions that weren't linked.
 """
-import re
+
 import html
+import re
 from difflib import SequenceMatcher
 
-MENTION_RE = re.compile(r"\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)")
-MENTION_DISPLAY_RE = re.compile(r"(\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+)\|[^\]]*\]")
-LINK_SPAN_RE = re.compile(r"\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]")
-TAG_RE = re.compile(r"<[^>]+>")
+MENTION_RE = re.compile(
+    r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)'
+)
+MENTION_DISPLAY_RE = re.compile(
+    r'(\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+)\|[^\]]*\]'
+)
+LINK_SPAN_RE = re.compile(
+    r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]'
+)
+TAG_RE = re.compile(r'<[^>]+>')
 
 
 def strip_html(raw):
     if not raw:
-        return ""
-    return html.unescape(TAG_RE.sub(" ", raw)).strip()
+        return ''
+    return html.unescape(TAG_RE.sub(' ', raw)).strip()
 
 
 def normalize_text(raw):
@@ -29,13 +36,13 @@ def normalize_text(raw):
     e.g. [location:9418490] vs [location:9418490|Waterdeep] render
     identically in Kanka, so the model adding/changing/removing just that
     display text isn't a real change worth a review prompt."""
-    text = MENTION_DISPLAY_RE.sub(r"\1]", raw or "")
-    return " ".join(strip_html(text).split())
+    text = MENTION_DISPLAY_RE.sub(r'\1]', raw or '')
+    return ' '.join(strip_html(text).split())
 
 
 def linked_entity_ids(raw_entry):
     """IDs explicitly linked via [entity:N] / [character:N] / [location:N]."""
-    return {int(m) for m in MENTION_RE.findall(raw_entry or "")}
+    return {int(m) for m in MENTION_RE.findall(raw_entry or '')}
 
 
 def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
@@ -43,7 +50,7 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
     This is a cheap word-window fuzzy match -- good enough for proper
     nouns, not meant to be perfect. Always double-check the review queue
     rather than trusting this blindly."""
-    text_lower = (text or "").lower()
+    text_lower = (text or '').lower()
     words = text_lower.split()
     found = set()
     for entity_id, name in names_by_entity_id.items():
@@ -54,7 +61,7 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
         first_word = name_lower.split()[0] if name_lower.split() else name_lower
         if len(first_word) >= 4:
             for word in words:
-                if SequenceMatcher(None, first_word, word.strip(".,!?;:'\"")).ratio() >= threshold:
+                if SequenceMatcher(None, first_word, word.strip('.,!?;:\'"')).ratio() >= threshold:
                     found.add(entity_id)
                     break
     return found
@@ -77,16 +84,16 @@ def find_unlinked_mentions(text, names_by_entity_id, exclude_entity_id=None, min
     used for raw session notes -- false positives here would flag harmless
     prose as a problem on every single review, which gets ignored fast.
     Short names are skipped (min_name_length) for the same reason."""
-    text = text or ""
+    text = text or ''
     already_linked = linked_entity_ids(text)
-    masked = LINK_SPAN_RE.sub(lambda m: " " * len(m.group(0)), text)
+    masked = LINK_SPAN_RE.sub(lambda m: ' ' * len(m.group(0)), text)
     found = []
     for entity_id, name in names_by_entity_id.items():
         if entity_id == exclude_entity_id or len(name) < min_name_length:
             continue
         if entity_id in already_linked:
             continue
-        if re.search(r"\b" + re.escape(name) + r"\b", masked):
+        if re.search(r'\b' + re.escape(name) + r'\b', masked):
             found.append((entity_id, name))
     return found
 
@@ -103,13 +110,13 @@ def auto_link_entry(text, index, exclude_entity_id=None, min_name_length=4):
 
     Returns (new_text, linked) where linked is a list of (entity_id, name)
     for each name actually auto-linked."""
-    text = text or ""
+    text = text or ''
     already_linked = linked_entity_ids(text)
 
     candidates = [
-        (eid, data["name"], data["kind"])
+        (eid, data['name'], data['kind'])
         for eid, data in index.items()
-        if eid != exclude_entity_id and eid not in already_linked and len(data["name"]) >= min_name_length
+        if eid != exclude_entity_id and eid not in already_linked and len(data['name']) >= min_name_length
     ]
     # Longest names first, so e.g. "Renaer Neverember" is linked as a whole
     # before a shorter candidate name that happens to be a substring of it
@@ -119,11 +126,11 @@ def auto_link_entry(text, index, exclude_entity_id=None, min_name_length=4):
     linked = []
     for entity_id, name, kind in candidates:
         link_spans = [(m.start(), m.end()) for m in LINK_SPAN_RE.finditer(text)]
-        for m in re.finditer(r"\b" + re.escape(name) + r"\b", text):
+        for m in re.finditer(r'\b' + re.escape(name) + r'\b', text):
             if any(start <= m.start() < end for start, end in link_spans):
                 continue  # inside an existing (or just-inserted) link -- skip
-            token = f"[{kind}:{entity_id}|{name}]"
-            text = text[:m.start()] + token + text[m.end():]
+            token = f'[{kind}:{entity_id}|{name}]'
+            text = text[: m.start()] + token + text[m.end() :]
             linked.append((entity_id, name))
             break  # only the first valid occurrence of this name
     return text, linked
@@ -140,5 +147,5 @@ def add_missing_entity_tags(text, index, exclude_entity_id=None, min_name_length
     ``(entity_id, kind, name)`` for each entity that was linked.
     """
     text, linked = auto_link_entry(text, index, exclude_entity_id=exclude_entity_id, min_name_length=min_name_length)
-    details = [(eid, index[eid]["kind"], name) for eid, name in linked]
+    details = [(eid, index[eid]['kind'], name) for eid, name in linked]
     return text, details

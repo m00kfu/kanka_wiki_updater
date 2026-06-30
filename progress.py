@@ -4,6 +4,7 @@ Uses \\r carriage return to overwrite the same terminal line so the user
 always sees current progress without spammy output (disabled on Windows
 where PowerShell/cmd do not reliably handle \\r).
 """
+
 import os
 import sys
 
@@ -23,20 +24,20 @@ class ProgressTracker:
     @classmethod
     def _check_unicode(cls):
         try:
-            "█".encode(sys.stdout.encoding or "utf-8")
+            '█'.encode(sys.stdout.encoding or 'utf-8')
             return True
         except (UnicodeEncodeError, LookupError):
             return False
 
     @property
     def filled(self):
-        return "█" if self._unicode else "="
+        return '█' if self._unicode else '='
 
     @property
     def empty(self):
-        return "░" if self._unicode else "-"
+        return '░' if self._unicode else '-'
 
-    def _render(self, label: str = "") -> str:
+    def _render(self, label: str = '') -> str:
         """Return a progress bar string like '[████░░ 60%] [LLM for Alice...]'.
 
         Uses full block chars (█) for done portion and empty blocks (░) for remaining.
@@ -48,12 +49,12 @@ class ProgressTracker:
         empty_count = 20 - filled_count
 
         bar = self.filled * filled_count + self.empty * empty_count
-        header = f"[{bar} {pct}%]"
+        header = f'[{bar} {pct}%]'
         if label:
-            header += f" {label}"
+            header += f' {label}'
         return header
 
-    def mark_done(self, label: str = "") -> None:
+    def mark_done(self, label: str = '') -> None:
         """Increment done count and render the bar."""
         self.done += 1
         rendered = self._render(label)
@@ -61,7 +62,7 @@ class ProgressTracker:
         if width > self._max_width:
             self._max_width = width
         if self._use_cr:
-            sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}")
+            sys.stdout.write(f'\r{rendered}{" " * (self._max_width - width)}')
         else:
             print(rendered)
         sys.stdout.flush()
@@ -73,7 +74,7 @@ class ProgressTracker:
         rendered = self._render('')
         width = len(rendered)
         if self._use_cr:
-            sys.stdout.write(f"\r{rendered}{' ' * (self._max_width - width)}\n")
+            sys.stdout.write(f'\r{rendered}{" " * (self._max_width - width)}\n')
         else:
             print(rendered)
         sys.stdout.flush()

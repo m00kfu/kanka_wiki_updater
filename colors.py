@@ -7,8 +7,11 @@ ANSI codes don't always do on their own. Falls back to plain, uncolored
 text if colorama isn't installed, so a missing optional dependency never
 breaks the script -- review just looks plainer.
 """
+
 try:
-    from colorama import init as _colorama_init, Fore, Style
+    from colorama import Fore, Style
+    from colorama import init as _colorama_init
+
     _colorama_init(autoreset=True)
     _ENABLED = True
 except ImportError:
@@ -21,7 +24,8 @@ def _identity(text):
 
 def _wrap(code):
     def wrapper(text):
-        return f"{code}{text}{Style.RESET_ALL}"
+        return f'{code}{text}{Style.RESET_ALL}'
+
     return wrapper
 
 

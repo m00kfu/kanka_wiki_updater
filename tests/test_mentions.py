@@ -203,5 +203,3 @@ def test_add_missing_entity_tags_none_input():
     result_text, details = add_missing_entity_tags(None, {})
     assert result_text == ''
     assert details == []
-
-

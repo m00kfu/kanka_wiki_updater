@@ -14,7 +14,7 @@ Add Gemini as an optional LLM provider alongside the existing LM Studio local se
 ### Modified files
 - **`config.py`** — add provider selection and Gemini parameters
 - **`.env.example`** — document new variables
-- **`llm_client.py`** — thin re-export module importing from `llm_providers` for backward compatibility
+- **`llm_client.py`** — thin re-export module (`from .llm_providers import chat_json, LLMError`) for backward compatibility
 
 ### Unchanged files
 - `sync_pipeline.py`, `prompts.py`, `review.py` — zero changes, they keep calling `chat_json()`

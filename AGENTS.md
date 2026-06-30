@@ -3,7 +3,7 @@
 ## Running the project
 
 ```bash
-pip install -r requirements.txt        # once: requests, python-dotenv, json_repair, colorama
+pip install -r requirements.txt        # once: requests, python-dotenv, json_repair, colorama, ruff, pytest
 python -m kanka_wiki_updater.sync_pipeline [--limit N]   # fetch new session journals → LLM proposals (no writes to Kanka)
 python -m kanka_wiki_updater.review                           # human review of pending proposals; approved changes go live immediately
 python -m kanka_wiki_updater.revert                           # undo the most recent unreverted review batch
@@ -11,7 +11,28 @@ python -m kanka_wiki_updater.revert                           # undo the most re
 
 - Run **from the parent directory** containing `kanka_wiki_updater/` (the module entry point expects relative imports).
 - `.env` is required: copy `.env.example`, fill in `KANKA_TOKEN`, `KANKA_CAMPAIGN_ID`, `LMSTUDIO_MODEL`.
-- No linter, type checker, or test suite exists — changes are manual verification only.
+- Changes are verified by `ruff check` + manual testing.
+
+## Linting & formatting
+
+```bash
+ruff check .          # lint all modules
+ruff format .         # auto-format (run after editing)
+ruff check . --fix    # auto-fix fixable issues
+```
+
+Configuration is in `pyproject.toml`. Line length: 120 chars.
+
+## Testing
+
+```bash
+pytest                          # run all tests
+pytest -v                       # verbose output
+pytest tests/test_mentions.py   # single file
+pytest --cov=kanka_wiki_updater # coverage report
+```
+
+Tests go in `tests/` alongside the source. Pure functions (mentions, state) are tested first — no mocking needed. I/O-heavy modules (kanka_client, sync_pipeline) use pytest-mock to isolate external dependencies.
 
 ## Architecture at a glance
 
