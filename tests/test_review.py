@@ -8,7 +8,6 @@ from kanka_wiki_updater.review import (
     unlinked_mention_warning,
 )
 
-
 # --- has_meaningful_change tests ---
 
 

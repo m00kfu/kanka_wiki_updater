@@ -8,7 +8,6 @@ from kanka_wiki_updater.sync_pipeline import (
     relation_summary,
 )
 
-
 # --- build_entity_index tests (Task 9) ---
 
 

@@ -1,6 +1,5 @@
 """Tests for LLM client JSON extraction."""
 
-import json
 import pytest
 
 from kanka_wiki_updater.llm_client import LLMError, _extract_json

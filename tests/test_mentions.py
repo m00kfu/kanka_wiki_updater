@@ -156,14 +156,14 @@ def test_auto_link_entry_basic():
 def test_auto_link_entry_skips_already_linked():
     text = '[character:123|Alice] went to the castle'
     index = {123: {'name': 'Alice', 'kind': 'character'}}
-    new_text, linked = auto_link_entry(text, index)
+    _, linked = auto_link_entry(text, index)
     assert linked == []
 
 
 def test_auto_link_entry_skips_exclude_entity():
     text = 'Alice went to the castle'
     index = {123: {'name': 'Alice', 'kind': 'character'}}
-    new_text, linked = auto_link_entry(text, index, exclude_entity_id=123)
+    _, linked = auto_link_entry(text, index, exclude_entity_id=123)
     assert linked == []
 
 
@@ -173,7 +173,7 @@ def test_auto_link_entry_longest_first():
         456: {'name': 'Neverember', 'kind': 'location'},
     }
     text = 'Renaer Neverember went to Neverember'
-    new_text, linked = auto_link_entry(text, index)
+    new_text, _ = auto_link_entry(text, index)
     assert '[character:123|Renaer Neverember]' in new_text
 
 
@@ -203,3 +203,5 @@ def test_add_missing_entity_tags_none_input():
     result_text, details = add_missing_entity_tags(None, {})
     assert result_text == ''
     assert details == []
+
+
