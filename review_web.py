@@ -282,8 +282,8 @@ function updateStats() {
 function renderSidebar() {
   const sidebar = document.getElementById('sidebar');
   let html = '<div class="tab-bar" id="tabBar">' +
-    '<button class="tab-btn ' + (currentTab === "new" ? "active" : "inactive") + '" data-tab="new" onclick="switchTab(\'new\')">New</button>' +
-    '<button class="tab-btn ' + (currentTab === "reviewed" ? "active" : "inactive") + '" data-tab="reviewed" onclick="switchTab(\'reviewed\')">Reviewed</button>' +
+    '<button class="tab-btn ' + (currentTab === "new" ? "active" : "inactive") + '" data-tab="new" onclick="switchTab(\\'new\\')">New</button>' +
+    '<button class="tab-btn ' + (currentTab === "reviewed" ? "active" : "inactive") + '" data-tab="reviewed" onclick="switchTab(\\'reviewed\\')">Reviewed</button>' +
     '</div>';
   const filtered = currentTab === 'new'
     ? proposals.filter(p => p.status === 'pending')
