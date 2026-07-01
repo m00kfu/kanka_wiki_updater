@@ -714,7 +714,10 @@ async function runSync() {
     if (data.type === 'output') {
       currentSyncJob.output += data.text + '\n';
       var pre = document.getElementById('syncOutput');
-      if (pre) pre.textContent = currentSyncJob.output;
+      if (pre) {
+        pre.textContent = currentSyncJob.output;
+        pre.scrollTop = pre.scrollHeight;
+      }
     }
   });
 

@@ -335,3 +335,23 @@ class TestSyncJavaScript:
         resp = app_with_queue.get("/")
         html = resp.data.decode()
         assert "EventSource" in html
+
+    def test_sync_output_has_auto_scroll(self, app_with_queue):
+        """Sync output streaming includes scrollTop scrollHeight auto-scroll."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "scrollTop" in html and "scrollHeight" in html
+
+
+class TestSwitchTabCancelEdit:
+    def test_switch_tab_calls_cancel_edit(self, app_with_queue):
+        """switchTab() calls cancelEdit() to prevent stale editor state."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "if (editingField) cancelEdit()" in html or "cancelEdit();" in html
+
+    def test_switch_tab_resets_selected_index(self, app_with_queue):
+        """switchTab() resets selectedIndex to null."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "selectedIndex = null" in html
