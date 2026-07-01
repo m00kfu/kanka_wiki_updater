@@ -12,38 +12,37 @@ def mock_queue(tmp_path):
     """Create a temporary pending_changes.json with mixed proposal types."""
     queue = [
         {
-            'proposal_type': 'new_entity',
-            'entity_name': 'Vexara the Veiled',
-            'suggested_type': 'character',
-            'draft_entry': 'A mysterious sorceress.',
-            'source_journal': 'Session 12',
-            'status': 'pending',
+            "proposal_type": "new_entity",
+            "entity_name": "Vexara the Veiled",
+            "suggested_type": "character",
+            "draft_entry": "A mysterious sorceress.",
+            "source_journal": "Session 12",
+            "status": "pending",
         },
         {
-            'proposal_type': 'update',
-            'entity_name': 'Kael Ironfist',
-            'entity_kind': 'character',
-            'entity_id': '42',
-            'entity_local_id': 101,
-            'source_journal': 'Session 13',
-            'change_summary': 'Updated synopsis.',
-            'previous_entry': '<p>Old text.</p>',
-            'proposed_entry': '<p>New text with allies.</p>',
-            'relation_changes': [
+            "proposal_type": "update",
+            "entity_name": "Kael Ironfist",
+            "entity_kind": "character",
+            "entity_id": "42",
+            "entity_local_id": 101,
+            "source_journal": "Session 13",
+            "change_summary": "Updated synopsis.",
+            "previous_entry": "<p>Old text.</p>",
+            "proposed_entry": "<p>New text with allies.</p>",
+            "relation_changes": [
                 {
-                    'action': 'create',
-                    'relation': 'ally',
-                    'target_name': 'Vexara the Veiled',
-                    'attitude': 'cautious trust',
-                    'reason': 'Met at Ironhold.',
+                    "action": "create",
+                    "relation": "ally",
+                    "target_name": "Vexara the Veiled",
+                    "attitude": "cautious trust",
+                    "reason": "Met at Ironhold.",
                 }
             ],
-            'status': 'pending',
+            "status": "pending",
         },
     ]
-    queue_file = tmp_path / 'pending_changes.json'
-    with open(queue_file, 'w') as f:
-        json.dump(queue, f, indent=2)
+    queue_file = tmp_path / "pending_changes.json"
+    json.dump(queue, open(queue_file, "w"), indent=2)
     return str(queue_file), tmp_path
 
 
@@ -60,7 +59,7 @@ def app_with_queue(mock_queue):
     config.DATA_DIR = str(data_dir)
 
     app = create_app()
-    app.config['TESTING'] = True
+    app.config["TESTING"] = True
 
     client = app.test_client()
 
@@ -80,7 +79,7 @@ class TestCreateApp:
         app = create_app()
         assert app is not None
         # Flask apps have a test_client property
-        assert hasattr(app, 'test_client')
+        assert hasattr(app, "test_client")
 
 
 # ── API route tests ────────────────────────────────────────────────────────
@@ -89,31 +88,31 @@ class TestCreateApp:
 class TestApiProposals:
     def test_get_proposals_returns_all(self, app_with_queue):
         """GET /api/proposals returns the full queue."""
-        resp = app_with_queue.get('/api/proposals')
+        resp = app_with_queue.get("/api/proposals")
         assert resp.status_code == 200
         data = resp.get_json()
         assert len(data) == 2
-        assert data[0]['proposal_type'] == 'new_entity'
-        assert data[1]['proposal_type'] == 'update'
+        assert data[0]["proposal_type"] == "new_entity"
+        assert data[1]["proposal_type"] == "update"
 
     def test_get_proposals_filtered_by_status(self, app_with_queue):
         """GET /api/proposals?status=pending returns only pending."""
-        resp = app_with_queue.get('/api/proposals?status=pending')
+        resp = app_with_queue.get("/api/proposals?status=pending")
         assert resp.status_code == 200
         data = resp.get_json()
         assert len(data) == 2
 
     def test_get_proposals_filtered_by_type(self, app_with_queue):
         """GET /api/proposals?type=new_entity returns only new entities."""
-        resp = app_with_queue.get('/api/proposals?type=new_entity')
+        resp = app_with_queue.get("/api/proposals?type=new_entity")
         assert resp.status_code == 200
         data = resp.get_json()
         assert len(data) == 1
-        assert data[0]['entity_name'] == 'Vexara the Veiled'
+        assert data[0]["entity_name"] == "Vexara the Veiled"
 
     def test_get_proposals_empty_when_no_match(self, app_with_queue):
         """GET /api/proposals?status=applied returns empty list."""
-        resp = app_with_queue.get('/api/proposals?status=applied')
+        resp = app_with_queue.get("/api/proposals?status=applied")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data == []
@@ -123,36 +122,36 @@ class TestApiProposalStatus:
     def test_update_status_approved_all(self, app_with_queue):
         """POST /api/proposals/1/status with status=approved_all sets applied."""
         resp = app_with_queue.post(
-            '/api/proposals/1/status',
-            json={'status': 'approved_all'},
+            "/api/proposals/1/status",
+            json={"status": "approved_all"},
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['proposal']['status'] == 'applied'
+        assert data["proposal"]["status"] == "applied"
 
     def test_update_status_rejected(self, app_with_queue):
         """POST /api/proposals/1/status with status=rejected."""
         resp = app_with_queue.post(
-            '/api/proposals/1/status',
-            json={'status': 'rejected'},
+            "/api/proposals/1/status",
+            json={"status": "rejected"},
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['proposal']['status'] == 'rejected'
+        assert data["proposal"]["status"] == "rejected"
 
     def test_update_status_invalid_index(self, app_with_queue):
         """POST /api/proposals/99/status returns 404."""
         resp = app_with_queue.post(
-            '/api/proposals/99/status',
-            json={'status': 'approved_all'},
+            "/api/proposals/99/status",
+            json={"status": "approved_all"},
         )
         assert resp.status_code == 404
 
     def test_update_status_invalid_value(self, app_with_queue):
         """POST /api/proposals/1/status with bad status returns 400."""
         resp = app_with_queue.post(
-            '/api/proposals/1/status',
-            json={'status': 'banana'},
+            "/api/proposals/1/status",
+            json={"status": "banana"},
         )
         assert resp.status_code == 400
 
@@ -162,40 +161,40 @@ class TestApiProposalStatus:
 
         # Approve proposal at index 1
         app_with_queue.post(
-            '/api/proposals/1/status',
-            json={'status': 'approved_all'},
+            "/api/proposals/1/status",
+            json={"status": "approved_all"},
         )
         # Reload from disk using review_web's dynamic path resolution
         queue = rw._load_queue()
-        assert queue[1]['status'] == 'applied'
+        assert queue[1]["status"] == "applied"
 
 
 class TestApiProposalEdit:
     def test_edit_update_synopsis(self, app_with_queue):
         """POST /api/proposals/1/edit with new entry text."""
         resp = app_with_queue.post(
-            '/api/proposals/1/edit',
-            json={'entry': '<p>Completely rewritten synopsis.</p>'},
+            "/api/proposals/1/edit",
+            json={"entry": "<p>Completely rewritten synopsis.</p>"},
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['proposal']['proposed_entry'] == '<p>Completely rewritten synopsis.</p>'
+        assert data["proposal"]["proposed_entry"] == "<p>Completely rewritten synopsis.</p>"
 
     def test_edit_new_entity_draft(self, app_with_queue):
         """POST /api/proposals/0/edit for a new entity changes draft_entry."""
         resp = app_with_queue.post(
-            '/api/proposals/0/edit',
-            json={'entry': 'A powerful necromancer from the dark lands.'},
+            "/api/proposals/0/edit",
+            json={"entry": "A powerful necromancer from the dark lands."},
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['proposal']['draft_entry'] == 'A powerful necromancer from the dark lands.'
+        assert data["proposal"]["draft_entry"] == "A powerful necromancer from the dark lands."
 
     def test_edit_invalid_index(self, app_with_queue):
         """POST /api/proposals/99/edit returns 404."""
         resp = app_with_queue.post(
-            '/api/proposals/99/edit',
-            json={'entry': 'test'},
+            "/api/proposals/99/edit",
+            json={"entry": "test"},
         )
         assert resp.status_code == 404
 
@@ -204,61 +203,61 @@ class TestApiRelations:
     def test_add_relation(self, app_with_queue):
         """POST /api/proposals/1/relation with action=create."""
         resp = app_with_queue.post(
-            '/api/proposals/1/relation',
+            "/api/proposals/1/relation",
             json={
-                'action': 'create',
-                'relation': 'enemy',
-                'target_name': 'Shadowmere Cult',
-                'attitude': 'vengeful',
-                'reason': 'They burned my village.',
+                "action": "create",
+                "relation": "enemy",
+                "target_name": "Shadowmere Cult",
+                "attitude": "vengeful",
+                "reason": "They burned my village.",
             },
         )
         assert resp.status_code == 200
         data = resp.get_json()
         # Should now have 2 relations (1 original + 1 new)
-        assert len(data['proposal']['relation_changes']) == 2
+        assert len(data["proposal"]["relation_changes"]) == 2
 
     def test_delete_relation(self, app_with_queue):
         """POST /api/proposals/1/relation with action=delete and target."""
         resp = app_with_queue.post(
-            '/api/proposals/1/relation',
+            "/api/proposals/1/relation",
             json={
-                'action': 'delete',
-                'target_name': 'Vexara the Veiled',
+                "action": "delete",
+                "target_name": "Vexara the Veiled",
             },
         )
         assert resp.status_code == 200
         data = resp.get_json()
         # Should now have 0 relations (1 was deleted)
-        assert len(data['proposal']['relation_changes']) == 0
+        assert len(data["proposal"]["relation_changes"]) == 0
 
     def test_update_relation(self, app_with_queue):
         """POST /api/proposals/1/relation with action=update and target."""
         resp = app_with_queue.post(
-            '/api/proposals/1/relation',
+            "/api/proposals/1/relation",
             json={
-                'action': 'update',
-                'target_name': 'Vexara the Veiled',
-                'relation': 'rival',
-                'attitude': 'distrust',
-                'reason': 'She betrayed us at Ironhold.',
+                "action": "update",
+                "target_name": "Vexara the Veiled",
+                "relation": "rival",
+                "attitude": "distrust",
+                "reason": "She betrayed us at Ironhold.",
             },
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        rels = data['proposal']['relation_changes']
+        rels = data["proposal"]["relation_changes"]
         assert len(rels) == 1
-        assert rels[0]['relation'] == 'rival'
-        assert rels[0]['attitude'] == 'distrust'
-        assert rels[0]['reason'] == 'She betrayed us at Ironhold.'
+        assert rels[0]["relation"] == "rival"
+        assert rels[0]["attitude"] == "distrust"
+        assert rels[0]["reason"] == "She betrayed us at Ironhold."
 
     def test_delete_nonexistent_relation(self, app_with_queue):
         """Deleting a relation that doesn't exist returns 404."""
         resp = app_with_queue.post(
-            '/api/proposals/1/relation',
+            "/api/proposals/1/relation",
             json={
-                'action': 'delete',
-                'target_name': 'Nonexistent Person',
+                "action": "delete",
+                "target_name": "Nonexistent Person",
             },
         )
         assert resp.status_code == 404
@@ -267,9 +266,9 @@ class TestApiRelations:
 class TestIndexPage:
     def test_index_returns_html(self, app_with_queue):
         """GET / returns HTML content."""
-        resp = app_with_queue.get('/')
+        resp = app_with_queue.get("/")
         assert resp.status_code == 200
-        assert 'text/html' in resp.content_type
+        assert "text/html" in resp.content_type
 
 
 class TestApiSyncRun:

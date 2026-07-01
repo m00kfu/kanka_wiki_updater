@@ -7,11 +7,12 @@ data/pending_changes.json — the same file used by review.py. Both can coexist
 without conflict; they just need to agree on the JSON schema.
 """
 
+import json
 import os
 import subprocess
 import threading
 import time
-from collections import deque
+from collections import defaultdict, deque
 
 from flask import Flask, jsonify, render_template_string, request
 
