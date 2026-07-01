@@ -156,7 +156,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Ar
 .header .stats { font-size: 13px; color: var(--text-dim); }
 .main { display: flex; flex: 1; overflow: hidden; }
 .sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
-.sidebar-header { padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+.tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 8px; }
+.tab-btn { background: none; border: none; color: var(--text-dim); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.tab-btn.inactive { opacity: 0.6; }
 .proposal-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.15s; }
 .proposal-item:hover { background: #1c2128; }
 .proposal-item.active { background: #1f2a37; border-left: 3px solid var(--cyan); }
@@ -268,7 +272,10 @@ function updateStats() {
 
 function renderSidebar() {
   const sidebar = document.getElementById('sidebar');
-  let html = '<div class="sidebar-header">Proposals (' + proposals.length + ')</div>';
+  let html = '<div class="tab-bar" id="tabBar">' +
+    '<button class="tab-btn active" data-tab="new" onclick="switchTab(\'new\')">New</button>' +
+    '<button class="tab-btn inactive" data-tab="reviewed" onclick="switchTab(\'reviewed\')">Reviewed</button>' +
+    '</div>';
   proposals.forEach(function(p, i) {
     var isActive = i === selectedIndex ? ' active' : '';
     var kind = p.proposal_type === 'new_entity' ? 'NEW' : 'UPD';
@@ -279,6 +286,17 @@ function renderSidebar() {
       '<div class="meta">' + p.source_journal + '</div></div>';
   });
   sidebar.innerHTML = html;
+}
+
+function switchTab(tab) {
+  var btns = document.querySelectorAll('.tab-btn');
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i].getAttribute('data-tab') === tab) {
+      btns[i].className = 'tab-btn active';
+    } else {
+      btns[i].className = 'tab-btn inactive';
+    }
+  }
 }
 
 function renderContent() {
