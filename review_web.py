@@ -8,8 +8,21 @@ without conflict; they just need to agree on the JSON schema.
 """
 
 import os
+import subprocess
+import threading
+import time
+from collections import deque
 
 from flask import Flask, jsonify, render_template_string, request
+
+_sync_jobs = {}
+_job_counter = [0]
+
+
+def _next_job_id():
+    """Generate a unique job ID."""
+    _job_counter[0] += 1
+    return f'sync-{_job_counter[0]}'
 
 
 def create_app():
@@ -116,6 +129,30 @@ def create_app():
         _save_queue(queue)
         return jsonify({'proposal': proposal, 'ok': True})
 
+    @app.route('/api/sync/run', methods=['POST'])
+    def run_sync():
+        job_id = _next_job_id()
+        module_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        proc = subprocess.Popen(
+            ['python', '-m', 'kanka_wiki_updater.sync_pipeline'],
+            cwd=module_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            universal_newlines=True,
+        )
+        buffer = deque(maxlen=500)
+        _sync_jobs[job_id] = {
+            'process': proc,
+            'buffer': buffer,
+            'status': 'running',
+            'started_at': time.time(),
+            'finished_at': None,
+        }
+        thread = threading.Thread(target=_sync_thread, args=(job_id, proc, buffer), daemon=True)
+        thread.start()
+        return jsonify({'job_id': job_id, 'status': 'running'})
+
     return app
 
 
@@ -131,6 +168,21 @@ def _save_queue(queue):
 
     queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
     state._save(queue_file, queue)
+
+
+def _sync_thread(job_id, proc, buffer):
+    """Background thread that reads subprocess stdout and pushes to deque."""
+    try:
+        for line in proc.stdout:
+            buffer.append(line.rstrip('\n'))
+        proc.wait()
+        if proc.returncode == 0:
+            _sync_jobs[job_id]['status'] = 'completed'
+        else:
+            _sync_jobs[job_id]['status'] = 'error'
+    except Exception as e:
+        buffer.append(f'Sync error: {e}')
+        _sync_jobs[job_id]['status'] = 'error'
 
 
 # ── HTML template (embedded single-page app) ───────────────────────────────
