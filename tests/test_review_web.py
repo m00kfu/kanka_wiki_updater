@@ -306,3 +306,32 @@ class TestApiSyncOutput:
         resp = app_with_queue.get('/api/sync/status')
         data = resp.get_json()
         assert data['active'] is False
+
+
+class TestSyncTabHtml:
+    def test_index_contains_sync_tab_button(self, app_with_queue):
+        """GET / returns HTML containing Sync tab button."""
+        resp = app_with_queue.get("/")
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert '>Sync<' in html or 'Sync</button>' in html
+
+    def test_index_contains_sync_output_area(self, app_with_queue):
+        """GET / returns HTML containing sync output pre element."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "syncOutput" in html
+
+
+class TestSyncJavaScript:
+    def test_index_contains_run_sync_function(self, app_with_queue):
+        """GET / returns HTML containing runSync function."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "function runSync" in html or "runSync()" in html
+
+    def test_index_contains_event_source_connection(self, app_with_queue):
+        """GET / returns HTML containing EventSource connection to sync output."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "EventSource" in html

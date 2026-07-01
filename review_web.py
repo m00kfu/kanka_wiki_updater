@@ -354,6 +354,7 @@ let proposals = {{ PROPOSALS | tojson }};
 let selectedIndex = null;
 let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
+let currentSyncJob = null; // {job_id, status, output}
 
 function getPending() { return proposals.filter(p => p.status === 'pending'); }
 
@@ -380,6 +381,7 @@ function renderSidebar() {
   let html = '<div class="tab-bar" id="tabBar">' +
     '<button class="tab-btn ' + (currentTab === "new" ? "active" : "inactive") + '" data-tab="new" onclick="switchTab(\\'new\\')">New</button>' +
     '<button class="tab-btn ' + (currentTab === "reviewed" ? "active" : "inactive") + '" data-tab="reviewed" onclick="switchTab(\\'reviewed\\')">Reviewed</button>' +
+    '<button class="tab-btn ' + (currentTab === "sync" ? "active" : "inactive") + '" data-tab="sync" onclick="switchTab(\\'sync\\')">Sync</button>' +
     '</div>';
   const filtered = currentTab === 'new'
     ? proposals.filter(p => p.status === 'pending')
@@ -401,6 +403,7 @@ function renderSidebar() {
 
 function switchTab(tab) {
   if (tab === currentTab) return;
+  if (editingField) cancelEdit();
   currentTab = tab;
   selectedIndex = null;
   renderSidebar();
@@ -499,6 +502,23 @@ function renderContent() {
   if (p.status !== 'pending') {
     var statusColor = p.status === 'applied' ? 'var(--green)' : 'var(--red)';
     html += '<div style="text-align:center;padding:16px;color:' + statusColor + ';font-weight:600;font-size:14px">Status: ' + p.status.toUpperCase() + '</div>';
+  }
+
+  // Sync tab
+  if (currentTab === 'sync') {
+    var jobStatus = currentSyncJob ? currentSyncJob.status : 'idle';
+    var statusColor = {'running':'var(--blue)','completed':'var(--green)','error':'var(--red)','idle':'var(--text-dim)'}[jobStatus] || 'var(--text-dim)';
+
+    html += '<div class="empty-state">' +
+      '<h3>Run Sync Pipeline</h3>' +
+      '<div style="margin:16px 0;">' +
+        '<button class="btn btn-primary" id="runSyncBtn" onclick="runSync()">' + (currentSyncJob ? 'Cancel' : 'Run Sync') + '</button>' +
+        '<span style="margin-left:12px;color:' + statusColor + ';font-weight:600;font-size:14px">&#9679; ' + jobStatus.toUpperCase() + '</span>' +
+      '</div>' +
+      '<pre id="syncOutput" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;color:var(--green);font-family:\\'SF Mono\\',monospace;font-size:13px;line-height:1.6;max-height:400px;overflow-y:auto;white-space:pre-wrap;text-align:left;margin-top:12px;">' +
+        (currentSyncJob && currentSyncJob.output ? escapeHtml(currentSyncJob.output) : 'No sync run in progress.') +
+      '</pre>' +
+    '</div>';
   }
 
   content.innerHTML = html;
@@ -669,6 +689,58 @@ document.addEventListener('keydown', function(e) {
     case 'q': window.close(); break;
   }
 });
+
+// ── Sync pipeline runner ───────────────────────────────────────────────────
+
+async function runSync() {
+  if (currentSyncJob) {
+    // Cancel: close EventSource and reset
+    currentSyncJob = null;
+    renderContent();
+    return;
+  }
+
+  var result = await apiCall('/api/sync/run', 'POST');
+  if (!result || !result.job_id) return;
+
+  currentSyncJob = { job_id: result.job_id, status: 'running', output: '' };
+  renderContent();
+
+  // Connect to SSE stream
+  var source = new EventSource('/api/sync/output?job_id=' + result.job_id);
+
+  source.addEventListener('message', function(e) {
+    var data = JSON.parse(e.data);
+    if (data.type === 'output') {
+      currentSyncJob.output += data.text + '\n';
+      var pre = document.getElementById('syncOutput');
+      if (pre) pre.textContent = currentSyncJob.output;
+    }
+  });
+
+  source.addEventListener('status', function(e) {
+    var data = JSON.parse(e.data);
+    currentSyncJob.status = data.status;
+    renderContent();
+  });
+
+  source.addEventListener('end', function() {
+    source.close();
+    // Refresh proposals after sync completes
+    loadProposals();
+  });
+}
+
+function loadProposals() {
+  fetch('/api/proposals')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      proposals = data;
+      updateStats();
+      renderSidebar();
+      renderContent();
+    });
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
