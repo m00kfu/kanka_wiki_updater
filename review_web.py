@@ -7,7 +7,7 @@ data/pending_changes.json — the same file used by review.py. Both can coexist
 without conflict; they just need to agree on the JSON schema.
 """
 
-import json  # noqa: F401 (needed for Task 2 SSE streaming)
+import json
 import os
 import subprocess
 import threading
@@ -153,6 +153,49 @@ def create_app():
         thread = threading.Thread(target=_sync_thread, args=(job_id, proc, buffer), daemon=True)
         thread.start()
         return jsonify({'job_id': job_id, 'status': 'running'})
+
+    @app.route('/api/sync/output')
+    def sync_output():
+        job_id = request.args.get('job_id')
+        if not job_id or job_id not in _sync_jobs:
+            from flask import Response
+
+            return Response('Job not found', status=404, mimetype='text/plain')
+
+        job = _sync_jobs[job_id]
+        buffer = job['buffer']
+        last_flush = [0]  # mutable index into buffer
+
+        def generate():
+            while True:
+                # Drain any buffered lines first
+                while buffer:
+                    line = buffer.popleft()
+                    yield f'event: message\ndata: {json.dumps({"type": "output", "text": line})}\n\n'
+
+                if job['status'] in ('completed', 'error'):
+                    yield f'event: status\ndata: {json.dumps({"status": job["status"]})}\n\n'
+                    yield 'event: end\n\n'
+                    break
+
+                time.sleep(0.2)  # poll interval
+
+        from flask import Response
+
+        return Response(generate(), mimetype='text/event-stream')
+
+    @app.route('/api/sync/status')
+    def sync_status():
+        jobs = []
+        for jid, job in _sync_jobs.items():
+            jobs.append({
+                'job_id': jid,
+                'status': job['status'],
+                'output_lines_count': len(job['buffer']),
+                'started_at': job['started_at'],
+                'finished_at': job.get('finished_at'),
+            })
+        return jsonify({'active': bool(jobs), 'jobs': jobs})
 
     return app
 

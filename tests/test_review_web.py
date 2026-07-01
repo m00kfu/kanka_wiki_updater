@@ -54,9 +54,14 @@ def app_with_queue(mock_queue):
     _queue_file, data_dir = mock_queue
     # Override DATA_DIR so state.py reads our temp file
     import kanka_wiki_updater.config as config
+    import kanka_wiki_updater.review_web as rw
 
     original_data_dir = config.DATA_DIR
     config.DATA_DIR = str(data_dir)
+
+    # Reset module-level sync job state between tests
+    rw._sync_jobs.clear()
+    rw._job_counter[0] = 0
 
     app = create_app()
     app.config["TESTING"] = True
@@ -288,3 +293,16 @@ class TestApiSyncRun:
         data = resp.get_json()
         assert 'job_id' in data
         assert data['status'] == 'running'
+
+
+class TestApiSyncOutput:
+    def test_output_returns_sse_content_type(self, app_with_queue):
+        """GET /api/sync/output returns text/event-stream."""
+        resp = app_with_queue.get('/api/sync/output?job_id=nonexistent')
+        assert resp.status_code == 404
+
+    def test_status_endpoint_empty(self, app_with_queue):
+        """GET /api/sync/status with no active jobs returns {active: false}."""
+        resp = app_with_queue.get('/api/sync/status')
+        data = resp.get_json()
+        assert data['active'] is False
