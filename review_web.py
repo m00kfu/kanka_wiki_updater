@@ -256,9 +256,18 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
 <script>
 let proposals = {{ PROPOSALS | tojson }};
 let selectedIndex = null;
+let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
 
 function getPending() { return proposals.filter(p => p.status === 'pending'); }
+
+function getVisibleIndices() {
+  if (currentTab === 'new') {
+    return proposals.reduce((acc, p, i) => { if (p.status === 'pending') acc.push(i); return acc; }, []);
+  } else {
+    return proposals.reduce((acc, p, i) => { if (p.status !== 'pending') acc.push(i); return acc; }, []);
+  }
+}
 function updateStats() {
   const pending = getPending();
   const applied = proposals.filter(p => p.status === 'applied').length;
@@ -276,27 +285,30 @@ function renderSidebar() {
     '<button class="tab-btn active" data-tab="new" onclick="switchTab(\'new\')">New</button>' +
     '<button class="tab-btn inactive" data-tab="reviewed" onclick="switchTab(\'reviewed\')">Reviewed</button>' +
     '</div>';
-  proposals.forEach(function(p, i) {
-    var isActive = i === selectedIndex ? ' active' : '';
-    var kind = p.proposal_type === 'new_entity' ? 'NEW' : 'UPD';
-    var badgeClass = p.proposal_type === 'new_entity' ? 'badge-new' : 'badge-upd';
-    var statusBadge = {pending:'', applied:' ✓', rejected:' ✗'}[p.status] || '';
-    html += '<div class="proposal-item' + isActive + '" onclick="selectProposal(' + i + ')">' +
-      '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + p.entity_name + statusBadge + '</div>' +
-      '<div class="meta">' + p.source_journal + '</div></div>';
-  });
+  const filtered = currentTab === 'new'
+    ? proposals.filter(p => p.status === 'pending')
+    : proposals.filter(p => p.status !== 'pending');
+  for (let f = 0; f < filtered.length; f++) {
+    const origIdx = proposals.indexOf(filtered[f]);
+    var isActive = origIdx === selectedIndex ? ' active' : '';
+    var kind = filtered[f].proposal_type === 'new_entity' ? 'NEW' : 'UPD';
+    var badgeClass = filtered[f].proposal_type === 'new_entity' ? 'badge-new' : 'badge-upd';
+    var statusBadge = '';
+    if (filtered[f].status === 'applied') { statusBadge = '<span style="color:var(--green)">&#10003;</span>'; }
+    else if (filtered[f].status === 'rejected') { statusBadge = '<span style="color:var(--red)">&#10007;</span>'; }
+    html += '<div class="proposal-item' + isActive + '" onclick="selectProposal(' + origIdx + ')">' +
+      '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + escapeHtml(filtered[f].entity_name) + statusBadge + '</div>' +
+      '<div class="meta">' + escapeHtml(filtered[f].source_journal) + '</div></div>';
+  }
   sidebar.innerHTML = html;
 }
 
 function switchTab(tab) {
-  var btns = document.querySelectorAll('.tab-btn');
-  for (var i = 0; i < btns.length; i++) {
-    if (btns[i].getAttribute('data-tab') === tab) {
-      btns[i].className = 'tab-btn active';
-    } else {
-      btns[i].className = 'tab-btn inactive';
-    }
-  }
+  if (tab === currentTab) return;
+  currentTab = tab;
+  selectedIndex = null;
+  renderSidebar();
+  renderContent();
 }
 
 function renderContent() {
@@ -534,8 +546,26 @@ document.addEventListener('keydown', function(e) {
   if (editingField || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
   switch(e.key.toLowerCase()) {
-    case 'n': selectProposal(Math.min(selectedIndex + 1, proposals.length - 1)); break;
-    case 'p': selectProposal(Math.max(selectedIndex - 1, 0)); break;
+    case 'n': {
+      const visible = getVisibleIndices();
+      const pos = visible.indexOf(selectedIndex);
+      if (pos !== null && pos < visible.length - 1) {
+        selectedIndex = visible[pos + 1];
+        renderSidebar();
+        renderContent();
+      }
+      break;
+    }
+    case 'p': {
+      const visible = getVisibleIndices();
+      const pos = visible.indexOf(selectedIndex);
+      if (pos !== null && pos > 0) {
+        selectedIndex = visible[pos - 1];
+        renderSidebar();
+        renderContent();
+      }
+      break;
+    }
     case 'e': startEdit('synopsis'); break;
     case 'a': approveAll(); break;
     case 's': approveSynopsisOnly(); break;
