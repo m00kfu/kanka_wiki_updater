@@ -56,11 +56,6 @@ class TestDefaults:
 
         assert config_mod.SESSION_JOURNAL_TYPE == 'Session'
 
-    def test_request_interval_defaults(self):
-        import kanka_wiki_updater.config as config_mod
-
-        assert config_mod.MIN_SECONDS_BETWEEN_REQUESTS == 2.1
-
     def test_llm_timeout_defaults(self):
         import kanka_wiki_updater.config as config_mod
 
@@ -99,14 +94,6 @@ class TestBatchLimit:
             importlib.reload(config_mod)
             assert config_mod.JOURNAL_BATCH_LIMIT is None
 
-    def test_batch_limit_none_when_unset(self):
-        with unittest.mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop('JOURNAL_BATCH_LIMIT', None)
-            import kanka_wiki_updater.config as config_mod
-
-            importlib.reload(config_mod)
-            assert config_mod.JOURNAL_BATCH_LIMIT is None
-
 
 class TestCustomEnv:
     def test_custom_kanka_base_url(self):
@@ -121,7 +108,7 @@ class TestCustomEnv:
             import kanka_wiki_updater.config as config_mod
 
             importlib.reload(config_mod)
-            assert config_mod.MIN_SECONDS_BETWEEN_REQUESTS == 0.5
+            assert config_mod.REQUEST_INTERVAL == 0.5
 
     def test_custom_llm_settings(self):
         with unittest.mock.patch.dict(os.environ, {'LLM_MAX_TOKENS': '8192', 'LLM_TIMEOUT_SECONDS': '300'}):

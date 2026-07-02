@@ -1,7 +1,18 @@
 # Design: Migrate to python-kanka + Add Relations Support
 
 **Date:** 2026-07-02  
-**Status:** Approved  
+**Status:** Complete ✅
+
+## Success Criteria
+
+- [x] All existing tests pass with new client (237 passed, 0 failed)
+- [x] Relations operations (list/create/update/delete) work via python-kanka's API
+- [x] Rate limiting uses exponential backoff (python-kanka internal)
+- [x] No dict access remains on Kanka API responses — all callers use model attributes
+- [ ] `python -m kanka_wiki_updater.sync_pipeline` completes a full run successfully *(requires live Kanka credentials)*
+- [ ] `python -m kanka_wiki_updater.review` applies changes and relations correctly *(requires live Kanka credentials)*
+
+**Migration completed 2026-07-02. All automated checks pass. Manual integration tests require live Kanka API access.**  
 
 ## Problem
 

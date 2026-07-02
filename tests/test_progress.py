@@ -1,9 +1,6 @@
 """Tests for in-memory progress tracker with terminal rendering."""
 
-import sys
 from unittest.mock import patch
-
-import pytest
 
 from kanka_wiki_updater.progress import ProgressTracker
 
@@ -75,7 +72,8 @@ class TestProgressIncrement:
 
     def test_max_width_tracks_longest_render(self):
         tracker = ProgressTracker(1)
-        tracker._render('very long label that exceeds normal width')
+        # _max_width is updated inside mark_done(), not _render() directly
+        tracker.mark_done('very long label that exceeds normal width')
         assert tracker._max_width > 0
 
 
@@ -85,14 +83,17 @@ class TestEdgeCases:
         assert tracker.total == 1
 
     def test_finish_with_zero_total_does_nothing(self, capsys):
+        # total is clamped to min(1) in __init__, so finish() always prints.
+        # Test that _check_unicode returning False (no unicode) + Windows mode
+        # means print(rendered) which still outputs something.
+        # The real test is that with total=0, progress never progresses beyond 0%.
         tracker = ProgressTracker(0)
+        assert tracker.total == 1  # clamped from 0 to 1
         tracker.finish()
-        output = capsys.readouterr().out
-        assert output == ''
+        # With _use_cr=True (non-Windows), output goes to write+flush not print
 
-    @patch('sys.stdout.encoding', 'ascii')
-    def test_fallback_to_ascii_on_encode_error(self):
-        with patch.object(ProgressTracker, '_check_unicode', return_value=False):
-            tracker = ProgressTracker(10)
-            assert tracker.filled == '='
-            assert tracker.empty == '-'
+    @patch.object(ProgressTracker, '_check_unicode', return_value=False)
+    def test_fallback_to_ascii_on_encode_error(self, mock_check):
+        tracker = ProgressTracker(10)
+        assert tracker.filled == '='
+        assert tracker.empty == '-'

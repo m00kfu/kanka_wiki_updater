@@ -32,6 +32,12 @@ _inspect_pending.py
 
 # Lint/test caches
 .ruff_cache/
+.pytest_cache/
+
+# Backup / copied files
+*.bak
+*.old
+- Copy.*
 
 # Superpowers tooling
 .superpowers/

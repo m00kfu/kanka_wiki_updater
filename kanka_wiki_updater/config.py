@@ -34,8 +34,9 @@ LMSTUDIO_MODEL = os.environ.get('LMSTUDIO_MODEL', 'local-model')
 # Journal "type" field to treat as session notes. Set to "" to process all journals.
 SESSION_JOURNAL_TYPE = os.environ.get('SESSION_JOURNAL_TYPE', 'Session')
 
-# Kanka allows 30 requests/min (90/min for subscribers). Keep this conservative.
-MIN_SECONDS_BETWEEN_REQUESTS = float(os.environ.get('KANKA_REQUEST_INTERVAL', '2.1'))
+# Kanka allows ~30 requests/min (90/min for subscribers). Subscribers may lower this value.
+
+REQUEST_INTERVAL = float(os.environ.get('KANKA_REQUEST_INTERVAL', '2.1'))
 
 # Raise this if you're using a reasoning/"thinking" model -- those spend
 # tokens on hidden chain-of-thought before the actual JSON answer, and if

@@ -54,16 +54,37 @@ class TestGeminiChat:
     @pytest.fixture(autouse=True)
     def setup_gemini_env(self):
         import kanka_wiki_updater.config as config_mod
+        import kanka_wiki_updater.llm_providers as llm_mod
 
-        self._original_provider = config_mod.LLM_PROVIDER
-        self._original_key = config_mod.GEMINI_API_KEY
+        self._orig_provider = config_mod.LLM_PROVIDER
+        self._orig_key = config_mod.GEMINI_API_KEY
+        self._orig_llm_provider = getattr(llm_mod, 'LLM_PROVIDER', None)
+        self._orig_gemini_key = getattr(llm_mod, 'GEMINI_API_KEY', None)
+
         try:
-            config_mod.LLM_PROVIDER = 'gemini'
-            config_mod.GEMINI_API_KEY = 'test-key'
-            yield
+            with patch('kanka_wiki_updater.llm_providers.config') as mock_cfg:
+                mock_cfg.LLM_PROVIDER = 'gemini'
+                mock_cfg.GEMINI_API_KEY = 'test-key'
+                # Also set on the module-level cached variables where they're consumed
+                import kanka_wiki_updater.llm_providers as llm_mod2
+
+                llm_mod2.GEMINI_API_KEY = 'test-key'
+                llm_mod2.LLM_PROVIDER = 'gemini'
+
+                yield
         finally:
-            config_mod.LLM_PROVIDER = self._original_provider
-            config_mod.GEMINI_API_KEY = self._original_key
+            config_mod.LLM_PROVIDER = self._orig_provider
+            config_mod.GEMINI_API_KEY = self._orig_key
+            import kanka_wiki_updater.llm_providers as llm_mod3
+
+            if self._orig_llm_provider is not None:
+                llm_mod3.LLM_PROVIDER = self._orig_llm_provider
+            else:
+                delattr(llm_mod3, 'LLM_PROVIDER')
+            if self._orig_gemini_key is not None:
+                llm_mod3.GEMINI_API_KEY = self._orig_gemini_key
+            else:
+                delattr(llm_mod3, 'GEMINI_API_KEY')
 
     @patch('kanka_wiki_updater.llm_providers.requests.post')
     def test_gemini_chat_success(self, mock_post):
@@ -142,18 +163,21 @@ class TestGeminiChat:
         result = gemini_chat('system', 'user')
         assert '[TRUNCATED:' in result['change_summary']
 
-    def test_gemini_chat_no_api_key(self):
+    @patch('kanka_wiki_updater.llm_providers.requests.post')
+    def test_gemini_chat_no_api_key(self, mock_post):
         """Raises LLMError when API key is empty."""
-        import kanka_wiki_updater.config as config_mod
+        import kanka_wiki_updater.llm_providers as llm_mod
 
-        original_key = config_mod.GEMINI_API_KEY
+        original_key = getattr(llm_mod.config, 'GEMINI_API_KEY', None)
         try:
-            config_mod.GEMINI_API_KEY = ''
+            # Patch at the point of consumption (llm_providers.config), not on config.py directly
+            llm_mod.config.GEMINI_API_KEY = ''
             with pytest.raises(LLMError) as exc_info:
                 gemini_chat('system', 'user')
             assert 'GEMINI_API_KEY' in str(exc_info.value)
         finally:
-            config_mod.GEMINI_API_KEY = original_key
+            if original_key is not None:
+                llm_mod.config.GEMINI_API_KEY = original_key
 
     @patch('kanka_wiki_updater.llm_providers.requests.post')
     def test_gemini_chat_401_error(self, mock_post):
@@ -264,9 +288,13 @@ class TestChatJsonDispatcher:
     def test_dispatcher_routes_to_gemini(self, mock_post):
         """Gemini provider is used when configured."""
         import kanka_wiki_updater.config as config_mod
+        import kanka_wiki_updater.llm_providers as llm_mod
 
         config_mod.LLM_PROVIDER = 'gemini'
         config_mod.GEMINI_API_KEY = 'test-key'
+        # Also set on the module-level cached variables where they're consumed
+        llm_mod.GEMINI_API_KEY = 'test-key'
+        llm_mod.LLM_PROVIDER = 'gemini'
 
         mock_response = MagicMock()
         mock_response.json.return_value = {

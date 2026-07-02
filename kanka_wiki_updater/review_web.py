@@ -102,12 +102,14 @@ def create_app():
             proposal = queue[index]
             sync_result = {'ok': success, 'message': message}
             if not success:
-                return jsonify({
-                    'proposal': proposal,
-                    'ok': False,
-                    'sync_error': True,
-                    'sync_message': message,
-                }), 409
+                return jsonify(
+                    {
+                        'proposal': proposal,
+                        'ok': False,
+                        'sync_error': True,
+                        'sync_message': message,
+                    }
+                ), 409
 
         mapping = {
             'approved_all': 'applied',
@@ -227,10 +229,7 @@ def create_app():
                     # Make immediately available as relation target for later proposals in same batch
                     queue[idx]['_resolved'] = True
                 else:
-                    errors.append(
-                        "Created entity but couldn't read entity_id from response. "
-                        f"Raw response: {result}"
-                    )
+                    errors.append(f"Created entity but couldn't read entity_id from response. Raw response: {result}")
 
             elif proposal.get('proposal_type') == 'update':
                 # Update synopsis entry
@@ -253,8 +252,8 @@ def create_app():
                     entity_id_str = str(proposal.get('created_entity_id', ''))
                     if not entity_id_str or not entity_id_str.isdigit():
                         errors.append(
-                            "Cannot resolve relations for new entity: no entity_id available. "
-                            "Approve the synopsis first, then retry relations."
+                            'Cannot resolve relations for new entity: no entity_id available. '
+                            'Approve the synopsis first, then retry relations.'
                         )
                     else:
                         entity_id = int(entity_id_str)
@@ -265,7 +264,7 @@ def create_app():
                         if not eid:
                             errors.append(
                                 f"Cannot find entity_id for '{proposal['entity_name']}'. "
-                                "Ensure the entity exists in Kanka."
+                                'Ensure the entity exists in Kanka.'
                             )
                     else:
                         entity_id = int(eid)
@@ -281,22 +280,20 @@ def create_app():
                         if action == 'delete':
                             target_entity_id = resolve_name_to_id(client, target_name)
                             if not target_entity_id:
-                                details.append(f"Skipped deleting relation -> {target_name}: entity not found")
+                                details.append(f'Skipped deleting relation -> {target_name}: entity not found')
                                 continue
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
                             if existing and _rel_id(existing):
                                 client.delete_relation(entity_id, _rel_id(existing))
-                                details.append(f"Deleted relation -> {target_name}")
+                                details.append(f'Deleted relation -> {target_name}')
 
                         elif action in ('create', 'update'):
                             target_entity_id = resolve_name_to_id(client, target_name)
                             if not target_entity_id:
-                                details.append(f"Skipped {action} relation -> {target_name}: entity not found")
+                                details.append(f'Skipped {action} relation -> {target_name}: entity not found')
                                 continue
 
-                            existing = next(
-                                (r for r in existing_relations if _rel_target(r) == target_entity_id), None
-                            )
+                            existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
 
                             if action == 'create' or not existing:
                                 resp = client.create_relation(
@@ -406,13 +403,15 @@ def create_app():
     def sync_status():
         jobs = []
         for jid, job in _sync_jobs.items():
-            jobs.append({
-                'job_id': jid,
-                'status': job['status'],
-                'output_lines_count': len(job['buffer']),
-                'started_at': job['started_at'],
-                'finished_at': job.get('finished_at'),
-            })
+            jobs.append(
+                {
+                    'job_id': jid,
+                    'status': job['status'],
+                    'output_lines_count': len(job['buffer']),
+                    'started_at': job['started_at'],
+                    'finished_at': job.get('finished_at'),
+                }
+            )
         return jsonify({'active': bool(jobs), 'jobs': jobs})
 
     return app
@@ -1046,11 +1045,24 @@ function loadProposals() {
   fetch('/api/proposals')
     .then(function(r){ return r.json(); })
     .then(function(data) {
-      proposals = data;
+      var existing = proposals.slice();
+      for (var i = 0; i < data.length; i++) {
+        var found = false;
+        for (var j = 0; j < existing.length; j++) {
+          if (existing[j].entity_name === data[i].entity_name && existing[j].source_journal === data[i].source_journal) {
+            existing[j] = data[i];
+            found = true;
+            break;
+          }
+        }
+        if (!found) { existing.push(data[i]); }
+      }
+      proposals = existing;
       updateStats();
       renderSidebar();
       renderContent();
-    });
+    })
+    .catch(function() { /* silently ignore — keep current state */ });
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
