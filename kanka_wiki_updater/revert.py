@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Revert the most recent `review` run's applied changes.
 
@@ -19,11 +20,22 @@ Limitations:
     data/processed_journals.json first.
 
 Usage:
+    ./kanka_wiki_updater/revert.py
     python -m kanka_wiki_updater.revert
 """
 
-from . import colors, state
-from .kanka_client import KankaClient
+import sys
+from pathlib import Path
+
+if __name__ == '__main__' and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+try:
+    from . import colors, state
+    from .kanka_client import KankaClient
+except ImportError:
+    from kanka_wiki_updater import colors, state
+    from kanka_wiki_updater.kanka_client import KankaClient
 
 
 def revert_relation_result(entity_id, rr, client):

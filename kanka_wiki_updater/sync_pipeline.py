@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Pull new session-note journals from Kanka, ask the local LLM (via LM Studio)
 to propose updated synopses and relationship changes for any character or
@@ -6,25 +7,43 @@ location they mention, and queue those proposals for human review.
 Nothing is written back to Kanka here -- see review.py for that step.
 
 Usage:
-    python -m kanka_wiki_updater.sync_pipeline
+    ./kanka_wiki_updater/sync_pipeline.py [--limit N]
+    python -m kanka_wiki_updater.sync_pipeline [--limit N]
 """
 
 import argparse
 import re
 import sys
 import time
+from pathlib import Path
 
-from . import config, state
-from .kanka_client import KankaClient
-from .llm_client import chat_json
-from .mentions import fuzzy_name_matches, linked_entity_ids, normalize_text, strip_html
-from .progress import ProgressTracker
-from .prompts import (
-    NEW_ENTITY_SYSTEM_PROMPT,
-    NEW_ENTITY_USER_PROMPT_TEMPLATE,
-    SYSTEM_PROMPT,
-    USER_PROMPT_TEMPLATE,
-)
+if __name__ == '__main__' and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+try:
+    from . import config, state
+    from .kanka_client import KankaClient
+    from .llm_client import chat_json
+    from .mentions import fuzzy_name_matches, linked_entity_ids, normalize_text, strip_html
+    from .progress import ProgressTracker
+    from .prompts import (
+        NEW_ENTITY_SYSTEM_PROMPT,
+        NEW_ENTITY_USER_PROMPT_TEMPLATE,
+        SYSTEM_PROMPT,
+        USER_PROMPT_TEMPLATE,
+    )
+except ImportError:
+    from kanka_wiki_updater import config, state
+    from kanka_wiki_updater.kanka_client import KankaClient
+    from kanka_wiki_updater.llm_client import chat_json
+    from kanka_wiki_updater.mentions import fuzzy_name_matches, linked_entity_ids, normalize_text, strip_html
+    from kanka_wiki_updater.progress import ProgressTracker
+    from kanka_wiki_updater.prompts import (
+        NEW_ENTITY_SYSTEM_PROMPT,
+        NEW_ENTITY_USER_PROMPT_TEMPLATE,
+        SYSTEM_PROMPT,
+        USER_PROMPT_TEMPLATE,
+    )
 
 
 def build_entity_index(client):

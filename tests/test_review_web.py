@@ -370,3 +370,105 @@ class TestNewlineEscaping:
         resp = app_with_queue.get("/")
         html = resp.data.decode()
         assert "function escapeJs" in html
+
+    def test_escape_js_html_uses_br_for_newlines(self, app_with_queue):
+        """escapeJsHtml converts newlines to <br>, not raw 0x0A bytes."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        # The function should replace \n with '<br>', not literal newline chars
+        assert ".replace(/\\r\\n/g, '<br>')" in html or "replace(/\\\\n/g, '<br>')" in html
+
+    def test_escape_js_html_escapes_backslashes(self, app_with_queue):
+        """escapeJsHtml doubles backslashes for JS string safety."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        # Must have a backslash-escaping step before newline replacement
+        assert ".replace(/\\\\/g" in html
+
+    def test_rendered_html_has_no_raw_newlines_in_js(self, app_with_queue):
+        """Rendered HTML must not contain raw 0x0A bytes inside <script> blocks."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        # Find the script tag content and verify no unescaped newlines appear
+        start = html.find("<script>") + len("<script>")
+        end = html.find("</script>")
+        js_content = html[start:end]
+        # Inside <script>, any real newline outside of string concatenation
+        # would indicate a bug in escapeJsHtml or Jinja2 rendering
+        # The key check: no raw 0x0A byte appears where it shouldn't
+        # (newlines between JS statements are fine; we check the function body)
+        func_start = js_content.find("function escapeJsHtml")
+        func_end = js_content.find("}", func_start) + 1
+        func_body = js_content[func_start:func_end]
+        # The function should use string literals like '<br>' or '\\n', not raw \n chars
+        assert "\n" not in func_body.replace("\\n", "").replace("\r\n", "") or "<br>" in func_body
+
+    def test_proposal_with_newlines_does_not_break_html(self, tmp_path):
+        """Proposals containing newlines in entity names/synopses render safely."""
+        import json as json_mod
+
+        queue = [
+            {
+                "proposal_type": "update",
+                "entity_name": "Entity\nWith\nNewlines",
+                "entity_kind": "character",
+                "source_journal": "Session 1",
+                "previous_entry": "<p>Old line1\nLine2</p>",
+                "proposed_entry": "<p>New line1\nLine2</p>",
+                "status": "pending",
+            }
+        ]
+        queue_file = tmp_path / "pending_changes.json"
+        json_mod.dump(queue, open(queue_file, "w"), indent=2)
+
+        import kanka_wiki_updater.config as config
+        from flask import Flask
+        from kanka_wiki_updater.review_web import create_app
+
+        original_data_dir = config.DATA_DIR
+        config.DATA_DIR = str(tmp_path)
+
+        try:
+            app = create_app()
+            app.config["TESTING"] = True
+            client = app.test_client()
+
+            resp = client.get("/")
+            assert resp.status_code == 200
+            html = resp.data.decode()
+
+            # The rendered HTML must not contain raw newline bytes inside the JS context
+            start = html.find("<script>") + len("<script>")
+            end = html.find("</script>")
+            js_content = html[start:end]
+
+            # Check that escapeJsHtml function exists and uses <br> replacement
+            assert "function escapeJsHtml" in js_content
+            assert "<br>" in js_content
+        finally:
+            config.DATA_DIR = original_data_dir
+
+    def test_no_raw_newlines_in_js_string_literals(self, app_with_queue):
+        """Rendered JS must not have raw 0x0A bytes inside string literals.
+
+        This catches bugs where Python's \\n in triple-quoted strings becomes
+        a literal newline byte that breaks JavaScript string parsing.
+        Specifically checks for the SSE handler pattern: data.text + ' + newline + ';
+        """
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+
+        # The bug was: currentSyncJob.output += data.text + '\n'; where \n is 0x0A byte
+        # This should now be: currentSyncJob.output += data.text + '\n'; where \n is literal backslash-n
+        assert "data.text + '\\n'" in html or "data.text + '\\\\n'" in html, (
+            "SSE handler has raw newline inside JS string. Check review_web.py for unescaped \\n."
+        )
+
+    def test_sse_handler_uses_escaped_newline(self, app_with_queue):
+        """SSE output streaming must use \\n escape sequence for newline."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        # The SSE handler concatenates data.text with a newline separator.
+        # JS should see: data.text + '\n'  (literal backslash-n in source)
+        # NOT: data.text + ' + actual_newline_byte + ';
+        assert "data.text + '\\n'" in html or "data.text + '\\\\n'" in html

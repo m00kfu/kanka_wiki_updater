@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Review pending proposals queued by sync_pipeline.py, approve or reject each
 one, and publish approved changes back to Kanka. Handles two kinds of
@@ -14,15 +15,27 @@ the same run (a relation change pointing at a brand-new character can't
 resolve to anything until that character actually exists in Kanka).
 
 Usage:
+    ./kanka_wiki_updater/review.py
     python -m kanka_wiki_updater.review
 """
 
 import difflib
+import sys
+from pathlib import Path
 
-from . import colors, state
-from .kanka_client import KankaClient
-from .mentions import add_missing_entity_tags, find_unlinked_mentions, linked_entity_ids, normalize_text, strip_html
-from .sync_pipeline import build_entity_index
+if __name__ == '__main__' and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+try:
+    from . import colors, state
+    from .kanka_client import KankaClient
+    from .mentions import add_missing_entity_tags, find_unlinked_mentions, linked_entity_ids, normalize_text, strip_html
+    from .sync_pipeline import build_entity_index
+except ImportError:
+    from kanka_wiki_updater import colors, state
+    from kanka_wiki_updater.kanka_client import KankaClient
+    from kanka_wiki_updater.mentions import add_missing_entity_tags, find_unlinked_mentions, linked_entity_ids, normalize_text, strip_html
+    from kanka_wiki_updater.sync_pipeline import build_entity_index
 
 
 def has_meaningful_change(proposal):

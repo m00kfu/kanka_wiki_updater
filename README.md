@@ -1,7 +1,7 @@
 # Kanka Session-Note Sync
 
 Reads new session-note journals from your Kanka campaign, asks a local LLM
-(via LM Studio) to propose updated character/location synopses and
+(via LM Studio or Google Gemini) to propose updated character/location synopses and
 relationship changes, and queues those proposals for you to review before
 anything is published back to the wiki.
 
@@ -44,14 +44,20 @@ anything is published back to the wiki.
 From the directory *containing* this `kanka_wiki_updater` folder:
 
 ```bash
-python -m kanka_wiki_updater.sync_pipeline   # pull notes, generate proposals
-python -m kanka_wiki_updater.review          # review and publish
+python -m kanka_wiki_updater.sync_pipeline   # pull notes, generate proposals (with progress bar)
+python -m kanka_wiki_updater.review          # interactive CLI review and publish
+python -m kanka_wiki_updater.review_web      # web-based review UI at http://127.0.0.1:5555
 python -m kanka_wiki_updater.revert          # undo the most recent review run, if needed
 ```
 
 Run `sync_pipeline` after each session. It only looks at journals updated
 since the last run (tracked in `data/sync_state.json`), so it's safe to run
-repeatedly without reprocessing old notes.
+repeatedly without reprocessing old notes. The pipeline shows a Unicode
+progress bar with journal names as it processes each one.
+
+The web review UI (`review_web`) offers a tabbed interface with:
+- **Review tab** — browse, filter (by status/type), edit proposals inline, manage relations via modal dialogs, and approve/reject
+- **Sync tab** — run the sync pipeline from the browser with live SSE output streaming and cancel support
 
 If a `review` run published something you didn't mean to (or you just want
 to compare before/after), `revert` will show you exactly what that run
@@ -71,11 +77,12 @@ the top of `revert.py` for the exact rules and limitations.
   fuzzy fallback in `mentions.py` catches plain-text name mentions but is
   intentionally conservative; tune `threshold` there if it's over- or
   under-matching.
-- **Model choice**: pick something in LM Studio with solid instruction
-  following and a context window comfortable holding one session note plus
-  an entity's full synopsis and relationship list at once. If you see JSON
-  parsing failures, try a model that's better at structured output, or
-  lower `temperature` further in `llm_client.py`.
+- **LLM provider**: defaults to LM Studio (local OpenAI-compatible server).
+  Set `LMSTUDIO_MODEL` for LM Studio, or set `LLM_PROVIDER=gemini` plus
+  `GEMINI_API_KEY` + `GEMINI_MODEL` in `.env` to use Google Gemini instead.
+  Provider logic lives in `llm_providers.py`. If you see JSON parsing failures, try a model that's
+  better at structured output, or lower `temperature` further in
+  `llm_client.py`.
 - **Relation IDs**: Kanka's documented example response for listing
   relations doesn't explicitly show an `id` field per relation (only
   owner/target/label/attitude). If `update`/`delete` relation actions
