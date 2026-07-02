@@ -30,5 +30,8 @@ data/
 # Debug/temp scripts
 _inspect_pending.py
 
+# Lint/test caches
+.ruff_cache/
+
 # Superpowers tooling
 .superpowers/
