@@ -3,7 +3,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from kanka_wiki_updater.relation_conflicts import detect_cross_proposal_conflicts, resolve_creates_to_updates
+from kanka_wiki_updater.relation_conflicts import (
+    apply_resolutions,
+    detect_cross_proposal_conflicts,
+    resolve_creates_to_updates,
+)
 
 
 def _make_proposal(entity_name='Alice', relation_changes=None, entity_id=1):
@@ -247,4 +251,36 @@ def test_same_pair_in_different_proposals_is_conflict():
 def test_empty_proposals_returns_no_conflicts():
     """Empty queue → no cross-proposal conflicts."""
     conflicts = detect_cross_proposal_conflicts([])
+    assert conflicts == []
+
+
+def test_apply_resolutions_returns_both_results():
+    """Wrapper calls resolve then detect and returns combined results."""
+    p1 = _make_proposal(entity_name='Alice', relation_changes=[_make_rel('create', 'Bob', relation='Rival')])
+    proposals = [p1]
+    entity_index = {
+        1: {
+            'kind': 'character',
+            'local_id': 1,
+            'name': 'Alice',
+            'entry': '',
+            'relations': [{'target_id': 99, 'relation': 'Ally'}],
+        },
+        99: {'kind': 'character', 'local_id': 99, 'name': 'Bob', 'entry': '', 'relations': []},
+    }
+    resolved, conflicts = apply_resolutions(proposals, entity_index)
+
+    assert len(resolved) == 1
+    rc = resolved[0]['relation_changes'][0]
+    assert rc['action'] == 'update'
+    assert rc.get('conflict') is not None
+    assert rc['conflict']['existing_type'] == 'Ally'
+    assert len(conflicts) == 1
+    assert conflicts[0]['conflict_kind'] == 'label_mismatch'
+
+
+def test_apply_resolutions_empty():
+    """Empty inputs → empty outputs."""
+    resolved, conflicts = apply_resolutions([], {})
+    assert resolved == []
     assert conflicts == []

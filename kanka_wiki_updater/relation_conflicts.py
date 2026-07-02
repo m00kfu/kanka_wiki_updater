@@ -112,3 +112,14 @@ def detect_cross_proposal_conflicts(proposals):
                 seen_pairs[pair_key] = idx
 
     return conflicts
+
+
+def apply_resolutions(proposals, entity_index):
+    """Convenience wrapper: resolve creates-to-updates then detect cross-proposal conflicts.
+
+    Returns (resolved_proposals, all_conflicts) where all_conflicts contains
+    both label_mismatch and cross_proposal conflict dicts.
+    """
+    resolved, conflicts = resolve_creates_to_updates(proposals, entity_index)
+    cross_conflicts = detect_cross_proposal_conflicts(resolved)
+    return resolved, conflicts + cross_conflicts
