@@ -1,7 +1,7 @@
 """Entity models for Kanka API."""
 
 from .base import Entity, KankaModel
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class Character(Entity):
@@ -116,15 +116,15 @@ class Calendar(Entity):
 
 
 class Relation(KankaModel):
-    """Relation between two entities."""
+    """Represents a relation between two entities."""
 
     id: int
-    owner_id: int = Field(alias="ownerId")
-    target_id: int = Field(alias="targetId")
+    owner_id: int = Field(validation_alias=AliasChoices("ownerId", "owner_id"))
+    target_id: int = Field(validation_alias=AliasChoices("targetId", "target_id"))
     relation: str
     attitude: str | None = None
-    two_way: bool = Field(default=False, alias="twoWay")
-    visibility_id: int = Field(alias="visibilityId")
+    two_way: bool = Field(default=False, validation_alias=AliasChoices("twoWay", "two_way"))
+    visibility_id: int = Field(default=1, validation_alias=AliasChoices("visibilityId", "visibility_id"))
 
 
 # Forward reference updates
