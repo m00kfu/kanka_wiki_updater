@@ -447,10 +447,10 @@ function renderContent() {
   html += '<div class="diff-section"><h3>' + (p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis') + '</h3><div class="diff-container">';
   if (editingField === 'synopsis') {
     var currentText = p.proposal_type === 'new_entity' ? p.draft_entry : p.proposed_entry;
-    html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtml(stripHtml(currentText)) + '</textarea>';
+    html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtml((stripHtml(currentText) || '').replace(/\n/g, ' ')) + '</textarea>';
   } else {
     if (p.proposal_type === 'new_entity') {
-      html += '<div class="diff-line" style="cursor:pointer" onclick="startEdit(&quot;synopsis&quot;)">' + escapeHtml(stripHtml(p.draft_entry || '(none)')) + '</div>';
+      html += '<div class="diff-line" style="cursor:pointer" onclick="startEdit(&quot;synopsis&quot;)">' + escapeHtml((p.draft_entry || '(none)').replace(/\n/g, ' ')) + '</div>';
       html += '<div style="padding:4px 12px;font-size:11px;color:var(--text-dim)">Click to edit</div>';
     } else {
       var prevLines = stripHtml(p.previous_entry).split('\\n');
@@ -535,6 +535,11 @@ function escapeHtml(text) {
   var div = document.createElement('div');
   div.appendChild(document.createTextNode(text || ''));
   return div.innerHTML;
+}
+
+function escapeJs(str) {
+  // Escape backslash then newline for safe JS string literal insertion
+  return (str || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
 }
 
 function stripHtml(html) {

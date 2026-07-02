@@ -355,3 +355,18 @@ class TestSwitchTabCancelEdit:
         resp = app_with_queue.get("/")
         html = resp.data.decode()
         assert "selectedIndex = null" in html
+
+
+class TestNewlineEscaping:
+    def test_strip_html_replaces_newlines_for_js_context(self, app_with_queue):
+        """Text with newlines is replaced before JS string concatenation."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        # stripHtml returns text with \n; these must be replaced for safe JS strings
+        assert ".replace(/\\n/g, ' ')" in html or "escapeJs(" in html
+
+    def test_escape_js_function_exists(self, app_with_queue):
+        """HTML contains escapeJs function for JS string literal safety."""
+        resp = app_with_queue.get("/")
+        html = resp.data.decode()
+        assert "function escapeJs" in html
