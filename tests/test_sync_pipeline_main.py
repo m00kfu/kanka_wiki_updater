@@ -1,6 +1,6 @@
 """Tests for sync_pipeline main orchestrator — limit, idempotency, cursor logic."""
 
-import json
+from types import SimpleNamespace as AttrMap
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -55,101 +55,119 @@ class TestLimitHandling:
 
 class TestIdempotency:
     def test_skips_processed_journals(self):
-        from kanka_wiki_updater import state as state_mod
+        from kanka_wiki_updater import sync_pipeline
 
         journals = [
-            {'id': 100, 'name': 'Session A', 'entry': 'Alice fought a dragon.', 'date': '2024-01-01'},
-            {'id': 200, 'name': 'Session B', 'entry': 'Bob drank ale.', 'date': '2024-01-02'},
+            AttrMap(id=100, name='Session A', entry='Alice fought a dragon.', date='2024-01-01'),
+            AttrMap(id=200, name='Session B', entry='Bob drank ale.', date='2024-01-02'),
         ]
 
-        state_mod.get_processed_journal_ids.return_value = {100}
-        to_process = [j for j in journals if j['id'] not in state_mod.get_processed_journal_ids()]
+        with patch.object(sync_pipeline.state, 'get_processed_journal_ids', return_value={100}):
+            to_process = [j for j in journals if j.id not in sync_pipeline.state.get_processed_journal_ids()]
 
         assert len(to_process) == 1
-        assert to_process[0]['id'] == 200
+        assert to_process[0].id == 200
 
 
 class TestCursorAdvancement:
     def test_advances_only_when_all_processed(self):
-        from kanka_wiki_updater import state as state_mod
+        from kanka_wiki_updater import sync_pipeline
 
         journals = [
-            {
-                'id': i,
-                'updated_at': f'2024-01-{i:02d}T10:00:00',
-                'name': f'Session {i}',
-                'entry': 'Test',
-                'date': f'2024-01-{i:02d}',
-            }
+            AttrMap(
+                id=i,
+                updated_at=f'2024-01-{i:02d}T10:00:00',
+                name=f'Session {i}',
+                entry='Test',
+                date=f'2024-01-{i:02d}',
+            )
             for i in range(1, 6)
         ]
 
-        state_mod.get_processed_journal_ids.return_value = {1, 2, 3, 4, 5}
-        to_process = [j for j in journals if j['id'] not in state_mod.get_processed_journal_ids()]
+        with patch.object(sync_pipeline.state, 'get_processed_journal_ids', return_value={1, 2, 3, 4, 5}):
+            to_process = [j for j in journals if j.id not in sync_pipeline.state.get_processed_journal_ids()]
 
         assert len(to_process) == 0
 
     def test_does_not_advance_with_limit(self):
-        from kanka_wiki_updater import state as state_mod
+        from kanka_wiki_updater import sync_pipeline
 
         journals = [
-            {
-                'id': i,
-                'updated_at': f'2024-01-{i:02d}T10:00:00',
-                'name': f'Session {i}',
-                'entry': 'Test',
-                'date': f'2024-01-{i:02d}',
-            }
+            AttrMap(
+                id=i,
+                updated_at=f'2024-01-{i:02d}T10:00:00',
+                name=f'Session {i}',
+                entry='Test',
+                date=f'2024-01-{i:02d}',
+            )
             for i in range(1, 6)
         ]
 
-        state_mod.get_processed_journal_ids.return_value = {1, 2, 3}
-        to_process = [j for j in journals if j['id'] not in state_mod.get_processed_journal_ids()]
+        with patch.object(sync_pipeline.state, 'get_processed_journal_ids', return_value={1, 2, 3}):
+            to_process = [j for j in journals if j.id not in sync_pipeline.state.get_processed_journal_ids()]
 
         assert len(to_process) == 2
 
 
 class TestNewEntityDedup:
     def test_same_name_not_suggested_twice(self):
-        from kanka_wiki_updater.sync_pipeline import propose_new_entities
+        with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+            from kanka_wiki_updater.sync_pipeline import propose_new_entities
 
-        journal = {'id': 1, 'name': 'Session 1', 'entry': 'Bob the Bard appeared.', 'date': '2024-01-01'}
-        known_names = set()
+            mock_chat.return_value = {
+                'new_entities': [
+                    {'name': 'Bob the Bard', 'suggested_type': 'character', 'draft_entry': '', 'reason': ''},
+                ],
+            }
 
-        result1 = propose_new_entities(journal, known_names)
-        assert len(result1) == 1
-        assert result1[0]['entity_name'] == 'Bob the Bard'
+            journal = AttrMap(id=1, name='Session 1', entry='Bob the Bard appeared.', date='2024-01-01')
+            known_names = set()
 
-        result2 = propose_new_entities(journal, known_names)
-        assert len(result2) == 0
+            result1 = propose_new_entities(journal, known_names)
+            assert len(result1) == 1
+            assert result1[0]['entity_name'] == 'Bob the Bard'
+
+            # Add to known names manually (simulating what main() does after processing result1)
+            known_names.add('Bob the Bard')
+
+            result2 = propose_new_entities(journal, known_names)
+            assert len(result2) == 0
 
 
 class TestEmptyJournal:
     def test_empty_entry_skipped(self):
         from kanka_wiki_updater.sync_pipeline import propose_update
 
-        entity = {'name': 'Alice', 'kind': 'character', 'entry': 'Old synopsis'}
-        journal = {'id': 1, 'name': 'Session 1', 'entry': '', 'date': '2024-01-01'}
+        entity_data = AttrMap(name='Alice', kind='character', entry='Old synopsis', relations=[], local_id=1)
+        journal = AttrMap(id=1, name='Session 1', entry='', date='2024-01-01')
 
-        result = propose_update(123, entity, journal, {})
+        result = propose_update(123, entity_data, journal, {})
         assert result is None
 
     def test_whitespace_only_entry_skipped(self):
         from kanka_wiki_updater.sync_pipeline import propose_update
 
-        entity = {'name': 'Alice', 'kind': 'character', 'entry': 'Old synopsis'}
-        journal = {'id': 1, 'name': 'Session 1', 'entry': '   \n\n  ', 'date': '2024-01-01'}
+        entity_data = AttrMap(name='Alice', kind='character', entry='Old synopsis', relations=[], local_id=1)
+        journal = AttrMap(id=1, name='Session 1', entry='   \n\n  ', date='2024-01-01')
 
-        result = propose_update(123, entity, journal, {})
+        result = propose_update(123, entity_data, journal, {})
         assert result is None
 
 
 class TestNoMeaningfulChange:
-    def test_same_synopsis_no_relations_returns_none(self):
-        from kanka_wiki_updater.sync_pipeline import propose_update
+    def test_same_synopsis_no_relations_returns_none(self, monkeypatch):
+        from kanka_wiki_updater import sync_pipeline as sp
 
-        entity = {'name': 'Alice', 'kind': 'character', 'entry': 'Same text'}
-        journal = {'id': 1, 'name': 'Session 1', 'entry': 'Nothing new happened.', 'date': '2024-01-01'}
+        mock_result = {
+            'updated_entry': 'Same text',
+            'change_summary': '',
+            'relation_changes': [],
+            'uncertain': [],
+        }
+        monkeypatch.setattr(sp, 'chat_json', lambda sys, usr: mock_result)
 
-        result = propose_update(123, entity, journal, {})
+        entity_data = AttrMap(name='Alice', kind='character', entry='Same text', relations=[], local_id=1)
+        journal = AttrMap(id=1, name='Session 1', entry='Nothing new happened.', date='2024-01-01')
+
+        result = sp.propose_update(123, entity_data, journal, {})
         assert result is None
