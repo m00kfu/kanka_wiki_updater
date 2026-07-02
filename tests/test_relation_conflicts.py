@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from kanka_wiki_updater.relation_conflicts import resolve_creates_to_updates
+from kanka_wiki_updater.relation_conflicts import detect_cross_proposal_conflicts, resolve_creates_to_updates
 
 
 def _make_proposal(entity_name='Alice', relation_changes=None, entity_id=1):
@@ -183,4 +183,68 @@ def test_multiple_proposals_returns_all_conflicts():
 def test_empty_proposals_returns_empty():
     resolved, conflicts = resolve_creates_to_updates([], {})
     assert resolved == []
+    assert conflicts == []
+
+
+def test_cross_proposal_different_pairs_no_conflict():
+    """Different owner→target pairs are fine."""
+    p1 = _make_proposal(entity_name='Alice', relation_changes=[_make_rel('create', 'Bob')])
+    p2 = _make_proposal(entity_name='Carol', relation_changes=[_make_rel('create', 'Dave')])
+    proposals = [p1, p2]
+    entity_index = {
+        1: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': '', 'relations': []},
+        99: {'kind': 'character', 'local_id': 99, 'name': 'Bob', 'entry': '', 'relations': []},
+        2: {'kind': 'character', 'local_id': 2, 'name': 'Carol', 'entry': '', 'relations': []},
+        100: {'kind': 'character', 'local_id': 100, 'name': 'Dave', 'entry': '', 'relations': []},
+    }
+    resolved, _ = resolve_creates_to_updates(proposals, entity_index)
+
+    conflicts = detect_cross_proposal_conflicts(resolved)
+    assert len(conflicts) == 0
+
+
+def test_same_owner_different_targets_no_conflict():
+    """Same owner creating relations to different targets is fine."""
+    p1 = _make_proposal(
+        entity_name='Alice',
+        relation_changes=[
+            _make_rel('create', 'Bob'),
+            _make_rel('create', 'Carol'),
+        ],
+    )
+    proposals = [p1]
+    entity_index = {
+        1: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': '', 'relations': []},
+        99: {'kind': 'character', 'local_id': 99, 'name': 'Bob', 'entry': '', 'relations': []},
+        2: {'kind': 'character', 'local_id': 2, 'name': 'Carol', 'entry': '', 'relations': []},
+    }
+    resolved, _ = resolve_creates_to_updates(proposals, entity_index)
+
+    conflicts = detect_cross_proposal_conflicts(resolved)
+    assert len(conflicts) == 0
+
+
+def test_same_pair_in_different_proposals_is_conflict():
+    """Two proposals for the same owner→target pair → cross_proposal conflict."""
+    p1 = _make_proposal(entity_name='Alice', relation_changes=[_make_rel('create', 'Bob')])
+    p2 = _make_proposal(entity_name='Alice', relation_changes=[_make_rel('create', 'Bob')])
+    proposals = [p1, p2]
+    entity_index = {
+        1: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': '', 'relations': []},
+        99: {'kind': 'character', 'local_id': 99, 'name': 'Bob', 'entry': '', 'relations': []},
+    }
+    resolved, _ = resolve_creates_to_updates(proposals, entity_index)
+
+    conflicts = detect_cross_proposal_conflicts(resolved)
+
+    assert len(conflicts) == 1
+    c = conflicts[0]
+    assert c['conflict_kind'] == 'cross_proposal'
+    assert c['entity_name'] == 'Alice'
+    assert c['target_name'] == 'Bob'
+
+
+def test_empty_proposals_returns_no_conflicts():
+    """Empty queue → no cross-proposal conflicts."""
+    conflicts = detect_cross_proposal_conflicts([])
     assert conflicts == []

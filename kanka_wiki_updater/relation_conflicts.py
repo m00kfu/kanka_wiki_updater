@@ -72,3 +72,43 @@ def resolve_creates_to_updates(proposals, entity_index):
         resolved.append({**proposal, 'relation_changes': new_rcs})
 
     return resolved, conflicts
+
+
+def detect_cross_proposal_conflicts(proposals):
+    """Detect competing proposals for the same owner→target entity pair.
+
+    Scans remaining 'create' actions across all proposals for duplicate
+    (entity_name, target_name) pairs. The second occurrence of a pair is
+    flagged as a cross_proposal conflict.
+
+    Returns list of conflict dicts with keys: proposal_idx, entity_name,
+    target_name, existing_type (None), proposed_type, conflict_kind="cross_proposal".
+    """
+    seen_pairs = {}  # (entity_name, target_name) -> first proposal_idx
+    conflicts = []
+
+    for idx, proposal in enumerate(proposals):
+        for rc in proposal.get('relation_changes', []):
+            action = (rc.get('action') or '').strip().lower()
+            if action != 'create':
+                continue
+
+            entity_name = proposal['entity_name']
+            target_name = rc['target_name']
+            pair_key = (entity_name, target_name)
+
+            if pair_key in seen_pairs:
+                conflicts.append(
+                    {
+                        'proposal_idx': idx,
+                        'entity_name': entity_name,
+                        'target_name': target_name,
+                        'existing_type': None,
+                        'proposed_type': rc['relation'],
+                        'conflict_kind': 'cross_proposal',
+                    }
+                )
+            else:
+                seen_pairs[pair_key] = idx
+
+    return conflicts
