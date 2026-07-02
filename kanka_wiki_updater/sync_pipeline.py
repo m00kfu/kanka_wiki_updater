@@ -34,6 +34,7 @@ try:
         SYSTEM_PROMPT,
         USER_PROMPT_TEMPLATE,
     )
+    from .relation_conflicts import apply_resolutions
 except ImportError:
     from kanka_wiki_updater import config, state
     from kanka_wiki_updater.kanka_client import KankaClient
@@ -347,6 +348,20 @@ def main(limit=None):
         elapsed = time.time() - t0
         mins, secs = divmod(int(elapsed), 60)
         print(f"      ({i}/{len(to_process)}) '{getattr(journal, 'name', None)}' processed in {mins:02d}:{secs:02d}")
+
+    # Resolve relation conflicts across all queued proposals for this run
+    if total_proposals > 0:
+        current_queue = state.load_queue()
+        resolved_queue, conflicts = apply_resolutions(current_queue, index)
+
+        for c in conflicts:
+            if c['conflict_kind'] == 'label_mismatch':
+                print(
+                    f'  ! Auto-updated existing relation: {c["entity_name"]} ↔ {c["target_name"]}: '
+                    f"'{c['existing_type']}' → '{c['proposed_type']}'"
+                )
+
+        state.save_queue(resolved_queue)
 
     # Only advance the API's "lastSync" cursor once everything fetched this
     # run has actually been processed. If --limit left some journals
