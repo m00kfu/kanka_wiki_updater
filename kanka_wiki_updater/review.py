@@ -242,12 +242,30 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
     if proposal['relation_changes']:
         print(colors.bold('\nProposed relationship changes:'))
         for rc in proposal['relation_changes']:
+            conflict = rc.get('conflict')
             print(
                 colors.magenta(
                     f'  [{rc["action"]}] {rc["relation"]} -> {rc["target_name"]} '
                     f'(attitude={rc.get("attitude")}) -- {rc.get("reason", "")}'
                 )
             )
+            if conflict:
+                if conflict['conflict_kind'] == 'label_mismatch':
+                    print(
+                        colors.red(
+                            f'  !! Conflict: {conflict["entity_name"]} already has '
+                            f"'{conflict['existing_type']}' -> {conflict['target_name']}, "
+                            f"proposing '{conflict['proposed_type']}'. Verify which is correct."
+                        )
+                    )
+                elif conflict['conflict_kind'] == 'cross_proposal':
+                    print(
+                        colors.red(
+                            f'  !! Cross-proposal conflict: {conflict["entity_name"]} ↔ '
+                            f'{conflict["target_name"]} proposed in multiple sessions. '
+                            f'Verify which relation is correct.'
+                        )
+                    )
 
     choice = prompt_choice('\nApply this change? (y)es / (n)o / (a)pprove synopsis only, skip relations')
     if choice == 'n':
