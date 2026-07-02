@@ -134,7 +134,10 @@ class TestApiProposalStatus:
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
-                side_effect=lambda c: {'42': {'name': 'Kael Ironfist', 'kind': 'character'}},
+                side_effect=lambda c: {
+                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
+                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                },
             ):
                 resp = app_with_queue.post(
                     '/api/proposals/1/status',
@@ -181,7 +184,10 @@ class TestApiProposalStatus:
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
-                side_effect=lambda c: {'42': {'name': 'Kael Ironfist', 'kind': 'character'}},
+                side_effect=lambda c: {
+                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
+                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                },
             ):
                 app_with_queue.post(
                     '/api/proposals/1/status',
@@ -537,7 +543,10 @@ class TestApiProposalSync:
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
-                side_effect=lambda c: {'42': {'name': 'Kael Ironfist', 'kind': 'character'}},
+                side_effect=lambda c: {
+                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
+                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                },
             ):
                 resp = app_with_queue.post('/api/proposals/1/sync')
                 data = resp.get_json()
@@ -627,7 +636,10 @@ class TestStatusWithSync:
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
-                side_effect=lambda c: {'42': {'name': 'Kael Ironfist', 'kind': 'character'}},
+                side_effect=lambda c: {
+                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
+                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                },
             ):
                 resp = app_with_queue.post(
                     '/api/proposals/1/status',
@@ -646,7 +658,10 @@ class TestStatusWithSync:
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
-                side_effect=lambda c: {'42': {'name': 'Kael Ironfist', 'kind': 'character'}},
+                side_effect=lambda c: {
+                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
+                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                },
             ):
                 resp = app_with_queue.post(
                     '/api/proposals/1/status',

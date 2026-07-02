@@ -45,6 +45,11 @@ def _rel_target(rel):
     return getattr(rel, 'target_id', None) or (rel.get('target_id') if isinstance(rel, dict) else None)
 
 
+def _rel_owner(rel):
+    """Extract the owner_id from a Relation model or dict."""
+    return getattr(rel, 'owner_id', None) or (rel.get('owner_id') if isinstance(rel, dict) else None)
+
+
 def _rel_id(rel):
     """Extract the id from a Relation model or dict."""
     return getattr(rel, 'id', None) or (rel.get('id') if isinstance(rel, dict) else None)
@@ -204,8 +209,9 @@ def create_app():
             """Resolve an entity name to its entity_id via a full index build."""
             try:
                 index = build_entity_index(client)
+                needle = name.strip().lower()
                 for eid, data in index.items():
-                    if data['name'] == name:
+                    if data['name'].strip().lower() == needle:
                         return eid
             except Exception as e:
                 errors.append(f'Resolution warning: {e}')
@@ -280,34 +286,96 @@ def create_app():
                         if action == 'delete':
                             target_entity_id = resolve_name_to_id(client, target_name)
                             if not target_entity_id:
-                                details.append(f'Skipped deleting relation -> {target_name}: entity not found')
+                                errors.append(f"Cannot delete relation -> {target_name}: entity not found")
                                 continue
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
                             if existing and _rel_id(existing):
                                 client.delete_relation(entity_id, _rel_id(existing))
                                 details.append(f'Deleted relation -> {target_name}')
+                            elif existing:
+                                errors.append(
+                                    f"Cannot delete relation -> {target_name}: API did not return a relation id. "
+                                    f'Raw relation object: {existing}. Try deleting manually in Kanka.'
+                                )
+                            else:
+                                details.append(
+                                    f"No existing relation to '{target_name}' found — "
+                                    'already removed or deleted externally.'
+                                )
 
                         elif action in ('create', 'update'):
                             target_entity_id = resolve_name_to_id(client, target_name)
                             if not target_entity_id:
-                                details.append(f'Skipped {action} relation -> {target_name}: entity not found')
+                                errors.append(
+                                    f"Cannot {action} relation -> {target_name}: entity not found. "
+                                    f'Check the spelling — the name must match exactly as it appears in Kanka.'
+                                )
                                 continue
 
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
 
-                            if action == 'create' or not existing:
-                                resp = client.create_relation(
-                                    entity_id, target_entity_id, rc['relation'], rc.get('attitude')
+                            # Also detect reverse-direction relations — Kanka returns 409 on create
+                            # if any relation already exists between these two entities.
+                            has_reverse = any(
+                                _rel_owner(r) == target_entity_id and _rel_target(r) == entity_id
+                                for r in existing_relations
+                            )
+
+                            if has_reverse:
+                                details.append(
+                                    f"Relation already exists between this entity and '{target_name}' "
+                                    '(in the opposite direction — cannot create a duplicate link).'
                                 )
-                                details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
+
+                            elif action == 'create' or not existing:
+                                try:
+                                    resp = client.create_relation(
+                                        entity_id, target_entity_id, rc['relation'], rc.get('attitude')
+                                    )
+                                    details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
+                                except Exception as create_err:
+                                    # Capture the HTTP status code if available so 409s are actionable
+                                    status_code = getattr(create_err, 'response', None)
+                                    if hasattr(status_code, 'status_code'):
+                                        errors.append(
+                                            f"Failed to create relation -> {target_name}: "
+                                            f'HTTP {status_code.status_code} — "{create_err}". '
+                                            f'This usually means a relation already exists between these entities. '
+                                            f'Check Kanka directly and delete any duplicate, then retry.'
+                                        )
+                                    else:
+                                        errors.append(
+                                            f"Failed to create relation -> {target_name}: {create_err}"
+                                        )
+
                             elif existing and _rel_id(existing):
-                                client.update_relation(
-                                    entity_id,
-                                    _rel_id(existing),
-                                    relation=rc['relation'],
-                                    attitude=rc.get('attitude'),
+                                try:
+                                    client.update_relation(
+                                        entity_id,
+                                        _rel_id(existing),
+                                        relation=rc['relation'],
+                                        attitude=rc.get('attitude'),
+                                    )
+                                    details.append(f"Updated relation -> {target_name}: '{rc['relation']}'")
+                                except Exception as update_err:
+                                    status_code = getattr(update_err, 'response', None)
+                                    if hasattr(status_code, 'status_code'):
+                                        errors.append(
+                                            f"Failed to update relation -> {target_name}: "
+                                            f'HTTP {status_code.status_code} — "{update_err}". '
+                                            f'This may mean the relation was modified externally. Check Kanka directly.'
+                                        )
+                                    else:
+                                        errors.append(
+                                            f"Failed to update relation -> {target_name}: {update_err}"
+                                        )
+
+                            elif existing and not _rel_id(existing):
+                                errors.append(
+                                    f"Cannot update relation -> {target_name}: "
+                                    "API returned a relation without an 'id'. "
+                                    f'Raw: {existing}. Try updating manually in Kanka.'
                                 )
-                                details.append(f"Updated relation -> {target_name}: '{rc['relation']}'")
 
             except Exception as e:
                 errors.append(f'Relation sync error: {e}')
@@ -391,7 +459,7 @@ def create_app():
                 if job['status'] in ('completed', 'error'):
                     yield f'event: status\ndata: {json.dumps({"status": job["status"]})}\n\n'
                     yield 'event: end\n\n'
-                    break
+                    return
 
                 time.sleep(0.2)  # poll interval
 
@@ -812,8 +880,9 @@ async function apiCall(url, method, body) {
   }
 }
 
-function approveAll() {
+async function approveAll() {
   if (selectedIndex === null) return;
+  if (editingField) await saveEdit();
   var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_all'})
     .then(function(data) {
@@ -830,8 +899,9 @@ function approveAll() {
     });
 }
 
-function approveSynopsisOnly() {
+async function approveSynopsisOnly() {
   if (selectedIndex === null) return;
+  if (editingField) await saveEdit();
   var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_synopsis_only'})
     .then(function(data) {
@@ -848,9 +918,10 @@ function approveSynopsisOnly() {
     });
 }
 
-function rejectCurrent() {
+async function rejectCurrent() {
   if (selectedIndex === null) return;
   var oldIndex = selectedIndex;
+  if (editingField) await saveEdit();
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'rejected'})
     .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Rejected', 'error'); } });
 }
@@ -1036,6 +1107,8 @@ async function runSync() {
 
   source.addEventListener('end', function() {
     source.close();
+    currentSyncJob = null;
+    renderContent();
     // Refresh proposals after sync completes
     loadProposals();
   });
