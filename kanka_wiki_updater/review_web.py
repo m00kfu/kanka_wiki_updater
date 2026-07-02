@@ -37,8 +37,18 @@ try:
     from .sync_pipeline import build_entity_index
 except ImportError:
     from kanka_wiki_updater.sync_pipeline import build_entity_index
-
 _sync_lock = threading.Lock()
+
+
+def _rel_target(rel):
+    """Extract the target_id from a Relation model or dict."""
+    return getattr(rel, 'target_id', None) or (rel.get('target_id') if isinstance(rel, dict) else None)
+
+
+def _rel_id(rel):
+    """Extract the id from a Relation model or dict."""
+    return getattr(rel, 'id', None) or (rel.get('id') if isinstance(rel, dict) else None)
+
 
 _sync_jobs = {}
 _job_counter = [0]
@@ -273,9 +283,9 @@ def create_app():
                             if not target_entity_id:
                                 details.append(f"Skipped deleting relation -> {target_name}: entity not found")
                                 continue
-                            existing = next((r for r in existing_relations if r.get('target_id') == target_entity_id), None)
-                            if existing and existing.get('id'):
-                                client.delete_relation(entity_id, existing['id'])
+                            existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
+                            if existing and _rel_id(existing):
+                                client.delete_relation(entity_id, _rel_id(existing))
                                 details.append(f"Deleted relation -> {target_name}")
 
                         elif action in ('create', 'update'):
@@ -285,7 +295,7 @@ def create_app():
                                 continue
 
                             existing = next(
-                                (r for r in existing_relations if r.get('target_id') == target_entity_id), None
+                                (r for r in existing_relations if _rel_target(r) == target_entity_id), None
                             )
 
                             if action == 'create' or not existing:
@@ -293,10 +303,10 @@ def create_app():
                                     entity_id, target_entity_id, rc['relation'], rc.get('attitude')
                                 )
                                 details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
-                            elif existing and existing.get('id'):
+                            elif existing and _rel_id(existing):
                                 client.update_relation(
                                     entity_id,
-                                    existing['id'],
+                                    _rel_id(existing),
                                     relation=rc['relation'],
                                     attitude=rc.get('attitude'),
                                 )
