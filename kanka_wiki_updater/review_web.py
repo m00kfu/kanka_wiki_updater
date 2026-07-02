@@ -268,8 +268,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Ar
 .header h1 { font-size: 16px; font-weight: 600; color: var(--cyan); }
 .header .stats { font-size: 13px; color: var(--text-dim); }
 .main { display: flex; flex: 1; overflow: hidden; }
-.sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
-.tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 8px; }
+.sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; }
+.tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 8px; flex-shrink: 0; }
+.sidebar-list { overflow-y: auto; flex: 1; }
 .tab-btn { background: none; border: none; color: var(--text-dim); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
@@ -403,6 +404,7 @@ function renderSidebar() {
     '<button class="tab-btn ' + (currentTab === "reviewed" ? "active" : "inactive") + '" data-tab="reviewed" onclick="switchTab(\\'reviewed\\')">Reviewed</button>' +
     '<button class="tab-btn ' + (currentTab === "sync" ? "active" : "inactive") + '" data-tab="sync" onclick="switchTab(\\'sync\\')">Sync</button>' +
     '</div>';
+  html += '<div class="sidebar-list">';
   const filtered = currentTab === 'new'
     ? proposals.filter(p => p.status === 'pending')
     : proposals.filter(p => p.status !== 'pending');
@@ -418,6 +420,7 @@ function renderSidebar() {
       '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + escapeJsHtml(filtered[f].entity_name) + statusBadge + '</div>' +
       '<div class="meta">' + escapeJsHtml(filtered[f].source_journal) + '</div></div>';
   }
+  html += '</div>';
   sidebar.innerHTML = html;
 }
 
