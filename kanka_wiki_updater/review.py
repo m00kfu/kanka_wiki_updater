@@ -34,8 +34,24 @@ try:
 except ImportError:
     from kanka_wiki_updater import colors, state
     from kanka_wiki_updater.kanka_client import KankaClient
-    from kanka_wiki_updater.mentions import add_missing_entity_tags, find_unlinked_mentions, linked_entity_ids, normalize_text, strip_html
+    from kanka_wiki_updater.mentions import (
+        add_missing_entity_tags,
+        find_unlinked_mentions,
+        linked_entity_ids,
+        normalize_text,
+        strip_html,
+    )
     from kanka_wiki_updater.sync_pipeline import build_entity_index
+
+
+def _rel_target(rel):
+    """Extract the target_id from a Relation model or dict."""
+    return getattr(rel, 'target_id', None) or (rel.get('target_id') if isinstance(rel, dict) else None)
+
+
+def _rel_id(rel):
+    """Extract the id from a Relation model or dict."""
+    return getattr(rel, 'id', None) or (rel.get('id') if isinstance(rel, dict) else None)
 
 
 def has_meaningful_change(proposal):
@@ -267,12 +283,12 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
                     )
                     continue
 
-                existing = next((r for r in existing_relations if r.get('target_id') == target_id), None)
+                existing = next((r for r in existing_relations if _rel_target(r) == target_id), None)
                 action = (rc.get('action') or '').strip().lower()
 
                 if action == 'delete':
-                    if existing and existing.get('id'):
-                        client.delete_relation(entity_id, existing['id'])
+                    if existing and _rel_id(existing):
+                        client.delete_relation(entity_id, _rel_id(existing))
                         print(colors.green(f'  - Deleted relation -> {rc["target_name"]}'))
                         relation_results.append(
                             {
@@ -296,9 +312,9 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
                             )
                         )
 
-                elif action == 'update' and existing and existing.get('id'):
+                elif action == 'update' and existing and _rel_id(existing):
                     client.update_relation(
-                        entity_id, existing['id'], relation=rc['relation'], attitude=rc.get('attitude')
+                        entity_id, _rel_id(existing), relation=rc['relation'], attitude=rc.get('attitude')
                     )
                     print(colors.green(f"  - Updated relation -> {rc['target_name']}: '{rc['relation']}'"))
                     relation_results.append(
