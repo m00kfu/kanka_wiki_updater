@@ -598,20 +598,38 @@ async function apiCall(url, method, body) {
 
 function approveAll() {
   if (selectedIndex === null) return;
+  var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_all'})
-    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; renderSidebar(); renderContent(); showToast('Approved all', 'success'); } });
+    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Approved all', 'success'); } });
 }
 
 function approveSynopsisOnly() {
   if (selectedIndex === null) return;
+  var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_synopsis_only'})
-    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; renderSidebar(); renderContent(); showToast('Synopsis approved', 'success'); } });
+    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Synopsis approved', 'success'); } });
 }
 
 function rejectCurrent() {
   if (selectedIndex === null) return;
+  var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'rejected'})
-    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; renderSidebar(); renderContent(); showToast('Rejected', 'error'); } });
+    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Rejected', 'error'); } });
+}
+
+function _advance(fromIndex) {
+  var visible = getVisibleIndices();
+  for (var i = 0; i < visible.length; i++) {
+    if (visible[i] > fromIndex) {
+      selectedIndex = visible[i];
+      renderSidebar();
+      renderContent();
+      return;
+    }
+  }
+  selectedIndex = null;
+  renderSidebar();
+  renderContent();
 }
 
 // ── Editor ─────────────────────────────────────────────────────────────────
