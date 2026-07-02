@@ -359,13 +359,13 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
     <button class="btn btn-secondary" onclick="approveSynopsisOnly()">Synopsis Only</button>
     <button class="btn btn-danger" onclick="rejectCurrent()">Reject</button>
     <div style="flex:1"></div>
-    <span style="font-size:12px;color:var(--text-dim)">[n]ext [p]rev [e]dit [a]pprove [s]ynopsis [r]eject [q]uit</span>
+    <span style="font-size:12px;color:var(--text-dim)">[n]ext [p]rev [e]dit [esc]cancel [a]pprove [s]ynopsis [r]eject [q]uit</span>
   </div>
   <div class="shortcuts">
     <kbd>n</kbd> next &nbsp; <kbd>p</kbd> prev<br>
-    <kbd>e</kbd> edit &nbsp; <kbd>a</kbd> approve all<br>
-    <kbd>s</kbd> synopsis only &nbsp; <kbd>r</kbd> reject<br>
-    <kbd>q</kbd> quit (close tab)
+    <kbd>e</kbd> edit &nbsp; <kbd>esc</kbd> cancel<br>
+    <kbd>a</kbd> approve all &nbsp; <kbd>s</kbd> synopsis only<br>
+    <kbd>r</kbd> reject &nbsp; <kbd>q</kbd> quit (close tab)
   </div>
   <div class="toast" id="toast"></div>
 </div>
@@ -375,6 +375,7 @@ let proposals = {{ PROPOSALS | tojson }};
 let selectedIndex = null;
 let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
+let editingOriginal = ''; // original text when entering edit mode (for escape-to-cancel)
 let currentSyncJob = null; // {job_id, status, output}
 
 function getPending() { return proposals.filter(p => p.status === 'pending'); }
@@ -641,7 +642,11 @@ function startEdit(field) {
   editingField = field;
   renderContent();
   var editor = document.getElementById('synopsisEditor');
-  if (editor) { editor.focus(); editor.selectionStart = editor.value.length; }
+  if (editor) {
+    editingOriginal = editor.value;
+    editor.focus();
+    editor.selectionStart = editor.value.length;
+  }
 }
 
 async function saveEdit() {
@@ -745,6 +750,17 @@ document.addEventListener('keydown', function(e) {
     case 'r': rejectCurrent(); break;
     case 'q': window.close(); break;
   }
+});
+
+// ── Escape key to cancel editing ───────────────────────────────────────────
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape' || !editingField) return;
+  var editor = document.getElementById('synopsisEditor');
+  if (!editor) return;
+  var hasChanges = editor.value !== editingOriginal;
+  if (hasChanges && !confirm('Discard unsaved changes?')) return;
+  cancelEdit();
 });
 
 // ── Sync pipeline runner ───────────────────────────────────────────────────
