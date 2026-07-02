@@ -103,9 +103,11 @@ class TestRevertUpdateEntry:
         from kanka_wiki_updater.revert import revert_update_entry
 
         client = MagicMock()
+        client.get_relations.return_value = []
         entry = {
             'entity_name': 'Alice',
             'entity_kind': 'character',
+            'entity_id': 123,
             'entity_local_id': 123,
             'previous_entry': 'Old synopsis',
             'source_journal': 'Session 1',
@@ -120,7 +122,7 @@ class TestRevertUpdateEntry:
 
         revert_update_entry(entry, client)
 
-        assert client.update_entity_entry.called_with('characters', 123, 'Old synopsis')
+        client.update_entity_entry.assert_called_with('characters', 123, 'Old synopsis')
 
 
 class TestRevertNewEntityEntry:

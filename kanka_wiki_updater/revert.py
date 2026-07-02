@@ -38,17 +38,27 @@ except ImportError:
     from kanka_wiki_updater.kanka_client import KankaClient
 
 
+def _rel_target(rel):
+    """Get target_id from a relation that may be a model or dict."""
+    return getattr(rel, 'target_id', None) or (rel.get('target_id') if isinstance(rel, dict) else None)
+
+
+def _rel_id(rel):
+    """Get id from a relation that may be a model or dict."""
+    return getattr(rel, 'id', None) or (rel.get('id') if isinstance(rel, dict) else None)
+
+
 def revert_relation_result(entity_id, rr, client):
     """Best-effort undo of one relation change. Always re-fetches current
     relations and matches by target_id rather than trusting a cached
     relation id, since that id may not have been available at apply time."""
     current = client.get_relations(entity_id)
-    existing = next((r for r in current if r.get('target_id') == rr['target_id']), None)
+    existing = next((r for r in current if _rel_target(r) == rr['target_id']), None)
     action_taken = rr['action_taken']
 
     if action_taken == 'created':
-        if existing and existing.get('id'):
-            client.delete_relation(entity_id, existing['id'])
+        if existing and _rel_id(existing):
+            client.delete_relation(entity_id, _rel_id(existing))
             print(colors.green(f'  - Removed relation -> {rr["target_name"]} (undoing a create)'))
         else:
             print(
@@ -59,9 +69,9 @@ def revert_relation_result(entity_id, rr, client):
             )
     elif action_taken == 'updated':
         prev = rr.get('previous_relation') or {}
-        if existing and existing.get('id'):
+        if existing and _rel_id(existing):
             client.update_relation(
-                entity_id, existing['id'], relation=prev.get('relation'), attitude=prev.get('attitude')
+                entity_id, _rel_id(existing), relation=prev.get('relation'), attitude=prev.get('attitude')
             )
             print(colors.green(f'  - Restored relation -> {rr["target_name"]} to its previous label/attitude'))
         else:
