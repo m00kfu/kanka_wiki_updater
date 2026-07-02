@@ -27,6 +27,19 @@ try:
 except ImportError:
     from kanka_wiki_updater import config as pkg_config
 
+# Import KankaClient at module level so tests can mock it
+try:
+    from .kanka_client import KankaClient
+except ImportError:
+    from kanka_wiki_updater.kanka_client import KankaClient
+
+try:
+    from .sync_pipeline import build_entity_index
+except ImportError:
+    from kanka_wiki_updater.sync_pipeline import build_entity_index
+
+_sync_lock = threading.Lock()
+
 _sync_jobs = {}
 _job_counter = [0]
 
@@ -71,6 +84,21 @@ def create_app():
         if status_value not in valid_statuses:
             return jsonify({'error': f'Invalid status. Must be one of {valid_statuses}'}), 400
 
+        sync_result = None
+        if status_value in ('approved_all', 'approved_synopsis_only'):
+            with _sync_lock:
+                success, message = _sync_proposal_to_kanka(index)
+            queue = _load_queue()  # Reload after potential modifications
+            proposal = queue[index]
+            sync_result = {'ok': success, 'message': message}
+            if not success:
+                return jsonify({
+                    'proposal': proposal,
+                    'ok': False,
+                    'sync_error': True,
+                    'sync_message': message,
+                }), 409
+
         mapping = {
             'approved_all': 'applied',
             'approved_synopsis_only': 'applied',
@@ -78,7 +106,10 @@ def create_app():
         }
         queue[index]['status'] = mapping[status_value]
         _save_queue(queue)
-        return jsonify({'proposal': queue[index], 'ok': True})
+        result = {'proposal': queue[index], 'ok': True}
+        if sync_result:
+            result['sync'] = sync_result
+        return jsonify(result)
 
     @app.route('/api/proposals/<int:index>/edit', methods=['POST'])
     def edit_proposal(index):
@@ -140,6 +171,172 @@ def create_app():
         proposal['relation_changes'] = relations
         _save_queue(queue)
         return jsonify({'proposal': proposal, 'ok': True})
+
+    def _sync_proposal_to_kanka(idx):
+        """Actually push a proposal to Kanka.io. Returns (success, details)."""
+        try:
+            from .mentions import add_missing_entity_tags
+        except ImportError:
+            from kanka_wiki_updater.mentions import add_missing_entity_tags
+
+        queue = _load_queue()
+        if idx >= len(queue):
+            return False, 'Proposal not found in queue'
+
+        proposal = queue[idx]
+        client = KankaClient()
+        details = []
+        errors = []
+
+        def resolve_name_to_id(client, name):
+            """Resolve an entity name to its entity_id via a full index build."""
+            try:
+                index = build_entity_index(client)
+                for eid, data in index.items():
+                    if data['name'] == name:
+                        return eid
+            except Exception as e:
+                errors.append(f'Resolution warning: {e}')
+            return None
+
+        try:
+            if proposal.get('proposal_type') == 'new_entity':
+                entity_type = proposal.get('suggested_type', 'character')
+                kind_param = 'characters' if entity_type == 'character' else 'locations'
+                result = getattr(client, f'create_{entity_type}')(
+                    proposal['entity_name'], entry=proposal.get('draft_entry', '')
+                )
+                data = result.get('data', {}) if isinstance(result, dict) else {}
+                new_entity_id = data.get('entity_id')
+                proposal['created_local_id'] = data.get('id')
+                proposal['created_kind'] = entity_type
+                proposal['created_entity_id'] = new_entity_id
+                details.append(f"Created {entity_type} '{proposal['entity_name']}'")
+                if new_entity_id:
+                    details.append(f' (entity_id={new_entity_id})')
+                    # Make immediately available as relation target for later proposals in same batch
+                    queue[idx]['_resolved'] = True
+                else:
+                    errors.append(
+                        "Created entity but couldn't read entity_id from response. "
+                        f"Raw response: {result}"
+                    )
+
+            elif proposal.get('proposal_type') == 'update':
+                # Update synopsis entry
+                kind_param = 'characters' if proposal['entity_kind'] == 'character' else 'locations'
+                client.update_entity_entry(
+                    kind_param,
+                    proposal['entity_local_id'],
+                    proposal['proposed_entry'],
+                )
+                details.append(f"Updated synopsis for '{proposal['entity_name']}'")
+
+        except Exception as e:
+            errors.append(f'Sync error: {e}')
+
+        # Handle relation changes (both new_entity and update)
+        rel_changes = proposal.get('relation_changes', [])
+        if rel_changes:
+            try:
+                if proposal.get('proposal_type') == 'new_entity':
+                    entity_id_str = str(proposal.get('created_entity_id', ''))
+                    if not entity_id_str or not entity_id_str.isdigit():
+                        errors.append(
+                            "Cannot resolve relations for new entity: no entity_id available. "
+                            "Approve the synopsis first, then retry relations."
+                        )
+                    else:
+                        entity_id = int(entity_id_str)
+                else:
+                    eid = proposal.get('entity_id')
+                    if not eid:
+                        eid = resolve_name_to_id(client, proposal['entity_name'])
+                        if not eid:
+                            errors.append(
+                                f"Cannot find entity_id for '{proposal['entity_name']}'. "
+                                "Ensure the entity exists in Kanka."
+                            )
+                    else:
+                        entity_id = int(eid)
+
+                # Only proceed with relations if we have a valid entity_id and no fatal errors
+                fatal_errors = [e for e in errors if 'Cannot resolve' in e or 'Cannot find entity_id' in e]
+                if not fatal_errors and 'entity_id' in locals():
+                    existing_relations = client.get_relations(entity_id)
+                    for rc in rel_changes:
+                        target_name = rc['target_name']
+                        action = (rc.get('action') or '').strip().lower()
+
+                        if action == 'delete':
+                            target_entity_id = resolve_name_to_id(client, target_name)
+                            if not target_entity_id:
+                                details.append(f"Skipped deleting relation -> {target_name}: entity not found")
+                                continue
+                            existing = next((r for r in existing_relations if r.get('target_id') == target_entity_id), None)
+                            if existing and existing.get('id'):
+                                client.delete_relation(entity_id, existing['id'])
+                                details.append(f"Deleted relation -> {target_name}")
+
+                        elif action in ('create', 'update'):
+                            target_entity_id = resolve_name_to_id(client, target_name)
+                            if not target_entity_id:
+                                details.append(f"Skipped {action} relation -> {target_name}: entity not found")
+                                continue
+
+                            existing = next(
+                                (r for r in existing_relations if r.get('target_id') == target_entity_id), None
+                            )
+
+                            if action == 'create' or not existing:
+                                resp = client.create_relation(
+                                    entity_id, target_entity_id, rc['relation'], rc.get('attitude')
+                                )
+                                details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
+                            elif existing and existing.get('id'):
+                                client.update_relation(
+                                    entity_id,
+                                    existing['id'],
+                                    relation=rc['relation'],
+                                    attitude=rc.get('attitude'),
+                                )
+                                details.append(f"Updated relation -> {target_name}: '{rc['relation']}'")
+
+            except Exception as e:
+                errors.append(f'Relation sync error: {e}')
+
+        if errors:
+            return False, '; '.join(errors)
+        return True, '; '.join(details)
+
+    @app.route('/api/proposals/<int:index>/sync', methods=['POST'])
+    def sync_proposal(index):
+        """Sync a single proposal to Kanka.io. Used before marking as applied."""
+        queue = _load_queue()
+        if index >= len(queue):
+            return jsonify({'error': 'Proposal not found'}), 404
+
+        with _sync_lock:
+            success, message = _sync_proposal_to_kanka(index)
+
+        result = {
+            'ok': success,
+            'message': message,
+            'proposal': queue[index],
+        }
+        if success:
+            # Mark as applied after successful sync
+            mapping = {
+                'approved_all': 'applied',
+                'approved_synopsis_only': 'applied',
+            }
+            status_value = request.args.get('status', '')
+            status_key = f'status_{status_value}'
+            if hasattr(request, 'get_json') and request.get_json(silent=True):
+                status_value = request.get_json(silent=True).get('status', '')
+            # We just sync; the caller should still call /status to set local state
+        _save_queue(queue)
+        return jsonify(result)
 
     @app.route('/api/sync/run', methods=['POST'])
     def run_sync():
@@ -406,9 +603,15 @@ function renderSidebar() {
     '<button class="tab-btn ' + (currentTab === "sync" ? "active" : "inactive") + '" data-tab="sync" onclick="switchTab(\\'sync\\')">Sync</button>' +
     '</div>';
   html += '<div class="sidebar-list">';
-  const filtered = currentTab === 'new'
-    ? proposals.filter(p => p.status === 'pending')
-    : proposals.filter(p => p.status !== 'pending');
+  let pending = proposals.filter(p => p.status === 'pending');
+  if (currentTab === 'new') {
+    pending.sort((a, b) => {
+      const aNew = a.proposal_type === 'new_entity' ? 0 : 1;
+      const bNew = b.proposal_type === 'new_entity' ? 0 : 1;
+      return aNew - bNew;
+    });
+  }
+  const filtered = currentTab === 'new' ? pending : proposals.filter(p => p.status !== 'pending');
   for (let f = 0; f < filtered.length; f++) {
     const origIdx = proposals.indexOf(filtered[f]);
     var isActive = origIdx === selectedIndex ? ' active' : '';
@@ -604,14 +807,36 @@ function approveAll() {
   if (selectedIndex === null) return;
   var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_all'})
-    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Approved all', 'success'); } });
+    .then(function(data) {
+      if (!data) return;
+      proposals[selectedIndex] = data.proposal;
+      _advance(oldIndex);
+      if (data.sync && data.sync.ok) {
+        showToast('Synced to Kanka: ' + data.sync.message, 'success');
+      } else if (data.sync && !data.sync.ok) {
+        showToast('Kanka sync failed: ' + data.sync.message, 'error');
+      } else {
+        showToast('Approved all', 'success');
+      }
+    });
 }
 
 function approveSynopsisOnly() {
   if (selectedIndex === null) return;
   var oldIndex = selectedIndex;
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_synopsis_only'})
-    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Synopsis approved', 'success'); } });
+    .then(function(data) {
+      if (!data) return;
+      proposals[selectedIndex] = data.proposal;
+      _advance(oldIndex);
+      if (data.sync && data.sync.ok) {
+        showToast('Synopsis synced to Kanka: ' + data.sync.message, 'success');
+      } else if (data.sync && !data.sync.ok) {
+        showToast('Kanka sync failed: ' + data.sync.message, 'error');
+      } else {
+        showToast('Synopsis approved', 'success');
+      }
+    });
 }
 
 function rejectCurrent() {
@@ -715,7 +940,7 @@ function showToast(message, type) {
   var toast = document.getElementById('toast');
   toast.textContent = message;
   toast.className = 'toast toast-' + type + ' show';
-  setTimeout(function(){ toast.classList.remove('show'); }, 2000);
+  setTimeout(function(){ toast.classList.remove('show'); }, 7000);
 }
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────

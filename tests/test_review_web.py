@@ -126,10 +126,24 @@ class TestApiProposals:
 class TestApiProposalStatus:
     def test_update_status_approved_all(self, app_with_queue):
         """POST /api/proposals/1/status with status=approved_all sets applied."""
-        resp = app_with_queue.post(
-            "/api/proposals/1/status",
-            json={"status": "approved_all"},
-        )
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index",
+                side_effect=lambda c: {
+                    "42": {"name": "Kael Ironfist", "kind": "character"}
+                },
+            ):
+                resp = app_with_queue.post(
+                    "/api/proposals/1/status",
+                    json={"status": "approved_all"},
+                )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["proposal"]["status"] == "applied"
@@ -162,13 +176,25 @@ class TestApiProposalStatus:
 
     def test_status_persists_to_file(self, app_with_queue):
         """After approving, the queue file on disk reflects the change."""
+        import unittest.mock as mock
         import kanka_wiki_updater.review_web as rw
 
-        # Approve proposal at index 1
-        app_with_queue.post(
-            "/api/proposals/1/status",
-            json={"status": "approved_all"},
-        )
+        mock_client = mock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index",
+                side_effect=lambda c: {
+                    "42": {"name": "Kael Ironfist", "kind": "character"}
+                },
+            ):
+                app_with_queue.post(
+                    "/api/proposals/1/status",
+                    json={"status": "approved_all"},
+                )
         # Reload from disk using review_web's dynamic path resolution
         queue = rw._load_queue()
         assert queue[1]["status"] == "applied"
@@ -472,3 +498,203 @@ class TestNewlineEscaping:
         # JS should see: data.text + '\n'  (literal backslash-n in source)
         # NOT: data.text + ' + actual_newline_byte + ';
         assert "data.text + '\\n'" in html or "data.text + '\\\\n'" in html
+
+
+class TestApiProposalSync:
+    """Tests for the /api/proposals/<index>/sync endpoint."""
+
+    def test_sync_endpoint_exists(self, app_with_queue):
+        """POST /api/proposals/0/sync returns a JSON response (may fail without Kanka)."""
+        import unittest.mock as mock
+
+        # Mock KankaClient to avoid needing real API credentials
+        mock_client = mock.MagicMock()
+        mock_client.create_character.return_value = {
+            "data": {"id": 999, "entity_id": "42", "entry": ""}
+        }
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index", return_value={}
+            ):
+                resp = app_with_queue.post("/api/proposals/0/sync")
+                assert resp.status_code == 200
+                data = resp.get_json()
+                assert "ok" in data
+                assert "message" in data
+
+    def test_sync_new_entity_creates_character(self, app_with_queue):
+        """Syncing a new_entity proposal calls create_character on KankaClient."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.create_character.return_value = {
+            "data": {"id": 999, "entity_id": "42", "entry": ""}
+        }
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index", return_value={}
+            ):
+                resp = app_with_queue.post("/api/proposals/0/sync")
+                data = resp.get_json()
+                assert data["ok"] is True
+                mock_client.create_character.assert_called_once()
+
+    def test_sync_update_calls_update_entity_entry(self, app_with_queue):
+        """Syncing an update proposal calls update_entity_entry on KankaClient."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index",
+                side_effect=lambda c: {
+                    "42": {"name": "Kael Ironfist", "kind": "character"}
+                },
+            ):
+                resp = app_with_queue.post("/api/proposals/1/sync")
+                data = resp.get_json()
+                assert data["ok"] is True
+                mock_client.update_entity_entry.assert_called_once()
+
+    def test_sync_invalid_index_returns_404(self, app_with_queue):
+        """POST /api/proposals/99/sync returns 404."""
+        resp = app_with_queue.post("/api/proposals/99/sync")
+        assert resp.status_code == 404
+
+    def test_sync_failure_returns_error(self, app_with_queue):
+        """When KankaClient raises an error, sync returns ok=False."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.create_character.side_effect=Exception("API is down")
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            resp = app_with_queue.post("/api/proposals/0/sync")
+            data = resp.get_json()
+            assert data["ok"] is False
+
+
+class TestStatusWithSync:
+    """Tests that status update triggers sync for approved proposals."""
+
+    def test_approve_all_triggers_sync(self, app_with_queue):
+        """Approving all triggers KankaClient calls and returns sync info."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.create_character.return_value = {
+            "data": {"id": 999, "entity_id": "42", "entry": ""}
+        }
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index", return_value={}
+            ):
+                resp = app_with_queue.post(
+                    "/api/proposals/0/status",
+                    json={"status": "approved_all"},
+                )
+                assert resp.status_code == 200
+                data = resp.get_json()
+                assert "sync" in data
+                assert data["ok"] is True
+                assert data["proposal"]["status"] == "applied"
+                assert "Created character" in data["sync"]["message"]
+
+    def test_approve_sync_failure_returns_409(self, app_with_queue):
+        """When sync fails, status update returns 409 with error details."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.create_character.side_effect = Exception("Connection refused")
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            resp = app_with_queue.post(
+                "/api/proposals/0/status",
+                json={"status": "approved_all"},
+            )
+            assert resp.status_code == 409
+            data = resp.get_json()
+            assert data["sync_error"] is True
+            assert "Connection refused" in data["sync_message"]
+
+    def test_reject_does_not_trigger_sync(self, app_with_queue):
+        """Rejecting a proposal does NOT call any KankaClient methods."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            resp = app_with_queue.post(
+                "/api/proposals/0/status",
+                json={"status": "rejected"},
+            )
+            assert resp.status_code == 200
+            mock_client.create_character.assert_not_called()
+
+    def test_approve_update_syncs_synopsis(self, app_with_queue):
+        """Approving an update proposal syncs the synopsis to Kanka."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index",
+                side_effect=lambda c: {
+                    "42": {"name": "Kael Ironfist", "kind": "character"}
+                },
+            ):
+                resp = app_with_queue.post(
+                    "/api/proposals/1/status",
+                    json={"status": "approved_all"},
+                )
+                assert resp.status_code == 200
+                mock_client.update_entity_entry.assert_called_once()
+
+    def test_approve_synopsis_only_triggers_sync(self, app_with_queue):
+        """Approving synopsis-only also triggers sync (synopsis is synced)."""
+        import unittest.mock as mock
+
+        mock_client = mock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with mock.patch(
+            "kanka_wiki_updater.review_web.KankaClient", return_value=mock_client
+        ):
+            with mock.patch(
+                "kanka_wiki_updater.review_web.build_entity_index",
+                side_effect=lambda c: {
+                    "42": {"name": "Kael Ironfist", "kind": "character"}
+                },
+            ):
+                resp = app_with_queue.post(
+                    "/api/proposals/1/status",
+                    json={"status": "approved_synopsis_only"},
+                )
+                assert resp.status_code == 200
+                mock_client.update_entity_entry.assert_called_once()
