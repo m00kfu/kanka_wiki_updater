@@ -135,18 +135,17 @@ class KankaClient:
         if since:
             params['lastSync'] = since
         if journal_type:
-            # Map custom param to library filter
-            pass
+            params['type'] = journal_type  # maps to ?type=Session in API
         journals = self._client.journals.list(**params)
-        return [j.model_dump() for j in journals]  # normalize to dicts for now
+        return list(journals)  # Pydantic models — callers use .name, .id etc.
 
     def get_characters(self):
         chars = self._client.characters.list(related=True)
-        return [c.model_dump() for c in chars]
+        return list(chars)
 
     def get_locations(self):
         locs = self._client.locations.list(related=True)
-        return [l.model_dump() for l in locs]
+        return list(locs)
 
     # ... CRUD methods delegate to library ...
 ```
