@@ -172,44 +172,47 @@ class TestCRUDOperations:
 
     def test_create_relation_with_attitude(self):
         client, mock = self._client_with_mock()
-        rel = types.SimpleNamespace(id=1, owner_id=123, target_id=456, relation='Sworn enemy')
-        mock.relations.create.return_value = rel  # always returns *rel*
+        mock._request.return_value = {'data': [{'id': 1, 'owner_id': 123, 'target_id': 456, 'relation': 'Sworn enemy'}]}
 
         client.create_relation(123, 456, 'Sworn enemy', attitude=-80)
-        call_args = mock.relations.create.call_args[0]
-        assert call_args == (123, 456, 'Sworn enemy')
-        call_kwargs = mock.relations.create.call_args[1]
-        assert call_kwargs['attitude'] == -80
-        assert call_kwargs['visibility_id'] == 1
+        mock._request.assert_called_once()
+        call_args = mock._request.call_args
+        assert call_args[0] == ('POST', 'entities/123/relations')
+        body = call_args[1]['json']
+        assert body['owner_id'] == 123
+        assert body['target_id'] == 456
+        assert body['relation'] == 'Sworn enemy'
+        assert body['attitude'] == -80
+        assert body['visibility_id'] == 1
 
     def test_create_relation_without_attitude(self):
         client, mock = self._client_with_mock()
-        rel = types.SimpleNamespace(id=2, owner_id=123, target_id=456, relation='Friend')
-        mock.relations.create.return_value = rel
+        mock._request.return_value = {'data': [{'id': 2, 'owner_id': 123, 'target_id': 456, 'relation': 'Friend'}]}
 
         client.create_relation(123, 456, 'Friend', attitude=None)
-        call_kwargs = mock.relations.create.call_args[1]
-        assert 'attitude' not in call_kwargs or call_kwargs.get('attitude') is None
+        call_kwargs = mock._request.call_args[1]
+        body = call_kwargs['json']
+        assert 'attitude' not in body
 
     def test_create_relation_with_two_way(self):
         client, mock = self._client_with_mock()
-        rel = types.SimpleNamespace(id=3, owner_id=123, target_id=456, relation='Friend')
-        mock.relations.create.return_value = rel
+        mock._request.return_value = {'data': [{'id': 3, 'owner_id': 123, 'target_id': 456, 'relation': 'Friend'}]}
 
         client.create_relation(123, 456, 'Friend', two_way=True)
-        call_kwargs = mock.relations.create.call_args[1]
-        assert call_kwargs['two_way'] is True
+        call_kwargs = mock._request.call_args[1]
+        body = call_kwargs['json']
+        assert body['two_way'] is True
 
     def test_update_relation(self):
         client, mock = self._client_with_mock()
         client.update_relation(123, 999, relation='Enemy', attitude=-50)
-        mock.relations.update.assert_called_once_with(123, 999, relation='Enemy', attitude=-50)
+        call_kwargs = mock._request.call_args[1]
+        assert call_kwargs['json'] == {'relation': 'Enemy', 'attitude': -50}
 
     def test_delete_relation(self):
         client, mock = self._client_with_mock()
-        mock.relations.delete.return_value = True
         client.delete_relation(123, 999)
-        mock.relations.delete.assert_called_once_with(123, 999)
+        mock._request.assert_called_once_with('DELETE', 'entities/123/relations/999')
 
 
 class TestThrottle:

@@ -126,17 +126,21 @@ class TestApiProposals:
 class TestApiProposalStatus:
     def test_update_status_approved_all(self, app_with_queue):
         """POST /api/proposals/1/status with status=approved_all sets applied."""
-        import unittest.mock as mock
+        import types
+        from unittest import mock
 
         mock_client = mock.MagicMock()
         mock_client.get_relations.return_value = []
+
+        def make_entity(name):
+            return types.SimpleNamespace(name=name)
 
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
-                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                    42: types.SimpleNamespace(name='Kael Ironfist'),
+                    99: types.SimpleNamespace(name='Vexara the Veiled'),
                 },
             ):
                 resp = app_with_queue.post(
@@ -175,24 +179,28 @@ class TestApiProposalStatus:
 
     def test_status_persists_to_file(self, app_with_queue):
         """After approving, the queue file on disk reflects the change."""
-        import unittest.mock as mock
-        import kanka_wiki_updater.review_web as rw
+        import types
+        from unittest import mock
 
         mock_client = mock.MagicMock()
         mock_client.get_relations.return_value = []
+
+        def make_entity(name):
+            return types.SimpleNamespace(name=name)
 
         with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
-                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                    42: make_entity('Kael Ironfist'),
+                    99: make_entity('Vexara the Veiled'),
                 },
             ):
                 app_with_queue.post(
                     '/api/proposals/1/status',
                     json={'status': 'approved_all'},
                 )
+        import kanka_wiki_updater.review_web as rw
         # Reload from disk using review_web's dynamic path resolution
         queue = rw._load_queue()
         assert queue[1]['status'] == 'applied'
@@ -535,6 +543,7 @@ class TestApiProposalSync:
 
     def test_sync_update_calls_update_entity_entry(self, app_with_queue):
         """Syncing an update proposal calls update_entity_entry on KankaClient."""
+        import types
         import unittest.mock as mock
 
         mock_client = mock.MagicMock()
@@ -544,8 +553,8 @@ class TestApiProposalSync:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
-                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                    42: types.SimpleNamespace(name='Kael Ironfist'),
+                    99: types.SimpleNamespace(name='Vexara the Veiled'),
                 },
             ):
                 resp = app_with_queue.post('/api/proposals/1/sync')
@@ -628,6 +637,7 @@ class TestStatusWithSync:
 
     def test_approve_update_syncs_synopsis(self, app_with_queue):
         """Approving an update proposal syncs the synopsis to Kanka."""
+        import types
         import unittest.mock as mock
 
         mock_client = mock.MagicMock()
@@ -637,8 +647,8 @@ class TestStatusWithSync:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
-                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                    42: types.SimpleNamespace(name='Kael Ironfist'),
+                    99: types.SimpleNamespace(name='Vexara the Veiled'),
                 },
             ):
                 resp = app_with_queue.post(
@@ -650,6 +660,7 @@ class TestStatusWithSync:
 
     def test_approve_synopsis_only_triggers_sync(self, app_with_queue):
         """Approving synopsis-only also triggers sync (synopsis is synced)."""
+        import types
         import unittest.mock as mock
 
         mock_client = mock.MagicMock()
@@ -659,8 +670,8 @@ class TestStatusWithSync:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    '42': {'name': 'Kael Ironfist', 'kind': 'character'},
-                    '99': {'name': 'Vexara the Veiled', 'kind': 'character'},
+                    42: types.SimpleNamespace(name='Kael Ironfist'),
+                    99: types.SimpleNamespace(name='Vexara the Veiled'),
                 },
             ):
                 resp = app_with_queue.post(

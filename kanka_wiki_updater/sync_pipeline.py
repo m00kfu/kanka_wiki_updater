@@ -12,10 +12,19 @@ Usage:
 """
 
 import argparse
+import os
 import re
 import sys
 import time
 from pathlib import Path
+
+_DEBUG = bool(os.environ.get('KANKA_DEBUG'))  # type: ignore[unused-ignore,assignment]
+
+
+def _debug(*args):
+    if _DEBUG:
+        print('[DEBUG]', *args, file=sys.stderr)
+
 
 from pydantic import BaseModel
 
@@ -78,13 +87,16 @@ def build_entity_index(client):
     cross-entity-type id used by relations and mentions)."""
     index = {}
     for kind, rows in (('character', client.get_characters()), ('location', client.get_locations())):
+        _debug(f'  build_entity_index: {kind}: {len(rows)} items')
         for row in rows:
             entry_text = getattr(row, 'entry', '') or ''
             rels = getattr(row, 'relations', []) or []
+            name = getattr(row, 'name', '<UNKNOWN>')
+            _debug(f'    [{kind}] eid={row.entity_id} local_id={row.id} name={name!r}')
             index[row.entity_id] = EntityData(
                 kind=kind,
                 local_id=row.id,
-                name=row.name,
+                name=name,
                 entry=entry_text,
                 relations=[_rel_to_dict(r) for r in rels],
             )

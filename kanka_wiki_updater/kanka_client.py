@@ -1,12 +1,23 @@
 """Wrapper around python-kanka library for Kanka API."""
 
+import os
+import sys
+
 import kanka
 
 from . import config
 
+_DEBUG = bool(os.environ.get('KANKA_DEBUG'))
+
+
+def _debug(*args):
+    if _DEBUG:
+        print('[KANKA-DEBUG]', *args, file=sys.stderr)
+
 
 class KankaError(RuntimeError):
     """Raised when a Kanka operation fails (backward-compatible alias)."""
+
     pass
 
 
@@ -74,18 +85,48 @@ class KankaClient:
     # -- Relations --------------------------------------------------------
 
     def get_relations(self, entity_id):
-        return self._client.relations.list_for_entity(entity_id)  # returns list[Relation]
+        _debug(f'get_relations(entity_id={entity_id})')
+        # Use direct API call — python-kanka's list_for_entity tries to
+        # instantiate Relation objects but the vendor library has a broken import.
+        resp = self._client._request('GET', f'entities/{entity_id}/relations')
+        data = resp.get('data') or []
+        if isinstance(data, dict):
+            data = [data]
+        _debug(f'  -> {len(data)} relations returned')
+        return data
 
     def create_relation(self, entity_id, target_id, relation, attitude=None, two_way=False, visibility_id=1):
-        rel = self._client.relations.create(
-            entity_id, target_id, relation,
-            attitude=attitude, two_way=two_way,
-            visibility_id=visibility_id,
+        _debug(
+            f'create_relation(entity_id={entity_id}, target_id={target_id}, relation={relation!r}, '
+            f'attitude={attitude!r}, two_way={two_way}, visibility_id={visibility_id})'
         )
-        return {'data': {k: getattr(rel, k, None) for k in ['id', 'owner_id', 'target_id', 'relation']}}
+        # Call the API directly with snake_case fields — python-kanka sends
+        # camelCase (ownerId, targetId) which Kanka's current API rejects.
+        body = {
+            'owner_id': entity_id,
+            'target_id': target_id,
+            'relation': relation,
+            'visibility_id': visibility_id,
+        }
+        if attitude is not None:
+            body['attitude'] = attitude
+        if two_way:
+            body['two_way'] = True
+        resp = self._client._request('POST', f'entities/{entity_id}/relations', json=body)
+        data = resp.get('data') or {}
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        result = {'data': {k: data.get(k) for k in ['id', 'owner_id', 'target_id', 'relation']}}
+        _debug(f'  -> {result}')
+        return result
 
     def update_relation(self, entity_id, relation_id, **fields):
-        self._client.relations.update(entity_id, relation_id, **fields)
+        _debug(f'update_relation(entity_id={entity_id}, relation_id={relation_id}, {fields})')
+        self._client._request('PATCH', f'entities/{entity_id}/relations/{relation_id}', json=fields)
+        _debug('  -> succeeded')
 
     def delete_relation(self, entity_id, relation_id):
-        return self._client.relations.delete(entity_id, relation_id)  # returns bool
+        _debug(f'delete_relation(entity_id={entity_id}, relation_id={relation_id})')
+        self._client._request('DELETE', f'entities/{entity_id}/relations/{relation_id}')
+        _debug('  -> succeeded')
+        return True

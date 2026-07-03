@@ -8,14 +8,24 @@ data/pending_changes.json — the same file used by review.py. Both can coexist
 without conflict; they just need to agree on the JSON schema.
 """
 
+import difflib
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
+import traceback as tb_mod
 from collections import defaultdict, deque  # noqa: F401 (defaultdict needed for Task 2 SSE streaming)
 from pathlib import Path
+
+_DEBUG = bool(os.environ.get('KANKA_DEBUG'))
+
+
+def _debug(*args):
+    if _DEBUG:
+        print('[DEBUG]', *args, file=sys.stderr)
+
 
 if __name__ == '__main__' and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -57,6 +67,8 @@ def _rel_id(rel):
 
 _sync_jobs = {}
 _job_counter = [0]
+_entity_index_cache = {}  # cached (index, name_to_id) for current review batch
+_name_to_id_override = {}  # newly-created entities during this batch
 
 
 def _next_job_id():
@@ -194,25 +206,77 @@ def create_app():
         try:
             from .mentions import add_missing_entity_tags
         except ImportError:
-            from kanka_wiki_updater.mentions import add_missing_entity_tags
+            pass
 
         queue = _load_queue()
         if idx >= len(queue):
             return False, 'Proposal not found in queue'
+
+        # Reset per-session caches so stale data doesn't persist across reviews
+        global _entity_index_cache, _name_to_id_override
+        _entity_index_cache = {}
+        _name_to_id_override = {}
 
         proposal = queue[idx]
         client = KankaClient()
         details = []
         errors = []
 
+        ptype = proposal.get('proposal_type')
+        pname = proposal.get('entity_name', '?')
+        _debug(f'=== SYNC {idx}: type={ptype}, entity={pname} ===')
+        _debug(f'  raw proposal keys: {list(proposal.keys())}')
+
         def resolve_name_to_id(client, name):
             """Resolve an entity name to its entity_id via a full index build."""
+            global _entity_index_cache
+            _debug(f'@@@ resolve_name_to_id CALLED: {name!r} cache_has={bool(_entity_index_cache)} @@@')
             try:
-                index = build_entity_index(client)
+                # Check override map first (newly-created entities in this batch)
                 needle = name.strip().lower()
-                for eid, data in index.items():
-                    if data['name'].strip().lower() == needle:
+                for n, eid in _name_to_id_override.items():
+                    if n == needle:
                         return eid
+
+                # Use cached index if available, else build fresh
+                if not _entity_index_cache:
+                    index = build_entity_index(client)
+                    name_map = {}
+                    for eid, data in index.items():
+                        name_map[data.name.strip().lower()] = eid
+                    _entity_index_cache = (index, name_map)
+                    _debug(f'  built entity index with {len(index)} entities')
+
+                index, name_map = _entity_index_cache
+                _debug(f"    resolving '{name}' (needle={needle!r})")
+
+                # Exact match via pre-built map — always wins over fuzzy/substring
+                if needle in name_map:
+                    eid = name_map[needle]
+                    _debug(f"    exact match found: '{index[eid].name}' -> eid={eid}")
+                    return eid
+
+                # Fuzzy fallback — try partial substring match (case-insensitive)
+                candidates = [data.name for data in index.values() if needle in data.name.lower()]
+                _debug(f"    substring candidates for '{name}': {candidates[:5]}")
+                if len(candidates) == 1:
+                    _debug(f"    single substring match: '{candidates[0]}'")
+                    return next(eid for eid, data in index.items() if data.name == candidates[0])
+
+                # Fuzzy fallback — try Levenshtein distance via difflib
+                entity_names = list(index.values())
+                matches = difflib.get_close_matches(needle, [d.name.lower() for d in entity_names], n=5, cutoff=0.7)
+                _debug(f"    difflib candidates: {[d.name for d in entity_names[:10]]}")
+                if matches:
+                    _debug(f"    fuzzy match candidates for '{name}': {matches[:3]}")
+                    for eid, data in index.items():
+                        if data.name.lower() == matches[0]:
+                            _debug(f"    fuzzy resolved '{name}' -> '{data.name}' (eid={eid})")
+                            return eid
+                if not candidates and not matches:
+                    _debug(
+                        f"    no match at all for '{name}' — index has {len(index)} entities, names include: {[d.name for d in entity_names[:10]]}"
+                    )
             except Exception as e:
                 errors.append(f'Resolution warning: {e}')
             return None
@@ -221,11 +285,13 @@ def create_app():
             if proposal.get('proposal_type') == 'new_entity':
                 entity_type = proposal.get('suggested_type', 'character')
                 kind_param = 'characters' if entity_type == 'character' else 'locations'
+                _debug(f'  creating {entity_type}: name={proposal["entity_name"]!r}')
                 result = getattr(client, f'create_{entity_type}')(
                     proposal['entity_name'], entry=proposal.get('draft_entry', '')
                 )
                 data = result.get('data', {}) if isinstance(result, dict) else {}
                 new_entity_id = data.get('entity_id')
+                _debug(f'  create response: {result}')
                 proposal['created_local_id'] = data.get('id')
                 proposal['created_kind'] = entity_type
                 proposal['created_entity_id'] = new_entity_id
@@ -234,12 +300,14 @@ def create_app():
                     details.append(f' (entity_id={new_entity_id})')
                     # Make immediately available as relation target for later proposals in same batch
                     queue[idx]['_resolved'] = True
+                    _name_to_id_override[proposal['entity_name'].strip().lower()] = new_entity_id
                 else:
                     errors.append(f"Created entity but couldn't read entity_id from response. Raw response: {result}")
 
             elif proposal.get('proposal_type') == 'update':
                 # Update synopsis entry
                 kind_param = 'characters' if proposal['entity_kind'] == 'character' else 'locations'
+                _debug(f"  updating {kind_param}/{proposal['entity_local_id']} for '{proposal['entity_name']}'")
                 client.update_entity_entry(
                     kind_param,
                     proposal['entity_local_id'],
@@ -248,14 +316,23 @@ def create_app():
                 details.append(f"Updated synopsis for '{proposal['entity_name']}'")
 
         except Exception as e:
+            _debug(f'  SYNC EXCEPTION (synopsis): type={type(e).__name__} err={e}')
+            _debug(f'    full traceback:\n{tb_mod.format_exc()}')
             errors.append(f'Sync error: {e}')
 
         # Handle relation changes (both new_entity and update)
         rel_changes = proposal.get('relation_changes', [])
         if rel_changes:
+            _debug(f'  relation_changes count={len(rel_changes)}')
+            for i, rc in enumerate(rel_changes):
+                _debug(
+                    f'    [{i}] action={rc.get("action")!r} target={rc.get("target_name")!r} '
+                    f'relation={rc.get("relation")!r} attitude={rc.get("attitude")!r}'
+                )
             try:
                 if proposal.get('proposal_type') == 'new_entity':
                     entity_id_str = str(proposal.get('created_entity_id', ''))
+                    _debug(f'  new_entity: created_entity_id_raw={entity_id_str!r}')
                     if not entity_id_str or not entity_id_str.isdigit():
                         errors.append(
                             'Cannot resolve relations for new entity: no entity_id available. '
@@ -265,8 +342,10 @@ def create_app():
                         entity_id = int(entity_id_str)
                 else:
                     eid = proposal.get('entity_id')
+                    _debug(f'  update: entity_id from proposal={eid!r}')
                     if not eid:
                         eid = resolve_name_to_id(client, proposal['entity_name'])
+                        _debug(f"  resolved name->id for '{proposal['entity_name']}': {eid!r}")
                         if not eid:
                             errors.append(
                                 f"Cannot find entity_id for '{proposal['entity_name']}'. "
@@ -278,23 +357,36 @@ def create_app():
                 # Only proceed with relations if we have a valid entity_id and no fatal errors
                 fatal_errors = [e for e in errors if 'Cannot resolve' in e or 'Cannot find entity_id' in e]
                 if not fatal_errors and 'entity_id' in locals():
+                    _debug(f'  fetching existing relations for entity_id={entity_id}')
                     existing_relations = client.get_relations(entity_id)
+                    _debug(f'  existing_relations ({len(existing_relations)} total):')
+                    for ri, er in enumerate(existing_relations):
+                        rel_name = er.get('relation') if isinstance(er, dict) else getattr(er, 'relation', None)
+                        _debug(
+                            f'    [{ri}] target_id={_rel_target(er)!r} '
+                            f'owner_id={_rel_owner(er)!r} id={_rel_id(er)!r} relation={rel_name!r}'
+                        )
                     for rc in rel_changes:
                         target_name = rc['target_name']
                         action = (rc.get('action') or '').strip().lower()
 
                         if action == 'delete':
+                            _debug(f'  DELETE relation -> {target_name}')
                             target_entity_id = resolve_name_to_id(client, target_name)
+                            _debug(f"    resolved target '{target_name}' -> entity_id={target_entity_id!r}")
                             if not target_entity_id:
-                                errors.append(f"Cannot delete relation -> {target_name}: entity not found")
+                                errors.append(f'Cannot delete relation -> {target_name}: entity not found')
                                 continue
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
+                            _debug(f'    existing relation lookup: {existing is not None}')
                             if existing and _rel_id(existing):
-                                client.delete_relation(entity_id, _rel_id(existing))
+                                rid = _rel_id(existing)
+                                _debug(f'    calling delete_relation eid={entity_id} rid={rid}')
+                                client.delete_relation(entity_id, rid)
                                 details.append(f'Deleted relation -> {target_name}')
                             elif existing:
                                 errors.append(
-                                    f"Cannot delete relation -> {target_name}: API did not return a relation id. "
+                                    f'Cannot delete relation -> {target_name}: API did not return a relation id. '
                                     f'Raw relation object: {existing}. Try deleting manually in Kanka.'
                                 )
                             else:
@@ -304,10 +396,15 @@ def create_app():
                                 )
 
                         elif action in ('create', 'update'):
+                            _debug(f'  {action.upper()} relation -> {target_name} (relation={rc.get("relation")!r})')
                             target_entity_id = resolve_name_to_id(client, target_name)
+                            if target_entity_id:
+                                _debug(f"    resolved target '{target_name}' -> entity_id={target_entity_id}")
+                            else:
+                                _debug(f"    FAILED to resolve '{target_name}' — entity not found in Kanka index")
                             if not target_entity_id:
                                 errors.append(
-                                    f"Cannot {action} relation -> {target_name}: entity not found. "
+                                    f'Cannot {action} relation -> {target_name}: entity not found. '
                                     f'Check the spelling — the name must match exactly as it appears in Kanka.'
                                 )
                                 continue
@@ -320,6 +417,7 @@ def create_app():
                                 _rel_owner(r) == target_entity_id and _rel_target(r) == entity_id
                                 for r in existing_relations
                             )
+                            _debug(f'    has_reverse (stale check): {has_reverse}')
 
                             if has_reverse:
                                 details.append(
@@ -328,27 +426,36 @@ def create_app():
                                 )
 
                             elif action == 'create' or not existing:
+                                _debug(f'    create_relation eid={entity_id} tid={target_entity_id}')
+                                _debug(f'    relation_name={rc.get("relation")!r}, attitude={rc.get("attitude")!r}')
+                                _debug(f'    action={action!r}, existing={existing is not None}')
                                 try:
                                     resp = client.create_relation(
                                         entity_id, target_entity_id, rc['relation'], rc.get('attitude')
                                     )
+                                    _debug(
+                                        f'    create_relation response keys: {list(resp.keys()) if isinstance(resp, dict) else type(resp)}'
+                                    )
+                                    _debug(f'    create_relation response: {resp}')
                                     details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
                                 except Exception as create_err:
                                     # Capture the HTTP status code if available so 409s are actionable
+                                    _debug(f'    create_relation ERR: {type(create_err).__name__}')
+                                    _debug(f'    full traceback:\n{tb_mod.format_exc()}')
                                     status_code = getattr(create_err, 'response', None)
                                     if hasattr(status_code, 'status_code'):
                                         errors.append(
-                                            f"Failed to create relation -> {target_name}: "
+                                            f'Failed to create relation -> {target_name}: '
                                             f'HTTP {status_code.status_code} — "{create_err}". '
                                             f'This usually means a relation already exists between these entities. '
                                             f'Check Kanka directly and delete any duplicate, then retry.'
                                         )
                                     else:
-                                        errors.append(
-                                            f"Failed to create relation -> {target_name}: {create_err}"
-                                        )
+                                        errors.append(f'Failed to create relation -> {target_name}: {create_err}')
 
                             elif existing and _rel_id(existing):
+                                rid = _rel_id(existing)
+                                _debug(f'    update_relation eid={entity_id} rid={rid} rel={rc.get("relation")!r}')
                                 try:
                                     client.update_relation(
                                         entity_id,
@@ -356,28 +463,39 @@ def create_app():
                                         relation=rc['relation'],
                                         attitude=rc.get('attitude'),
                                     )
+                                    _debug('    update_relation succeeded')
                                     details.append(f"Updated relation -> {target_name}: '{rc['relation']}'")
                                 except Exception as update_err:
+                                    _debug(f'    update_relation ERR: {type(update_err).__name__}')
+                                    _debug(f'    full traceback:\n{tb_mod.format_exc()}')
                                     status_code = getattr(update_err, 'response', None)
                                     if hasattr(status_code, 'status_code'):
                                         errors.append(
-                                            f"Failed to update relation -> {target_name}: "
+                                            f'Failed to update relation -> {target_name}: '
                                             f'HTTP {status_code.status_code} — "{update_err}". '
                                             f'This may mean the relation was modified externally. Check Kanka directly.'
                                         )
                                     else:
-                                        errors.append(
-                                            f"Failed to update relation -> {target_name}: {update_err}"
-                                        )
+                                        errors.append(f'Failed to update relation -> {target_name}: {update_err}')
 
                             elif existing and not _rel_id(existing):
                                 errors.append(
-                                    f"Cannot update relation -> {target_name}: "
+                                    f'Cannot update relation -> {target_name}: '
                                     "API returned a relation without an 'id'. "
                                     f'Raw: {existing}. Try updating manually in Kanka.'
                                 )
 
             except Exception as e:
+                _debug(f'  RELATION SYNC OUTER EXCEPTION: type={type(e).__name__} err={e}')
+                _debug(f'    full traceback:\n{tb_mod.format_exc()}')
+                # Capture HTTP error details for actionable feedback
+                resp = getattr(e, 'response', None)
+                if resp is not None:
+                    try:
+                        body = resp.text[:500]
+                    except Exception:
+                        body = '<unreadable>'
+                    _debug(f'    response status={getattr(resp, "status_code", "?")} body={body!r}')
                 errors.append(f'Relation sync error: {e}')
 
         if errors:
