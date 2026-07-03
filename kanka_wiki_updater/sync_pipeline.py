@@ -27,6 +27,55 @@ def _debug(*args):
 
 
 from pydantic import BaseModel
+from difflib import SequenceMatcher
+
+_MIN_NAME_LENGTH = 4
+
+
+def _is_known_entity(suggested_name, known_names):
+    """Return True if *suggested_name* looks like an existing entity.
+
+    Checks two heuristics against every name in *known_names*:
+      1. **Substring containment** -- the suggestion is contained within a
+         known name or vice-versa (e.g. "Aerendyl" inside "Aerendyl Stonehand").
+      2. **Fuzzy match** -- SequenceMatcher ratio ≥ 0.84 on lower-cased names
+         whose first word is at least 4 characters long.
+
+    Short suggestions (< 4 chars) are skipped to avoid false positives from
+    common words like "the", "of", or single letters."""
+    suggested = (suggested_name or '').strip().lower()
+    if not suggested:
+        return False
+    # Skip very short suggestions entirely -- they'll always be substrings
+    # of longer names, causing massive false-positive rate.
+    if len(suggested) < _MIN_NAME_LENGTH:
+        return False
+
+    # Fast exact check (already done in the caller, but keep here for completeness).
+    known_lower = {n.lower() for n in known_names}
+    if suggested in known_lower:
+        return True
+
+    for name in known_names:
+        lower_name = name.lower()
+        # Skip very short names to avoid false positives.
+        first_word = lower_name.split()[0] if lower_name.split() else lower_name
+        if len(first_word) < _MIN_NAME_LENGTH:
+            continue
+
+        # Substring containment (bidirectional).
+        if suggested in lower_name or lower_name in suggested:
+            return True
+
+        # Fuzzy match on the first word.
+        if (
+            len(suggested.split()[0]) >= _MIN_NAME_LENGTH
+            and SequenceMatcher(None, suggested.split()[0], first_word).ratio() >= 0.84
+        ):
+            return True
+
+    return False
+
 
 if __name__ == '__main__' and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -163,11 +212,13 @@ def propose_update(entity_id, entity, journal, index):
         'entity_local_id': entity['local_id'],
         'entity_name': entity['name'],
         'source_journal': getattr(journal, 'name', None),
+        '_journal_id': journal.id,
         'previous_entry': entity['entry'],
         'proposed_entry': result.get('updated_entry', '') or entity['entry'],
         'change_summary': result.get('change_summary', ''),
         'relation_changes': result.get('relation_changes', []),
         'uncertain': result.get('uncertain', []),
+        'truncated': result.get('truncated', False) or '[TRUNCATED:' in (result.get('change_summary', '') or ''),
         'status': 'pending',
     }
 
@@ -263,11 +314,22 @@ def propose_new_entities(journal, known_names):
     for candidate in result.get('new_entities', []) or []:
         name = (candidate.get('name') or '').strip()
         if not name or name.lower() in known_lower:
-            continue  # defensive re-check even though the prompt already asked for this
+            continue  # exact match -- skip even though the prompt asked for this
+
+        if _is_known_entity(name, known_names):
+            print(f'      ! Skipping "{name}" -- matches existing entity (substring/fuzzy)')
+            continue
 
         suggested_type = (candidate.get('suggested_type') or 'character').strip().lower()
         if suggested_type not in ('character', 'location'):
             suggested_type = 'character'
+
+        draft = (candidate.get('draft_entry') or '').strip()
+        is_truncated = False
+        if draft:
+            last = draft.rstrip()[-1:] if len(draft) > 1 else ''
+            if last in (',', ':', ';', '(', '['):
+                is_truncated = True
 
         proposals.append(
             {
@@ -277,6 +339,7 @@ def propose_new_entities(journal, known_names):
                 'draft_entry': candidate.get('draft_entry', ''),
                 'reason': candidate.get('reason', ''),
                 'source_journal': getattr(journal, 'name', None),
+                'truncated': is_truncated,
                 'status': 'pending',
             }
         )

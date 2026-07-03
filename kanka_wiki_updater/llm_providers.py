@@ -27,6 +27,38 @@ class LLMError(RuntimeError):
     pass
 
 
+# Heuristic patterns that suggest the LLM output was cut off mid-string.
+_TRUNCATION_END_PATTERNS = (
+    ',',
+    ' ',
+    '\n',  # ends with trailing whitespace/punctuation (common when cut mid-sentence)
+    ':',
+    ';',
+    '(',
+    '[',
+    '{',  # structural punctuation suggesting incomplete content
+)
+
+
+def _looks_truncated(result):
+    """Heuristic: does the updated_entry look like it was cut off?"""
+    if not isinstance(result, dict):
+        return False
+    entry = result.get('updated_entry', '') or ''
+    if not entry.strip():
+        return False
+    # Check for incomplete sentences / mid-token cutoff at end of synopsis text
+    stripped = entry.rstrip()
+    if stripped and len(stripped) > 0:
+        last_char = stripped[-1]
+        if last_char in (',', ':', ';', '(', '['):
+            return True
+        # Trailing space or newline after incomplete quote/word
+        if stripped.endswith((' "', " '", ', ', '\n')) and len(stripped) > 5:
+            return True
+    return False
+
+
 def _extract_json(text, finish_reason=None):
     """Extract JSON from model output using regex + json_repair fallback.
 
@@ -38,7 +70,15 @@ def _extract_json(text, finish_reason=None):
 
     If `finish_reason` is 'length'/'MAX_TOKENS', the model hit its token limit
     mid-response. The parsed result may be valid JSON but with truncated string
-    fields -- we append a warning to change_summary so review.py can flag it.
+    fields -- we set ``truncated`` to True and append a warning to change_summary
+    so review.py can flag it.
+
+    We also apply heuristics (incomplete trailing punctuation) when
+    ``finish_reason`` is unknown, catching cases where the HTTP response didn't
+    include the field but the output still looks cut off.
+
+    Returns:
+        dict with a ``truncated`` bool key set to True when truncation was detected.
     """
     match = JSON_BLOCK_RE.search(text)
     if not match:
@@ -62,14 +102,23 @@ def _extract_json(text, finish_reason=None):
                 f'repair ({e2}). Output was:\n{text[:500]}'
             ) from e2
 
-    if finish_reason == 'length' and isinstance(result, dict):
+    if isinstance(result, dict):
+        truncated = False
         trunc_msg = '[TRUNCATED: model hit token limit. Output may be incomplete -- review carefully.]'
-        summary = result.get('change_summary', '') or ''
-        if trunc_msg not in summary:
-            result['change_summary'] = f'{summary} {trunc_msg}'.strip() if summary else trunc_msg
-        reason = result.get('reason', '') or ''
-        if trunc_msg not in reason:
-            result['reason'] = f'{reason} {trunc_msg}'.strip() if reason else trunc_msg
+
+        if finish_reason == 'length':
+            truncated = True
+        elif _looks_truncated(result):
+            truncated = True
+
+        if truncated:
+            result['truncated'] = True
+            summary = result.get('change_summary', '') or ''
+            if trunc_msg not in summary:
+                result['change_summary'] = f'{summary} {trunc_msg}'.strip() if summary else trunc_msg
+            reason = result.get('reason', '') or ''
+            if trunc_msg not in reason:
+                result['reason'] = f'{reason} {trunc_msg}'.strip() if reason else trunc_msg
 
     return result
 

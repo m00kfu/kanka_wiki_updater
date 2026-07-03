@@ -201,6 +201,7 @@ class TestApiProposalStatus:
                     json={'status': 'approved_all'},
                 )
         import kanka_wiki_updater.review_web as rw
+
         # Reload from disk using review_web's dynamic path resolution
         queue = rw._load_queue()
         assert queue[1]['status'] == 'applied'
@@ -404,11 +405,11 @@ class TestNewlineEscaping:
         assert 'function escapeJs' in html
 
     def test_escape_js_html_uses_br_for_newlines(self, app_with_queue):
-        """escapeJsHtml converts newlines to <br>, not raw 0x0A bytes."""
+        """escapeJsHtml converts newlines to <br>, using JS escape sequences."""
         resp = app_with_queue.get('/')
         html = resp.data.decode()
-        # The function should replace \n with '<br>', not literal newline chars
-        assert ".replace(/\\r\\n/g, '<br>')" in html or "replace(/\\\\n/g, '<br>')" in html
+        # The function should use escaped \r and \n in regex literals (not raw control bytes)
+        assert '.replace(/\\r/g, ' in html   # CR check - escaped text sequence
 
     def test_escape_js_html_escapes_backslashes(self, app_with_queue):
         """escapeJsHtml doubles backslashes for JS string safety."""
@@ -418,21 +419,17 @@ class TestNewlineEscaping:
         assert '.replace(/\\\\/g' in html
 
     def test_rendered_html_has_no_raw_newlines_in_js(self, app_with_queue):
-        """Rendered HTML must not contain raw 0x0A bytes inside <script> blocks."""
+        """Rendered HTML must not contain raw 0x0A bytes inside escapeJsHtml function."""
         resp = app_with_queue.get('/')
         html = resp.data.decode()
         # Find the script tag content and verify no unescaped newlines appear
         start = html.find('<script>') + len('<script>')
         end = html.find('</script>')
         js_content = html[start:end]
-        # Inside <script>, any real newline outside of string concatenation
-        # would indicate a bug in escapeJsHtml or Jinja2 rendering
-        # The key check: no raw 0x0A byte appears where it shouldn't
-        # (newlines between JS statements are fine; we check the function body)
         func_start = js_content.find('function escapeJsHtml')
         func_end = js_content.find('}', func_start) + 1
         func_body = js_content[func_start:func_end]
-        # The function should use string literals like '<br>' or '\\n', not raw \n chars
+        # The function should use escaped \n and \r text sequences, not raw control bytes
         assert '\n' not in func_body.replace('\\n', '').replace('\r\n', '') or '<br>' in func_body
 
     def test_proposal_with_newlines_does_not_break_html(self, tmp_path):
@@ -680,3 +677,143 @@ class TestStatusWithSync:
                 )
                 assert resp.status_code == 200
                 mock_client.update_entity_entry.assert_called_once()
+
+
+class TestApiProposalRegenerate:
+    """Tests for the /api/proposals/<index>/regenerate endpoint."""
+
+    def test_regenerate_non_update_returns_400(self, app_with_queue):
+        """Regenerating a new_entity proposal returns 400."""
+        resp = app_with_queue.post('/api/proposals/0/regenerate')
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'only update' in data['error'].lower()
+
+    def test_regenerate_invalid_index_returns_404(self, app_with_queue):
+        """POST /api/proposals/99/regenerate returns 404."""
+        resp = app_with_queue.post('/api/proposals/99/regenerate')
+        assert resp.status_code == 404
+
+    def test_regenerate_missing_journal_id_returns_400(self, app_with_queue):
+        """A truncated proposal without _journal_id returns 400."""
+        import types as _types
+        from unittest import mock as umock
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            with umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
+            ):
+                app_with_queue.post('/api/proposals/1/status', json={'status': 'rejected'})
+
+        import kanka_wiki_updater.review_web as rw
+
+        queue = rw._load_queue()
+        # Add truncated flag and _journal_id, then remove _journal_id to test missing field
+        queue[1]['truncated'] = True
+        queue[1]['_journal_id'] = 789
+        queue[1].pop('_journal_id', None)
+        import kanka_wiki_updater.config as config
+        import os
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        resp = app_with_queue.post('/api/proposals/1/regenerate')
+        assert resp.status_code == 400
+
+    def test_regenerate_identical_output_returns_409(self, app_with_queue):
+        """Regeneration that produces identical output returns 409."""
+        import types as _types
+        from unittest import mock as umock
+
+        # Set up queue with _journal_id and truncated flag
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import kanka_wiki_updater.config as config
+        import os
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
+
+        mock_entity = _types.SimpleNamespace(
+            id=101, entity_id='42', name='Kael Ironfist', local_id=101, entry='<p>Old synopsis.</p>', relations=[]
+        )
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_characters.return_value = [mock_entity]
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            with umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
+            ):
+                with umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat:
+                    # Return identical entry — no change detected
+                    mock_chat.return_value = {
+                        'updated_entry': '<p>Old synopsis.</p>',
+                        'change_summary': '',
+                        'relation_changes': [],
+                    }
+                    resp = app_with_queue.post('/api/proposals/1/regenerate')
+
+        assert resp.status_code == 409
+
+    def test_regenerate_success_updates_proposal(self, app_with_queue):
+        """A successful regeneration updates the proposal and clears truncated flag."""
+        import types as _types
+        from unittest import mock as umock
+
+        # Set up queue with _journal_id and truncated flag
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import kanka_wiki_updater.config as config
+        import os
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
+
+        mock_entity = _types.SimpleNamespace(
+            id=101, entity_id='42', name='Kael Ironfist', local_id=101, entry='<p>Old synopsis.</p>', relations=[]
+        )
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_characters.return_value = [mock_entity]
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            with umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
+            ):
+                with umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat:
+                    # Return a different entry — change detected
+                    mock_chat.return_value = {
+                        'updated_entry': '<p>New synopsis text.</p>',
+                        'change_summary': 'Updated.',
+                        'relation_changes': [],
+                    }
+                    resp = app_with_queue.post('/api/proposals/1/regenerate')
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+        assert data['proposal']['proposed_entry'] == '<p>New synopsis text.</p>'
+        assert data['proposal'].get('truncated') is False

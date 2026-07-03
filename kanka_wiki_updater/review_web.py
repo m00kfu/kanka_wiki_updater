@@ -67,6 +67,7 @@ def _rel_id(rel):
 
 _sync_jobs = {}
 _job_counter = [0]
+_sync_cancel_lock = threading.Lock()  # protects _sync_jobs mutations
 _entity_index_cache = {}  # cached (index, name_to_id) for current review batch
 _name_to_id_override = {}  # newly-created entities during this batch
 
@@ -266,7 +267,7 @@ def create_app():
                 # Fuzzy fallback — try Levenshtein distance via difflib
                 entity_names = list(index.values())
                 matches = difflib.get_close_matches(needle, [d['name'].lower() for d in entity_names], n=5, cutoff=0.7)
-                _debug(f"    difflib candidates: {[d['name'] for d in entity_names[:10]]}")
+                _debug(f'    difflib candidates: {[d["name"] for d in entity_names[:10]]}')
                 if matches:
                     _debug(f"    fuzzy match candidates for '{name}': {matches[:3]}")
                     for eid, data in index.items():
@@ -531,6 +532,122 @@ def create_app():
         _save_queue(queue)
         return jsonify(result)
 
+    @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
+    def regenerate_proposal(index):
+        """Re-run a truncated update proposal through the LLM with higher token limits."""
+        queue = _load_queue()
+        if index >= len(queue):
+            return jsonify({'error': 'Proposal not found'}), 404
+
+        proposal = queue[index]
+        if proposal.get('proposal_type') != 'update':
+            return jsonify({'error': 'Only update proposals can be regenerated'}), 400
+
+        # Only regenerate truncated proposals (or force-regenerate via ?force=1)
+        if not proposal.get('truncated', False) and request.args.get('force') != '1':
+            return jsonify({'error': 'Proposal is not marked as truncated. Use ?force=1 to override.'}), 400
+
+        journal_id = proposal.get('_journal_id')
+        entity_id = proposal.get('entity_id')
+        if not journal_id or not entity_id:
+            return jsonify(
+                {
+                    'ok': False,
+                    'error': 'This proposal lacks the data needed to regenerate. Re-run sync_pipeline to get fresh proposals.',
+                }
+            ), 400
+
+        try:
+            from .mentions import normalize_text, strip_html
+            from .sync_pipeline import EntityData, relation_summary
+            from .llm_client import chat_json
+            from .prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+        except ImportError:
+            return jsonify({'error': 'Import error — cannot regenerate'}), 500
+
+        client = KankaClient()
+
+        # Fetch the original journal entry
+        journals = client.get_journals(journal_ids=[journal_id])
+        if not journals:
+            return jsonify(
+                {
+                    'ok': False,
+                    'error': f'Could not fetch journal {journal_id} from Kanka.',
+                }
+            ), 400
+        journal = journals[0]
+
+        # Fetch fresh entity data (may have changed since original sync)
+        kind_param = f'{proposal["entity_kind"]}s'
+        entity_raw = getattr(client, f'get_{kind_param}')()
+        entity_data = next((e for e in entity_raw if e.id == proposal['entity_local_id']), None)
+        if not entity_data:
+            return jsonify(
+                {
+                    'ok': False,
+                    'error': f'Could not find {proposal["entity_kind"]} (local_id={proposal["entity_local_id"]}) in Kanka.',
+                }
+            ), 400
+
+        session_text = strip_html(getattr(journal, 'entry', '') or '')
+        if not session_text.strip():
+            return jsonify({'ok': False, 'error': 'Journal entry is empty.'}), 400
+
+        # Build entity index for relation resolution
+        idx = build_entity_index(client)
+        entity_info = {
+            'kind': proposal['entity_kind'],
+            'local_id': proposal['entity_local_id'],
+            'name': proposal['entity_name'],
+            'entry': getattr(entity_data, 'entry', '') or '',
+            'relations': [],
+        }
+        rels = getattr(entity_data, 'relations', []) or []
+        for r in rels:
+            entity_info['relations'].append(_rel_to_dict(r))
+
+        user_prompt = USER_PROMPT_TEMPLATE.format(
+            name=entity_info['name'],
+            entity_kind=entity_info['kind'],
+            current_entry=strip_html(entity_info['entry']) or '(no synopsis yet)',
+            current_relations=relation_summary(entity_info['relations'], idx),
+            journal_name=getattr(journal, 'name', None) or 'Session note',
+            journal_date=getattr(journal, 'date', None) or getattr(journal, 'created_at', '') or '',
+            session_text=session_text,
+        )
+
+        # Use 2x max_tokens for regeneration to give the model more room
+        regen_max = (
+            (pkg_config.LLM_MAX_TOKENS * 2)
+            if pkg_config.LLM_PROVIDER != 'gemini'
+            else (pkg_config.GEMINI_MAX_TOKENS * 2)
+        )
+        try:
+            result = chat_json(SYSTEM_PROMPT, user_prompt, max_tokens=regen_max)
+        except Exception as e:
+            return jsonify({'ok': False, 'error': f'LLM error during regeneration: {e}'}), 500
+
+        no_text_change = normalize_text(result.get('updated_entry', '')) == normalize_text(entity_info['entry'])
+        if no_text_change and not result.get('relation_changes'):
+            return jsonify(
+                {'ok': False, 'error': 'Regenerated output is identical to current synopsis — nothing changed.'}
+            ), 409
+
+        queue[index]['proposed_entry'] = result.get('updated_entry', '') or entity_info['entry']
+        queue[index]['change_summary'] = result.get('change_summary', '')
+        queue[index]['relation_changes'] = result.get('relation_changes', [])
+        queue[index]['uncertain'] = result.get('uncertain', [])
+        queue[index]['truncated'] = False
+
+        _save_queue(queue)
+        return jsonify(
+            {
+                'ok': True,
+                'proposal': queue[index],
+            }
+        )
+
     @app.route('/api/sync/run', methods=['POST'])
     def run_sync():
         job_id = _next_job_id()
@@ -568,22 +685,52 @@ def create_app():
         last_flush = [0]  # mutable index into buffer
 
         def generate():
-            while True:
-                # Drain any buffered lines first
-                while buffer:
-                    line = buffer.popleft()
-                    yield f'event: message\ndata: {json.dumps({"type": "output", "text": line})}\n\n'
+            try:
+                while True:
+                    # Drain any buffered lines first
+                    while buffer:
+                        line = buffer.popleft()
+                        yield f'event: message\ndata: {json.dumps({"type": "output", "text": line})}\n\n'
 
-                if job['status'] in ('completed', 'error'):
-                    yield f'event: status\ndata: {json.dumps({"status": job["status"]})}\n\n'
-                    yield 'event: end\n\n'
-                    return
+                    if job['status'] in ('completed', 'error', 'cancelled'):
+                        yield f'event: status\ndata: {json.dumps({"status": job["status"]})}\n\n'
+                        yield 'event: end\n\n'
+                        return
 
-                time.sleep(0.2)  # poll interval
+                    time.sleep(0.2)  # poll interval
+            except GeneratorExit:
+                # Client disconnected — mark job as cancelled so stale connections don't serve it
+                with _sync_cancel_lock:
+                    if job['status'] == 'running':
+                        job['status'] = 'cancelled'
+                        job['finished_at'] = time.time()
 
         from flask import Response
 
         return Response(generate(), mimetype='text/event-stream')
+
+    @app.route('/api/sync/cancel', methods=['POST'])
+    def cancel_sync():
+        job_id = request.args.get('job_id')
+        if not job_id or job_id not in _sync_jobs:
+            return jsonify({'ok': False, 'error': 'Job not found'}), 404
+
+        with _sync_cancel_lock:
+            job = _sync_jobs[job_id]
+            if job['process'] and job['process'].poll() is None:
+                try:
+                    job['process'].terminate()
+                    job['process'].wait(timeout=3)
+                except Exception:
+                    try:
+                        job['process'].kill()
+                        job['process'].wait(timeout=5)
+                    except Exception:
+                        pass
+            job['status'] = 'cancelled'
+            job['finished_at'] = time.time()
+
+        return jsonify({'ok': True, 'job_id': job_id})
 
     @app.route('/api/sync/status')
     def sync_status():
@@ -627,15 +774,23 @@ def _sync_thread(job_id, proc, buffer):
     """Background thread that reads subprocess stdout and pushes to deque."""
     try:
         for line in proc.stdout:
+            with _sync_cancel_lock:
+                if job_id in _sync_jobs and _sync_jobs[job_id]['status'] == 'cancelled':
+                    break
             buffer.append(line.rstrip('\n'))
         proc.wait()
-        if proc.returncode == 0:
-            _sync_jobs[job_id]['status'] = 'completed'
-        else:
-            _sync_jobs[job_id]['status'] = 'error'
+        with _sync_cancel_lock:
+            if job_id not in _sync_jobs or _sync_jobs[job_id]['status'] == 'cancelled':
+                return
+            if proc.returncode == 0:
+                _sync_jobs[job_id]['status'] = 'completed'
+            else:
+                _sync_jobs[job_id]['status'] = 'error'
     except Exception as e:
-        buffer.append(f'Sync error: {e}')
-        _sync_jobs[job_id]['status'] = 'error'
+        with _sync_cancel_lock:
+            if job_id in _sync_jobs and _sync_jobs[job_id]['status'] != 'cancelled':
+                buffer.append(f'Sync error: {e}')
+                _sync_jobs[job_id]['status'] = 'error'
 
 
 # ── HTML template (embedded single-page app) ───────────────────────────────
@@ -769,6 +924,7 @@ let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
 let editingOriginal = ''; // original text when entering edit mode (for escape-to-cancel)
 let currentSyncJob = null; // {job_id, status, output}
+let syncEventSource = null; // EventSource reference for proper cleanup
 
 function getPending() { return proposals.filter(p => p.status === 'pending'); }
 
@@ -860,12 +1016,23 @@ function renderContent() {
   var prevEntry = p.previous_entry || '';
   var proposedEntry = p.proposed_entry || '';
   if (prevEntry && proposedEntry) {
-    var oldIds = (prevEntry.match(/\\[entity:(\\d+)\\]/g) || []).map(function(s){ return s.match(/(\\d+)/)[1]; });
-    var newIds = (proposedEntry.match(/\\[entity:(\\d+)\\]/g) || []).map(function(s){ return s.match(/(\\d+)/)[1]; });
+    var oldIds = (prevEntry.match(/\[entity:(\d+)\]/g) || []).map(function(s){ return s.match(/(\d+)/)[1]; });
+    var newIds = (proposedEntry.match(/\[entity:(\d+)\]/g) || []).map(function(s){ return s.match(/(\d+)/)[1]; });
     var dropped = oldIds.filter(function(x){ return newIds.indexOf(x) === -1; });
     if (dropped.length > 0) {
       html += '<div class="warning critical">!! ' + dropped.length + ' mention link(s) missing from new version!</div>';
     }
+  }
+
+  // Truncation warning with regenerate button
+  var isTruncated = p.truncated === true || (p.change_summary && p.change_summary.indexOf('[TRUNCATED:') !== -1);
+  if (isTruncated && p.proposal_type === 'update') {
+    html += '<div class="warning" id="truncationWarning">' +
+      '&#9888; This proposal may be truncated — the LLM hit its token limit and output was cut off. ' +
+      '<button class="btn" onclick="regenerateProposal()" style="padding:4px 12px;font-size:12px;margin-left:12px;">Regenerate (higher max_tokens)</button>' +
+      '</div>';
+  } else if (isTruncated && p.proposal_type === 'new_entity') {
+    html += '<div class="warning">&#9888; This new-entity suggestion may be truncated — the LLM output was cut off. Edit manually to fix.</div>';
   }
 
   // Synopsis / draft editing area
@@ -965,14 +1132,15 @@ function escapeHtml(text) {
 }
 
 function escapeJsHtml(str) {
-  // Escape HTML special chars, convert newlines to <br> for safe innerHTML insertion and JS string literal safety
-  var escaped = (escapeHtml(str || '')).replace(/\\\\/g, '\\\\');
-  return escaped.replace(/\\r\\n/g, '<br>').replace(/\\r/g, '<br>').replace(/\\n/g, '<br>');
+  // Escape backslash, single quote, HTML special chars, convert newlines to <br> for safe innerHTML insertion and JS string literal safety
+  var escaped = (escapeHtml(str || '')).replace(/\\\\/g, '\\\\').replace(/'/g, "\\'");
+  return escaped.replace(/\\r\\n/g, '<br>').replace(/\\r/g, '<br>').replace(/\\n/g, '<br>')
+    .replace(/\\\\n/g, '\\\\n').replace(/\\\\r/g, '\\\\r');
 }
 
 function escapeJs(str) {
-  // Escape backslash, newline, carriage return, and forward slash for safe JS string literal insertion
-  return (str || '').replace(/\\\\/g, '\\\\\\\\').replace(/\\n/g, '\\\\n').replace(/\\r/g, '\\\\r').replace(/\\//g, '\\/');
+  // Escape backslash, single/double quote, newline, carriage return, and forward slash for safe JS string literal insertion
+  return (str || '').replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\\n/g, '\\\\n').replace(/\\r/g, '\\\\r').replace(/\\//g, '\\/');
 }
 
 function stripHtml(html) {
@@ -1132,6 +1300,36 @@ async function deleteRelation(idx) {
   }
 }
 
+// ── Truncation regeneration ────────────────────────────────────────────────
+
+async function regenerateProposal() {
+  if (selectedIndex === null) return;
+  var p = proposals[selectedIndex];
+  if (!p || p.proposal_type !== 'update') { showToast('Only update proposals can be regenerated', 'error'); return; }
+
+  // Show loading state
+  var banner = document.getElementById('truncationWarning');
+  if (banner) {
+    banner.innerHTML += ' <span style="color:var(--blue);font-size:12px">Generating...</span>';
+  }
+
+  var result = await apiCall('/api/proposals/' + selectedIndex + '/regenerate', 'POST');
+  if (!result) return;
+
+  if (result.ok) {
+    proposals[selectedIndex] = result.proposal;
+    renderSidebar();
+    renderContent();
+    showToast('Regeneration successful — proposal updated with fresh LLM output.', 'success');
+  } else {
+    var msg = result.error || 'Regeneration failed';
+    if (banner) {
+      banner.innerHTML = '&#9888; Regeneration: <strong>' + escapeHtml(msg) + '</strong> ' + banner.innerHTML;
+    }
+    showToast(msg, 'error');
+  }
+}
+
 // ── Toast ──────────────────────────────────────────────────────────────────
 
 function showToast(message, type) {
@@ -1171,6 +1369,7 @@ document.addEventListener('keydown', function(e) {
     case 'a': approveAll(); break;
     case 's': approveSynopsisOnly(); break;
     case 'r': rejectCurrent(); break;
+    case 'g': regenerateProposal(); break;
     case 'q': window.close(); break;
   }
 });
@@ -1190,9 +1389,17 @@ document.addEventListener('keydown', function(e) {
 
 async function runSync() {
   if (currentSyncJob) {
-    // Cancel: close EventSource and reset
+    // Cancel: close EventSource and notify server to stop subprocess
+    if (syncEventSource) {
+      syncEventSource.close();
+      syncEventSource = null;
+    }
+    var jobId = currentSyncJob.job_id;
     currentSyncJob = null;
     renderContent();
+    // Notify server to terminate the running process
+    apiCall('/api/sync/cancel?job_id=' + encodeURIComponent(jobId), 'POST')
+      .catch(function() { /* best-effort */ });
     return;
   }
 
@@ -1203,9 +1410,9 @@ async function runSync() {
   renderContent();
 
   // Connect to SSE stream
-  var source = new EventSource('/api/sync/output?job_id=' + result.job_id);
+  syncEventSource = new EventSource('/api/sync/output?job_id=' + result.job_id);
 
-  source.addEventListener('message', function(e) {
+  syncEventSource.addEventListener('message', function(e) {
     var data = JSON.parse(e.data);
     if (data.type === 'output') {
       currentSyncJob.output += data.text + '\\n';
@@ -1217,14 +1424,15 @@ async function runSync() {
     }
   });
 
-  source.addEventListener('status', function(e) {
+  syncEventSource.addEventListener('status', function(e) {
     var data = JSON.parse(e.data);
     currentSyncJob.status = data.status;
     renderContent();
   });
 
-  source.addEventListener('end', function() {
-    source.close();
+  syncEventSource.addEventListener('end', function() {
+    syncEventSource.close();
+    syncEventSource = null;
     currentSyncJob = null;
     renderContent();
     // Refresh proposals after sync completes

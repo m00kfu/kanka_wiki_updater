@@ -39,8 +39,27 @@ class TestExtractJson:
             text = '{"updated_entry": "Cut off", "change_summary": ""}'
             result = _extract_json(text, finish_reason='length')
             assert '[TRUNCATED:' in result.get('change_summary', '')
+            assert result.get('truncated') is True
         finally:
             config_mod.LLM_MAX_TOKENS = original_max_tokens
+
+    def test_extract_json_heuristic_truncation(self):
+        """Trailing comma-space triggers truncation heuristic even without finish_reason."""
+        text = '{"updated_entry": "He cut off, ", "change_summary": ""}'
+        result = _extract_json(text)
+        assert '[TRUNCATED:' in (result.get('change_summary') or '') or result.get('truncated') is True
+
+    def test_extract_json_not_truncated_clean_text(self):
+        """Clean synopsis ending with period does not trigger truncation heuristic."""
+        text = '{"updated_entry": "He is a good man.", "change_summary": ""}'
+        result = _extract_json(text)
+        assert result.get('truncated') is not True
+
+    def test_extract_json_not_truncated_no_finish_reason(self):
+        """Without finish_reason and clean text, no truncation flag."""
+        text = '{"updated_entry": "Hello world", "change_summary": ""}'
+        result = _extract_json(text)
+        assert 'truncated' not in result
 
     def test_extract_json_with_escaped_quotes(self):
         text = '{"updated_entry": "She said \\"hello\\""}'

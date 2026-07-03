@@ -4,6 +4,7 @@ from types import SimpleNamespace as AttrMap
 
 from kanka_wiki_updater.sync_pipeline import (
     EntityData,
+    _is_known_entity,
     apply_relation_changes_locally,
     build_entity_index,
     find_mentioned_entities,
@@ -266,7 +267,12 @@ def test_apply_relation_changes_locally_create():
 
 def test_apply_relation_changes_locally_update():
     index = {
-        123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': [{'target_id': 456, 'relation': 'Acquaintance', 'attitude': None}]},
+        123: {
+            'kind': 'character',
+            'local_id': 1,
+            'name': 'Alice',
+            'relations': [{'target_id': 456, 'relation': 'Acquaintance', 'attitude': None}],
+        },
         456: {'name': 'Bob'},
     }
     name_to_id = {'Bob': 456}
@@ -285,7 +291,12 @@ def test_apply_relation_changes_locally_update():
 
 def test_apply_relation_changes_locally_delete():
     index = {
-        123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': [{'target_id': 456, 'relation': 'Friend'}]},
+        123: {
+            'kind': 'character',
+            'local_id': 1,
+            'name': 'Alice',
+            'relations': [{'target_id': 456, 'relation': 'Friend'}],
+        },
         456: {'name': 'Bob'},
     }
     name_to_id = {'Bob': 456}
@@ -318,3 +329,157 @@ def test_apply_relation_changes_locally_empty_changes():
     index = {123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': []}}
     apply_relation_changes_locally(123, [], index, {})
     assert len(index[123]['relations']) == 0
+
+
+# --- _is_known_entity tests (Task 15: filter false-positive new entities) ---
+
+
+def test_is_known_entity_exact_match():
+    assert _is_known_entity('Alice', ['alice', 'Bob', 'Castle']) is True
+    assert _is_known_entity('ALICE', ['alice', 'Bob', 'Castle']) is True
+
+
+def test_is_known_entity_substring_in_known_name():
+    # Suggestion "Aerendyl" matches known entity "Aerendyl Stonehand"
+    assert _is_known_entity('Aerendyl', ['Aerendyl Stonehand', 'Bob']) is True
+
+
+def test_is_known_entity_known_name_is_substring_of_suggestion():
+    # Suggestion "Aerendyl Stonehand the Great" contains known name "Aerendyl Stonehand"
+    assert _is_known_entity('Aerendyl Stonehand the Great', ['Aerendyl Stonehand']) is True
+
+
+def test_is_known_entity_fuzzy_first_word_match():
+    # First-word fuzzy match: "Aerendel" vs "Aerendyl" are very close
+    assert _is_known_entity('Aerendel', ['Aerendyl', 'Bob the Bard']) is True
+
+
+def test_is_known_entity_no_match():
+    assert _is_known_entity('Zephyr Stormwind', ['Alice', 'Waterdeep', 'Bob']) is False
+
+
+def test_is_known_entity_empty_name():
+    assert _is_known_entity('', ['Alice']) is False
+
+
+def test_is_known_entity_short_suggestion_skipped_for_substring_and_fuzzy():
+    # Short suggestions are skipped entirely to avoid false positives.
+    assert _is_known_entity('A', ['Alice', 'Bob']) is False  # single char
+    assert _is_known_entity('Of', ['Officer', 'Waterdeep']) is False  # too short for fuzzy
+
+
+def test_is_known_entity_case_insensitive():
+    assert _is_known_entity('WATERDEEP', ['waterdeep']) is True
+    assert _is_known_entity('waterdeep', ['Waterdeep']) is True
+
+
+# --- propose_update truncation flag tests (Task 16: truncated output detection) ---
+
+
+def test_propose_update_truncated_flag():
+    from unittest.mock import patch, MagicMock
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = AttrMap(
+        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
+    )
+    entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis.',
+            'change_summary': '',
+            'relation_changes': [],
+            'truncated': True,  # LLM hit token limit
+        }
+        with patch('kanka_wiki_updater.sync_pipeline.KankaClient') as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.entry = 'Old synopsis'
+            mock_instance.relations = []
+            mock_instance.get.return_value = [mock_instance]
+            mock_client.return_value.get_characters.return_value = []
+            mock_client.return_value.get_locations.return_value = []
+
+            result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result['truncated'] is True
+
+
+def test_propose_update_not_truncated():
+    from unittest.mock import patch, MagicMock
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = AttrMap(
+        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
+    )
+    entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis.',
+            'change_summary': '',
+            'relation_changes': [],
+        }
+        with patch('kanka_wiki_updater.sync_pipeline.KankaClient') as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.entry = 'Old synopsis'
+            mock_instance.relations = []
+            mock_instance.get.return_value = [mock_instance]
+            mock_client.return_value.get_characters.return_value = []
+            mock_client.return_value.get_locations.return_value = []
+
+            result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert 'truncated' not in result or result['truncated'] is False
+
+
+def test_propose_new_entity_truncation_heuristic():
+    from kanka_wiki_updater.sync_pipeline import propose_new_entities
+    from unittest.mock import patch
+
+    journal = AttrMap(
+        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
+    )
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'new_entities': [
+                {'name': 'Zara', 'suggested_type': 'character', 'draft_entry': 'A mysterious figure,', 'reason': ''},
+                {'name': 'Bob', 'suggested_type': 'location', 'draft_entry': 'A nice place.', 'reason': ''},
+            ]
+        }
+
+        results = propose_new_entities(journal, set())
+
+    # First entry ends with comma → truncated heuristic triggers
+    assert results[0]['truncated'] is True
+    # Second entry ends with period → not truncated
+    assert 'truncated' not in results[1] or results[1].get('truncated') is False
+
+
+def test_propose_update_stores_journal_id():
+    from unittest.mock import patch, MagicMock
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = AttrMap(
+        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
+    )
+    entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis.',
+            'change_summary': '',
+            'relation_changes': [],
+        }
+        with patch('kanka_wiki_updater.sync_pipeline.KankaClient') as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.entry = 'Old synopsis'
+            mock_instance.relations = []
+            mock_instance.get.return_value = [mock_instance]
+            mock_client.return_value.get_characters.return_value = []
+            mock_client.return_value.get_locations.return_value = []
+
+            result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result['_journal_id'] == 789
