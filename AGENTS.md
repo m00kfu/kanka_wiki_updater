@@ -63,6 +63,10 @@ Tests go in `tests/` alongside the source. Pure functions (mentions, state) are 
 - **Revert limitations:** reverted batches leave journals marked as "processed" — re-running `sync_pipeline` won't regenerate those proposals unless you remove the journal IDs from `data/processed_journals.json`. Only the most recent unreverted batch is undoable; pre-revert-tool runs lack sufficient detail.
 - **Gemini provider:** set `LLM_PROVIDER=gemini` plus `GEMINI_API_KEY` and `GEMINI_MODEL` in `.env` to use Google Gemini instead of LM Studio. Defaults to `lmstudio`.
 
+## External references
+
+- **Kanka API v1 docs:** https://app.kanka.io/api-docs/1.0/overview — the canonical reference for all Kanka endpoint parameters, response shapes, and rate limits. Refer to this when updating `kanka_client.py` or debugging unexpected responses.
+
 ## Prompt engineering notes
 
 - The LLM system prompt enforces strict JSON output (no markdown fences, escaped quotes/backslashes). If parsing fails frequently: switch to a model with better structured-output capability or lower `temperature` in `llm_client.py`.
