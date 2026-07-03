@@ -40,9 +40,9 @@ def test_build_entity_index_characters():
 
     index = build_entity_index(MockClient())
     assert 123 in index
-    assert index[123].kind == 'character'
-    assert index[123].local_id == 456
-    assert index[123].name == 'Alice'
+    assert index[123]['kind'] == 'character'
+    assert index[123]['local_id'] == 456
+    assert index[123]['name'] == 'Alice'
 
 
 def test_build_entity_index_locations():
@@ -65,7 +65,7 @@ def test_build_entity_index_locations():
 
     index = build_entity_index(MockClient())
     assert 789 in index
-    assert index[789].kind == 'location'
+    assert index[789]['kind'] == 'location'
 
 
 def test_build_entity_index_empty():
@@ -89,7 +89,7 @@ def test_build_entity_index_missing_entry():
             return []
 
     index = build_entity_index(MockClient())
-    assert index[1].entry == ''
+    assert index[1]['entry'] == ''
 
 
 def test_build_entity_index_missing_relations():
@@ -101,7 +101,7 @@ def test_build_entity_index_missing_relations():
             return []
 
     index = build_entity_index(MockClient())
-    assert index[1].relations == []
+    assert index[1]['relations'] == []
 
 
 # --- relation_summary tests (Task 9) ---
@@ -159,8 +159,8 @@ def test_relation_summary_none_attitude():
 
 def test_find_mentioned_entities_linked_only():
     text = '[character:123|Alice] went to [location:456|Castle]'
-    entity1 = AttrMap(kind='character', name='Alice')
-    entity2 = AttrMap(kind='location', name='Castle')
+    entity1 = {'kind': 'character', 'name': 'Alice'}
+    entity2 = {'kind': 'location', 'name': 'Castle'}
     index = {123: entity1, 456: entity2}
     result = find_mentioned_entities(text, index)
     assert 123 in result
@@ -169,7 +169,7 @@ def test_find_mentioned_entities_linked_only():
 
 def test_find_mentioned_entities_no_links():
     text = 'Someone went somewhere'
-    entity_data = AttrMap(kind='character', name='Alice')
+    entity_data = {'kind': 'character', 'name': 'Alice'}
     index = {123: entity_data}
     result = find_mentioned_entities(text, index)
     assert len(result) == 0
@@ -177,7 +177,7 @@ def test_find_mentioned_entities_no_links():
 
 def test_find_mentioned_entities_fuzzy_match():
     text = 'Alice went to the castle'
-    entity_data = AttrMap(kind='character', name='Alice')
+    entity_data = {'kind': 'character', 'name': 'Alice'}
     index = {123: entity_data}
     result = find_mentioned_entities(text, index)
     assert 123 in result
@@ -185,14 +185,14 @@ def test_find_mentioned_entities_fuzzy_match():
 
 def test_find_mentioned_entities_filters_unknown():
     text = '[entity:999|Unknown]'
-    entity_data = AttrMap(kind='character', name='Alice')
+    entity_data = {'kind': 'character', 'name': 'Alice'}
     index = {123: entity_data}
     result = find_mentioned_entities(text, index)
     assert 999 not in result
 
 
 def test_find_mentioned_entities_empty_text():
-    entity_data = AttrMap(kind='character', name='Alice')
+    entity_data = {'kind': 'character', 'name': 'Alice'}
     result = find_mentioned_entities('', {123: entity_data})
     assert len(result) == 0
 
@@ -248,8 +248,8 @@ def test_journal_sort_key_no_date_or_created():
 
 def test_apply_relation_changes_locally_create():
     index = {
-        123: EntityData(kind='character', local_id=1, name='Alice', relations=[]),
-        456: AttrMap(name='Bob'),
+        123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': []},
+        456: {'name': 'Bob'},
     }
     name_to_id = {'Bob': 456}
 
@@ -260,19 +260,14 @@ def test_apply_relation_changes_locally_create():
         name_to_id,
     )
 
-    assert len(index[123].relations) == 1
-    assert index[123].relations[0]['target_id'] == 456
+    assert len(index[123]['relations']) == 1
+    assert index[123]['relations'][0]['target_id'] == 456
 
 
 def test_apply_relation_changes_locally_update():
     index = {
-        123: EntityData(
-            kind='character',
-            local_id=1,
-            name='Alice',
-            relations=[{'target_id': 456, 'relation': 'Acquaintance', 'attitude': None}],
-        ),
-        456: AttrMap(name='Bob'),
+        123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': [{'target_id': 456, 'relation': 'Acquaintance', 'attitude': None}]},
+        456: {'name': 'Bob'},
     }
     name_to_id = {'Bob': 456}
 
@@ -283,20 +278,15 @@ def test_apply_relation_changes_locally_update():
         name_to_id,
     )
 
-    rel = index[123].relations[0]
+    rel = index[123]['relations'][0]
     assert rel['relation'] == 'Friend'
     assert rel['attitude'] == 80
 
 
 def test_apply_relation_changes_locally_delete():
     index = {
-        123: EntityData(
-            kind='character',
-            local_id=1,
-            name='Alice',
-            relations=[{'target_id': 456, 'relation': 'Friend'}],
-        ),
-        456: AttrMap(name='Bob'),
+        123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': [{'target_id': 456, 'relation': 'Friend'}]},
+        456: {'name': 'Bob'},
     }
     name_to_id = {'Bob': 456}
 
@@ -307,11 +297,11 @@ def test_apply_relation_changes_locally_delete():
         name_to_id,
     )
 
-    assert len(index[123].relations) == 0
+    assert len(index[123]['relations']) == 0
 
 
 def test_apply_relation_changes_locally_unknown_target():
-    index = {123: EntityData(kind='character', local_id=1, name='Alice', relations=[])}
+    index = {123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': []}}
     name_to_id = {}
 
     apply_relation_changes_locally(
@@ -321,10 +311,10 @@ def test_apply_relation_changes_locally_unknown_target():
         name_to_id,
     )
 
-    assert len(index[123].relations) == 0
+    assert len(index[123]['relations']) == 0
 
 
 def test_apply_relation_changes_locally_empty_changes():
-    index = {123: EntityData(kind='character', local_id=1, name='Alice', relations=[])}
+    index = {123: {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'relations': []}}
     apply_relation_changes_locally(123, [], index, {})
-    assert len(index[123].relations) == 0
+    assert len(index[123]['relations']) == 0

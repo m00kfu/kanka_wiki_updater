@@ -139,8 +139,8 @@ class TestApiProposalStatus:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    42: types.SimpleNamespace(name='Kael Ironfist'),
-                    99: types.SimpleNamespace(name='Vexara the Veiled'),
+                    42: {'name': 'Kael Ironfist'},
+                    99: {'name': 'Vexara the Veiled'},
                 },
             ):
                 resp = app_with_queue.post(
@@ -192,8 +192,8 @@ class TestApiProposalStatus:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    42: make_entity('Kael Ironfist'),
-                    99: make_entity('Vexara the Veiled'),
+                    42: {'name': 'Kael Ironfist'},
+                    99: {'name': 'Vexara the Veiled'},
                 },
             ):
                 app_with_queue.post(
@@ -553,8 +553,8 @@ class TestApiProposalSync:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    42: types.SimpleNamespace(name='Kael Ironfist'),
-                    99: types.SimpleNamespace(name='Vexara the Veiled'),
+                    42: {'name': 'Kael Ironfist'},
+                    99: {'name': 'Vexara the Veiled'},
                 },
             ):
                 resp = app_with_queue.post('/api/proposals/1/sync')
@@ -647,8 +647,8 @@ class TestStatusWithSync:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    42: types.SimpleNamespace(name='Kael Ironfist'),
-                    99: types.SimpleNamespace(name='Vexara the Veiled'),
+                    42: {'name': 'Kael Ironfist'},
+                    99: {'name': 'Vexara the Veiled'},
                 },
             ):
                 resp = app_with_queue.post(
@@ -670,8 +670,8 @@ class TestStatusWithSync:
             with mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
-                    42: types.SimpleNamespace(name='Kael Ironfist'),
-                    99: types.SimpleNamespace(name='Vexara the Veiled'),
+                    42: {'name': 'Kael Ironfist'},
+                    99: {'name': 'Vexara the Veiled'},
                 },
             ):
                 resp = app_with_queue.post(

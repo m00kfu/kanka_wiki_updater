@@ -138,7 +138,7 @@ class TestEmptyJournal:
     def test_empty_entry_skipped(self):
         from kanka_wiki_updater.sync_pipeline import propose_update
 
-        entity_data = AttrMap(name='Alice', kind='character', entry='Old synopsis', relations=[], local_id=1)
+        entity_data = {'name': 'Alice', 'kind': 'character', 'entry': 'Old synopsis', 'relations': [], 'local_id': 1}
         journal = AttrMap(id=1, name='Session 1', entry='', date='2024-01-01')
 
         result = propose_update(123, entity_data, journal, {})
@@ -147,7 +147,7 @@ class TestEmptyJournal:
     def test_whitespace_only_entry_skipped(self):
         from kanka_wiki_updater.sync_pipeline import propose_update
 
-        entity_data = AttrMap(name='Alice', kind='character', entry='Old synopsis', relations=[], local_id=1)
+        entity_data = {'name': 'Alice', 'kind': 'character', 'entry': 'Old synopsis', 'relations': [], 'local_id': 1}
         journal = AttrMap(id=1, name='Session 1', entry='   \n\n  ', date='2024-01-01')
 
         result = propose_update(123, entity_data, journal, {})
@@ -166,7 +166,7 @@ class TestNoMeaningfulChange:
         }
         monkeypatch.setattr(sp, 'chat_json', lambda sys, usr: mock_result)
 
-        entity_data = AttrMap(name='Alice', kind='character', entry='Same text', relations=[], local_id=1)
+        entity_data = {'name': 'Alice', 'kind': 'character', 'entry': 'Same text', 'relations': [], 'local_id': 1}
         journal = AttrMap(id=1, name='Session 1', entry='Nothing new happened.', date='2024-01-01')
 
         result = sp.propose_update(123, entity_data, journal, {})

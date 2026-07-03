@@ -243,7 +243,7 @@ def create_app():
                     index = build_entity_index(client)
                     name_map = {}
                     for eid, data in index.items():
-                        name_map[data.name.strip().lower()] = eid
+                        name_map[data['name'].strip().lower()] = eid
                     _entity_index_cache = (index, name_map)
                     _debug(f'  built entity index with {len(index)} entities')
 
@@ -253,29 +253,29 @@ def create_app():
                 # Exact match via pre-built map — always wins over fuzzy/substring
                 if needle in name_map:
                     eid = name_map[needle]
-                    _debug(f"    exact match found: '{index[eid].name}' -> eid={eid}")
+                    _debug(f"    exact match found: '{index[eid]['name']}' -> eid={eid}")
                     return eid
 
                 # Fuzzy fallback — try partial substring match (case-insensitive)
-                candidates = [data.name for data in index.values() if needle in data.name.lower()]
+                candidates = [data['name'] for data in index.values() if needle in data['name'].lower()]
                 _debug(f"    substring candidates for '{name}': {candidates[:5]}")
                 if len(candidates) == 1:
                     _debug(f"    single substring match: '{candidates[0]}'")
-                    return next(eid for eid, data in index.items() if data.name == candidates[0])
+                    return next(eid for eid, data in index.items() if data['name'] == candidates[0])
 
                 # Fuzzy fallback — try Levenshtein distance via difflib
                 entity_names = list(index.values())
-                matches = difflib.get_close_matches(needle, [d.name.lower() for d in entity_names], n=5, cutoff=0.7)
-                _debug(f"    difflib candidates: {[d.name for d in entity_names[:10]]}")
+                matches = difflib.get_close_matches(needle, [d['name'].lower() for d in entity_names], n=5, cutoff=0.7)
+                _debug(f"    difflib candidates: {[d['name'] for d in entity_names[:10]]}")
                 if matches:
                     _debug(f"    fuzzy match candidates for '{name}': {matches[:3]}")
                     for eid, data in index.items():
-                        if data.name.lower() == matches[0]:
-                            _debug(f"    fuzzy resolved '{name}' -> '{data.name}' (eid={eid})")
+                        if data['name'].lower() == matches[0]:
+                            _debug(f"    fuzzy resolved '{name}' -> '{data['name']}' (eid={eid})")
                             return eid
                 if not candidates and not matches:
                     _debug(
-                        f"    no match at all for '{name}' — index has {len(index)} entities, names include: {[d.name for d in entity_names[:10]]}"
+                        f"    no match at all for '{name}' — index has {len(index)} entities, names include: {[d['name'] for d in entity_names[:10]]}"
                     )
             except Exception as e:
                 errors.append(f'Resolution warning: {e}')

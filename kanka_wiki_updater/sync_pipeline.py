@@ -99,7 +99,7 @@ def build_entity_index(client):
                 name=name,
                 entry=entry_text,
                 relations=[_rel_to_dict(r) for r in rels],
-            )
+            ).model_dump()
     return index
 
 
@@ -124,7 +124,7 @@ def relation_summary(relations, index):
 
 def find_mentioned_entities(journal_entry_raw, index):
     ids = linked_entity_ids(journal_entry_raw)
-    names_by_id = {eid: data.name for eid, data in index.items()}
+    names_by_id = {eid: data['name'] for eid, data in index.items()}
     ids |= fuzzy_name_matches(strip_html(journal_entry_raw), names_by_id)
     return [eid for eid in ids if eid in index]
 
@@ -135,10 +135,10 @@ def propose_update(entity_id, entity, journal, index):
         return None
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
-        name=entity.name,
-        entity_kind=entity.kind,
-        current_entry=strip_html(entity.entry) or '(no synopsis yet)',
-        current_relations=relation_summary(entity.relations, index),
+        name=entity['name'],
+        entity_kind=entity['kind'],
+        current_entry=strip_html(entity['entry']) or '(no synopsis yet)',
+        current_relations=relation_summary(entity['relations'], index),
         journal_name=getattr(journal, 'name', None) or 'Session note',
         journal_date=getattr(journal, 'date', None) or getattr(journal, 'created_at', '') or '',
         session_text=session_text,
@@ -149,22 +149,22 @@ def propose_update(entity_id, entity, journal, index):
         # Catch broadly, not just LLMError -- a bad response from the model,
         # a network hiccup, or anything else here should cost us one entity,
         # not the rest of a multi-hour backfill run.
-        print(f'  ! LLM error for {entity.name}: {e}', file=sys.stderr)
+        print(f'  ! LLM error for {entity["name"]}: {e}', file=sys.stderr)
         return None
 
-    no_text_change = normalize_text(result.get('updated_entry', '')) == normalize_text(entity.entry)
+    no_text_change = normalize_text(result.get('updated_entry', '')) == normalize_text(entity['entry'])
     if no_text_change and not result.get('relation_changes'):
         return None  # model decided nothing meaningfully changed
 
     return {
         'proposal_type': 'update',
         'entity_id': entity_id,
-        'entity_kind': entity.kind,
-        'entity_local_id': entity.local_id,
-        'entity_name': entity.name,
+        'entity_kind': entity['kind'],
+        'entity_local_id': entity['local_id'],
+        'entity_name': entity['name'],
         'source_journal': getattr(journal, 'name', None),
-        'previous_entry': entity.entry,
-        'proposed_entry': result.get('updated_entry', '') or entity.entry,
+        'previous_entry': entity['entry'],
+        'proposed_entry': result.get('updated_entry', '') or entity['entry'],
         'change_summary': result.get('change_summary', ''),
         'relation_changes': result.get('relation_changes', []),
         'uncertain': result.get('uncertain', []),
@@ -211,7 +211,7 @@ def apply_relation_changes_locally(entity_id, relation_changes, index, name_to_i
     proposed (but not yet applied to Kanka), so the *next* journal in this
     same run sees the up-to-date picture instead of the stale Kanka copy."""
     entity_data = index[entity_id]
-    relations = entity_data.relations
+    relations = entity_data['relations']
     for rc in relation_changes:
         target_id = name_to_id.get(rc['target_name'])
         if not target_id:
@@ -288,7 +288,7 @@ def main(limit=None):
     client = KankaClient()
     print('Building character/location index...')
     index = build_entity_index(client)
-    name_to_id = {data.name: eid for eid, data in index.items()}
+    name_to_id = {data['name']: eid for eid, data in index.items()}
 
     last_sync = state.get_last_sync()
     print(f'Fetching journals since: {last_sync or "(beginning -- full history)"}')
@@ -332,11 +332,11 @@ def main(limit=None):
             for entity_id in mentioned:
                 entity = index[entity_id]
                 proposal = propose_update(entity_id, entity, journal, index)
-                tracker.mark_done(f'LLM for {entity.name}...')
+                tracker.mark_done(f'LLM for {entity["name"]}...')
                 if proposal:
                     state.append_to_queue([proposal])
                     total_proposals += 1
-                    entity.entry = proposal['proposed_entry']
+                    entity['entry'] = proposal['proposed_entry']
                     apply_relation_changes_locally(entity_id, proposal['relation_changes'], index, name_to_id)
 
             # New-entity scanning

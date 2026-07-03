@@ -25,13 +25,13 @@ def resolve_creates_to_updates(proposals, entity_index):
     conflicts = []
 
     for idx, proposal in enumerate(proposals):
-        owner_id = proposal['entity_id']
-        owner_data = entity_index.get(owner_id)
-        if not owner_data:
+        owner_id = proposal.get('entity_id')
+        if not owner_id:
             resolved.append(proposal)
             continue
 
-        owner_rels = owner_data.get('relations', [])
+        owner_data = entity_index.get(owner_id)
+        owner_rels = (owner_data or {}).get('relations', [])
 
         new_rcs = []
         for rc in list(proposal.get('relation_changes', [])):
