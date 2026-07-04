@@ -984,14 +984,15 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
   <div class="action-bar" id="actionBar">
     <button class="btn btn-primary" onclick="approveAll()">Approve All</button>
     <button class="btn btn-secondary" onclick="approveSynopsisOnly()">Synopsis Only</button>
+    <button class="btn" onclick="regenerateProposal()" style="display:none;background:#1f6feb;color:white;border-color:#1f6feb" id="regenerateBtn">Regenerate</button>
     <button class="btn btn-danger" onclick="rejectCurrent()">Reject</button>
     <div style="flex:1"></div>
-    <span style="font-size:12px;color:var(--text-dim)">[n]ext [p]rev [e]dit [esc]cancel [a]pprove [s]ynopsis [r]eject [q]uit</span>
+    <span style="font-size:12px;color:var(--text-dim)">[n]ext [p]rev [e]dit [esc]cancel [a]pprove [s]ynopsis [g]enerate [r]eject [q]uit</span>
   </div>
   <div class="shortcuts">
     <kbd>n</kbd> next &nbsp; <kbd>p</kbd> prev<br>
     <kbd>e</kbd> edit &nbsp; <kbd>esc</kbd> cancel<br>
-    <kbd>a</kbd> approve all &nbsp; <kbd>s</kbd> synopsis only<br>
+    <kbd>a</kbd> approve all &nbsp; <kbd>s</kbd> synopsis only &nbsp; <kbd>g</kbd> regenerate<br>
     <kbd>r</kbd> reject &nbsp; <kbd>q</kbd> quit (close tab)
   </div>
   <div class="toast" id="toast"></div>
@@ -1090,9 +1091,13 @@ function renderContent() {
     html += '<div class="source">&larr; ' + escapeJsHtml(p.source_journal) + '</div>';
     if (p.change_summary) { html += '<div class="summary">' + escapeJsHtml(p.change_summary) + '</div>'; }
     html += '</div>';
-  }
 
-  // Warnings for dropped mentions
+    // Regenerate link for update proposals
+    html += '<div style="padding:8px 0">' +
+      '<button class="btn" onclick="regenerateProposal()" style="font-size:12px;padding:4px 12px;">&#x21bb; Regenerate Proposal</button>' +
+      ' <span style="font-size:11px;color:var(--text-dim)">or press [g]</span></div>';
+
+    // Warnings for dropped mentions
   var prevEntry = p.previous_entry || '';
   var proposedEntry = p.proposed_entry || '';
   if (prevEntry && proposedEntry) {
@@ -1174,6 +1179,12 @@ function renderContent() {
   if (p.status !== 'pending') {
     var statusColor = p.status === 'applied' ? 'var(--green)' : 'var(--red)';
     html += '<div style="text-align:center;padding:16px;color:' + statusColor + ';font-weight:600;font-size:14px">Status: ' + p.status.toUpperCase() + '</div>';
+  }
+
+  // Show/hide regenerate button for update proposals
+  var regenBtn = document.getElementById('regenerateBtn');
+  if (regenBtn) {
+    regenBtn.style.display = (p.proposal_type === 'update') ? '' : 'none';
   }
 
   content.innerHTML = html;
