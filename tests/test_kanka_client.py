@@ -14,30 +14,6 @@ def _make_mock_session():
     return MagicMock()
 
 
-class FakeKankaClient:
-    """Minimal fake kanka.KankaClient for legacy compatibility.
-
-    Kept only so existing patch targets don't break during migration.
-    """
-
-    def __init__(self, *a, **kw):
-        self._inner = _make_mock_session()
-        self.journals = self._inner.journals
-        self.characters = self._inner.characters
-        self.locations = self._inner.locations
-        self.relations = self._inner.relations
-
-
-# -- test fixture: patch kanka.KankaClient at module level ------------------
-
-
-@pytest.fixture()
-def fake_kanka():
-    """Replace kanka.KankaClient with FakeKankaClient for the duration of a test."""
-    with patch('kanka_wiki_updater.kanka_client.kanka.KankaClient', FakeKankaClient):
-        yield
-
-
 # -- tests -------------------------------------------------------------------
 
 
@@ -358,52 +334,59 @@ class TestRequestRetry:
     @patch('kanka_wiki_updater.kanka_client.requests.Session')
     def test_rate_limit_retries_then_succeeds(self, mock_session_cls):
 
-        client = KankaClient.__new__(KankaClient)
-        client._base_url = 'https://api.kanka.io/1.0'
-        client._campaign_id = 999
-        client._retry_on_rate_limit = True
-        client._session = MagicMock()
+        with patch('kanka_wiki_updater.kanka_client._time') as mock_time:
+            client = KankaClient.__new__(KankaClient)
+            client._base_url = 'https://api.kanka.io/1.0'
+            client._campaign_id = 999
+            client._retry_on_rate_limit = True
+            client._session = MagicMock()
 
-        # First call returns 429, second succeeds
-        rate_limited_resp = self._make_mock_response(429)
-        success_resp = self._make_mock_response(200, {'data': [1]})
-        client._session.request.side_effect = [rate_limited_resp, success_resp]
+            # First call returns 429, second succeeds
+            rate_limited_resp = self._make_mock_response(429)
+            success_resp = self._make_mock_response(200, {'data': [1]})
+            client._session.request.side_effect = [rate_limited_resp, success_resp]
 
-        result = client._request('GET', 'journals')
-        assert result == {'data': [1]}
-        assert client._session.request.call_count == 2
+            result = client._request('GET', 'journals')
+            assert result == {'data': [1]}
+            assert client._session.request.call_count == 2
+            mock_time.sleep.assert_called()
 
     @patch('kanka_wiki_updater.kanka_client.requests.Session')
     def test_rate_limit_respects_retry_after_header(self, mock_session_cls):
 
-        client = KankaClient.__new__(KankaClient)
-        client._base_url = 'https://api.kanka.io/1.0'
-        client._campaign_id = 999
-        client._retry_on_rate_limit = True
-        client._session = MagicMock()
+        with patch('kanka_wiki_updater.kanka_client._time') as mock_time:
+            client = KankaClient.__new__(KankaClient)
+            client._base_url = 'https://api.kanka.io/1.0'
+            client._campaign_id = 999
+            client._retry_on_rate_limit = True
+            client._session = MagicMock()
 
-        rate_limited_resp = self._make_mock_response(429)
-        rate_limited_resp.headers['Retry-After'] = '0.1'
-        success_resp = self._make_mock_response(200, {'data': []})
-        client._session.request.side_effect = [rate_limited_resp, success_resp]
+            rate_limited_resp = self._make_mock_response(429)
+            rate_limited_resp.headers['Retry-After'] = '0.1'
+            success_resp = self._make_mock_response(200, {'data': []})
+            client._session.request.side_effect = [rate_limited_resp, success_resp]
 
-        result = client._request('GET', 'journals')
-        assert result == {'data': []}
+            result = client._request('GET', 'journals')
+            assert result == {'data': []}
+            mock_time.sleep.assert_called_with(0.1)
 
     @patch('kanka_wiki_updater.kanka_client.requests.Session')
     def test_rate_limit_exhausted_raises(self, mock_session_cls):
-        client = KankaClient.__new__(KankaClient)
-        client._base_url = 'https://api.kanka.io/1.0'
-        client._campaign_id = 999
-        client._retry_on_rate_limit = True
-        client._session = MagicMock()
 
-        rate_limited_resp = self._make_mock_response(429)
-        # Return 429 for all attempts (max_retries=8, so we need 9 total calls)
-        client._session.request.side_effect = [rate_limited_resp] * 10
+        with patch('kanka_wiki_updater.kanka_client._time') as mock_time:
+            client = KankaClient.__new__(KankaClient)
+            client._base_url = 'https://api.kanka.io/1.0'
+            client._campaign_id = 999
+            client._retry_on_rate_limit = True
+            client._session = MagicMock()
 
-        with pytest.raises(KankaError, match='Rate limit exceeded'):
-            client._request('GET', 'journals')
+            rate_limited_resp = self._make_mock_response(429)
+            # Return 429 for all attempts (max_retries=8, so we need 9 total calls)
+            client._session.request.side_effect = [rate_limited_resp] * 10
+
+            with pytest.raises(KankaError, match='Rate limit exceeded'):
+                client._request('GET', 'journals')
+            assert mock_time.sleep.call_count >= 2  # At least a few retries happened
 
     @patch('kanka_wiki_updater.kanka_client.requests.Session')
     def test_429_disabled_does_not_retry(self, mock_session_cls):

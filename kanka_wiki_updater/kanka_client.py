@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time as _time
 from email.utils import parsedate_to_datetime as _parsed
 
 import requests
@@ -40,8 +41,6 @@ class KankaClient:
 
     def _request(self, method: str, endpoint: str, **kwargs) -> dict:
         """Make HTTP request to Kanka API with automatic retry on rate limits."""
-        import time as _time
-
         url = f'{self._base_url}/campaigns/{self._campaign_id}/{endpoint}'
         attempts = 0
         delay = 1.0
