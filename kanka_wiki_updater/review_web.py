@@ -968,7 +968,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Ar
 .warning { background: #2a2000; border: 1px solid var(--yellow); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--yellow); }
 .warning.critical { background: #2a0d0d; border-color: var(--red); color: var(--red); }
 .editor-section { margin-bottom: 24px; }
-textarea.synopsis-editor { width: 100%; min-height: 200px; background: #0d1117; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.6; padding: 12px; resize: vertical; }
+textarea.synopsis-editor { width: 100%; min-height: 180px; max-height: 45vh; background: #0d1117; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.6; padding: 12px; resize: vertical; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; overflow-y: auto; }
 textarea.synopsis-editor:focus { outline: none; border-color: var(--cyan); }
 .action-bar { position: sticky; bottom: 0; background: rgba(22, 27, 34, 0.95); backdrop-filter: blur(8px); border-top: 1px solid var(--border); padding: 16px 24px; display: flex; gap: 10px; align-items: center; }
 .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; background: var(--surface); color: var(--text); }
@@ -1161,7 +1161,7 @@ function renderContent() {
   html += '<div class="diff-section"><h3>' + (p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis') + '</h3><div class="diff-container">';
   if (editingField === 'synopsis') {
     var currentText = p.proposal_type === 'new_entity' ? p.draft_entry : p.proposed_entry;
-    html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeJsHtml((stripHtml(currentText) || '').replace(/\\n/g, ' ')) + '</textarea>';
+    html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtmlForTextarea(stripHtml(currentText) || '') + '</textarea>';
   } else {
     if (p.proposal_type === 'new_entity') {
       html += '<div class="diff-line" style="cursor:pointer" onclick="startEdit(&quot;synopsis&quot;)">' + escapeJsHtml((p.draft_entry || '(none)').replace(/\\n/g, ' ')) + '</div>';
@@ -1264,6 +1264,11 @@ function escapeJsHtml(str) {
   var escaped = (escapeHtml(str || '')).replace(/\\\\/g, '\\\\').replace(/'/g, "\\'");
   return escaped.replace(/\\r\\n/g, '<br>').replace(/\\r/g, '<br>').replace(/\\n/g, '<br>')
     .replace(/\\\\n/g, '\\\\n').replace(/\\\\r/g, '\\\\r');
+}
+
+function escapeHtmlForTextarea(str) {
+  // Escape HTML special chars but preserve newlines as-is (for textarea content via innerHTML)
+  return escapeHtml(str || '');
 }
 
 function escapeJs(str) {
