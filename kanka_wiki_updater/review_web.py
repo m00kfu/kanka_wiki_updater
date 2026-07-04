@@ -535,60 +535,140 @@ def create_app():
     @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
     def regenerate_proposal(index):
         """Re-run a truncated update proposal through the LLM with higher token limits."""
-        queue = _load_queue()
+        print(f'[REGEN] START index={index}', file=sys.stderr, flush=True)
+        try:
+            queue = _load_queue()
+        except Exception as e:
+            print(f'[REGEN] ERROR loading queue: {e}', file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return jsonify({'error': str(e)}), 500
         if index >= len(queue):
             return jsonify({'error': 'Proposal not found'}), 404
 
         proposal = queue[index]
+        if _DEBUG:
+            _debug('regenerate #{} type={} truncated={} entity_id={} journal_id={} source_journal={}'.format(
+                index,
+                proposal.get('proposal_type'),
+                proposal.get('truncated'),
+                proposal.get('entity_id'),
+                proposal.get('_journal_id'),
+                proposal.get('source_journal'),
+            ))
+
         if proposal.get('proposal_type') != 'update':
             return jsonify({'error': 'Only update proposals can be regenerated'}), 400
 
-        # Only regenerate truncated proposals (or force-regenerate via ?force=1)
-        if not proposal.get('truncated', False) and request.args.get('force') != '1':
-            return jsonify({'error': 'Proposal is not marked as truncated. Use ?force=1 to override.'}), 400
-
+        # Allow regeneration of truncated proposals, or force-regenerate via ?force=1.
+        # Stale proposals without _journal_id are OK as long as source_journal is present.
+        _debug('about to enter main try block')
         journal_id = proposal.get('_journal_id')
         entity_id = proposal.get('entity_id')
-        if not journal_id or not entity_id:
+        if not entity_id:
             return jsonify(
                 {
                     'ok': False,
-                    'error': 'This proposal lacks the data needed to regenerate. Re-run sync_pipeline to get fresh proposals.',
+                    'error': (
+                        'This proposal lacks the data needed to regenerate. '
+                        'Re-run sync_pipeline for fresh proposals.'
+                    ),
+                }
+            ), 400
+
+        # Need at least _journal_id or source_journal for journal lookup
+        if not journal_id and not proposal.get('source_journal'):
+            return jsonify(
+                {
+                    'ok': False,
+                    'error': (
+                        "This proposal lacks both _journal_id and source_journal — "
+                        "cannot locate the original session."
+                    ),
                 }
             ), 400
 
         try:
-            from .mentions import normalize_text, strip_html
-            from .sync_pipeline import EntityData, relation_summary
-            from .llm_client import chat_json
-            from .prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
-        except ImportError:
+            _debug('about to import modules')
+            from kanka_wiki_updater.mentions import normalize_text, strip_html
+            from kanka_wiki_updater.sync_pipeline import EntityData, _rel_to_dict, relation_summary
+            from kanka_wiki_updater.llm_client import chat_json
+            from kanka_wiki_updater.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+        except ImportError as ie:
+            _debug('ImportError:', tb_mod.format_exc())
             return jsonify({'error': 'Import error — cannot regenerate'}), 500
 
-        client = KankaClient()
+        try:
+            _debug('about to create KankaClient')
+            client = KankaClient()
 
-        # Fetch the original journal entry
-        journals = client.get_journals(journal_ids=[journal_id])
-        if not journals:
+            # Fetch the original journal entry (fallback: search by source_journal name if _journal_id missing)
+            if journal_id:
+                try:
+                    journals = client.get_journals(journal_ids=[journal_id])
+                except Exception as api_err:
+                    return jsonify(
+                        {
+                            'ok': False,
+                            'error': f'Cannot fetch journal #{journal_id} from Kanka: {api_err}',
+                        }
+                    ), 400
+            else:
+                source_name = proposal.get('source_journal', '')
+                if not source_name:
+                    return jsonify(
+                        {
+                            'ok': False,
+                            'error': (
+                                "This proposal lacks _journal_id and source_journal — "
+                                "cannot locate the original session."
+                            ),
+                        }
+                    ), 400
+                try:
+                    all_journals = client.get_journals()
+                except Exception as api_err:
+                    return jsonify(
+                        {
+                            'ok': False,
+                            'error': f'Cannot contact Kanka to look up journal "{source_name}": {api_err}',
+                        }
+                    ), 400
+                journals = [j for j in all_journals if (getattr(j, 'name', '') or '').lower() == source_name.lower()]
+
+            if not journals:
+                return jsonify(
+                    {
+                        'ok': False,
+                        'error': 'Could not fetch journal from Kanka.',
+                    }
+                ), 400
+            journal = journals[0]
+
+            # Fetch fresh entity data (may have changed since original sync)
+            try:
+                kind_param = f'{proposal["entity_kind"]}s'
+                entity_raw = getattr(client, f'get_{kind_param}')()
+            except Exception as api_err:
+                return jsonify(
+                    {
+                        'ok': False,
+                        'error': f'Cannot contact Kanka to fetch entities: {api_err}',
+                    }
+                ), 400
+            entity_data = next((e for e in entity_raw if e.id == proposal['entity_local_id']), None)
+        except Exception as api_err:
+            _debug('regenerate error:', tb_mod.format_exc())
             return jsonify(
                 {
                     'ok': False,
-                    'error': f'Could not fetch journal {journal_id} from Kanka.',
+                    'error': f'Unexpected error during regeneration: {api_err}',
                 }
-            ), 400
-        journal = journals[0]
+            ), 500
 
-        # Fetch fresh entity data (may have changed since original sync)
-        kind_param = f'{proposal["entity_kind"]}s'
-        entity_raw = getattr(client, f'get_{kind_param}')()
-        entity_data = next((e for e in entity_raw if e.id == proposal['entity_local_id']), None)
-        if not entity_data:
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': f'Could not find {proposal["entity_kind"]} (local_id={proposal["entity_local_id"]}) in Kanka.',
-                }
-            ), 400
+        if _DEBUG:
+            _debug('journal found:', getattr(journal, 'name', None))
+            _debug('entity_data:', entity_data)
 
         session_text = strip_html(getattr(journal, 'entry', '') or '')
         if not session_text.strip():
@@ -1016,8 +1096,8 @@ function renderContent() {
   var prevEntry = p.previous_entry || '';
   var proposedEntry = p.proposed_entry || '';
   if (prevEntry && proposedEntry) {
-    var oldIds = (prevEntry.match(/\[entity:(\d+)\]/g) || []).map(function(s){ return s.match(/(\d+)/)[1]; });
-    var newIds = (proposedEntry.match(/\[entity:(\d+)\]/g) || []).map(function(s){ return s.match(/(\d+)/)[1]; });
+    var oldIds = (prevEntry.match(/\\[entity:(\\d+)\\]/g) || []).map(function(s){ return s.match(/(\\d+)/)[1]; });
+    var newIds = (proposedEntry.match(/\\[entity:(\\d+)\\]/g) || []).map(function(s){ return s.match(/(\\d+)/)[1]; });
     var dropped = oldIds.filter(function(x){ return newIds.indexOf(x) === -1; });
     if (dropped.length > 0) {
       html += '<div class="warning critical">!! ' + dropped.length + ' mention link(s) missing from new version!</div>';

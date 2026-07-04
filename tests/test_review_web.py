@@ -723,7 +723,13 @@ class TestApiProposalRegenerate:
         with open(queue_file, 'w') as f:
             json.dump(queue, f, indent=2)
 
-        resp = app_with_queue.post('/api/proposals/1/regenerate')
+        from unittest import mock as umock
+        # Mock get_journals to return empty list (no fallback match possible without _journal_id)
+        mock_client = umock.MagicMock()
+        mock_client.get_journals.return_value = []
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            resp = app_with_queue.post('/api/proposals/1/regenerate')
         assert resp.status_code == 400
 
     def test_regenerate_identical_output_returns_409(self, app_with_queue):
@@ -817,3 +823,90 @@ class TestApiProposalRegenerate:
         assert data['ok'] is True
         assert data['proposal']['proposed_entry'] == '<p>New synopsis text.</p>'
         assert data['proposal'].get('truncated') is False
+
+
+class TestRegenerateApiErrors:
+    """Graceful degradation when Kanka API calls fail during regeneration."""
+
+    def test_regenerate_journal_fetch_fails(self, app_with_queue):
+        """When _journal_id exists but journal fetch fails, return 400 not 500."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import kanka_wiki_updater.config as config
+        import os
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_client = umock.MagicMock()
+        mock_client.get_journals.side_effect = Exception('Connection refused')
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            resp = app_with_queue.post('/api/proposals/1/regenerate?force=1')
+
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'Cannot fetch journal' in data['error']
+
+    def test_regenerate_fallback_journal_fetch_fails(self, app_with_queue):
+        """When _journal_id is missing and fallback journal search fails, return 400."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        # No _journal_id — triggers fallback path
+        if '_journal_id' in queue[1]:
+            del queue[1]['_journal_id']
+        queue[1]['truncated'] = True
+        import kanka_wiki_updater.config as config
+        import os
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_client = umock.MagicMock()
+        mock_client.get_journals.side_effect = Exception('Connection refused')
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            resp = app_with_queue.post('/api/proposals/1/regenerate?force=1')
+
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'Cannot contact Kanka' in data['error']
+
+    def test_regenerate_entity_fetch_fails(self, app_with_queue):
+        """When entity fetch fails after journal is found, return 400 not 500."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import kanka_wiki_updater.config as config
+        import os
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
+
+        mock_client = umock.MagicMock()
+        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_characters.side_effect = Exception('Not found')
+
+        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
+            resp = app_with_queue.post('/api/proposals/1/regenerate?force=1')
+
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'Cannot contact Kanka to fetch entities' in data['error']
