@@ -116,17 +116,16 @@ def create_app():
         sync_result = None
         if status_value in ('approved_all', 'approved_synopsis_only'):
             with _sync_lock:
-                success, message = _sync_proposal_to_kanka(index)
+                sync_result = _sync_proposal_to_kanka(index)
             queue = _load_queue()  # Reload after potential modifications
             proposal = queue[index]
-            sync_result = {'ok': success, 'message': message}
-            if not success:
+            if not sync_result['ok']:
                 return jsonify(
                     {
                         'proposal': proposal,
                         'ok': False,
                         'sync_error': True,
-                        'sync_message': message,
+                        'sync_message': sync_result['message'],
                     }
                 ), 409
 
@@ -221,6 +220,7 @@ def create_app():
         client = KankaClient()
         details = []
         errors = []
+        warnings = []
 
         ptype = proposal.get('proposal_type')
         pname = proposal.get('entity_name', '?')
@@ -374,7 +374,7 @@ def create_app():
                                 f"Cannot find entity_id for '{proposal['entity_name']}'. "
                                 'Ensure the entity exists in Kanka.'
                             )
-                    else:
+                    if eid is not None:
                         entity_id = int(eid)
 
                 # Only proceed with relations if we have a valid entity_id and no fatal errors
@@ -398,7 +398,9 @@ def create_app():
                             target_entity_id = resolve_name_to_id(client, target_name)
                             _debug(f"    resolved target '{target_name}' -> entity_id={target_entity_id!r}")
                             if not target_entity_id:
-                                errors.append(f'Cannot delete relation -> {target_name}: entity not found')
+                                warnings.append(
+                                    f'Skipped delete relation -> {target_name}: entity not found in Kanka.'
+                                )
                                 continue
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
                             _debug(f'    existing relation lookup: {existing is not None}')
@@ -426,25 +428,29 @@ def create_app():
                             else:
                                 _debug(f"    FAILED to resolve '{target_name}' — entity not found in Kanka index")
                             if not target_entity_id:
-                                errors.append(
-                                    f'Cannot {action} relation -> {target_name}: entity not found. '
-                                    f'Check the spelling — the name must match exactly as it appears in Kanka.'
+                                warnings.append(
+                                    f'Skipped {action} relation -> {target_name}: entity not found in Kanka.'
                                 )
                                 continue
 
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
 
-                            # Also detect reverse-direction relations — Kanka returns 409 on create
-                            # if any relation already exists between these two entities.
-                            has_reverse = any(
-                                _rel_owner(r) == target_entity_id and _rel_target(r) == entity_id
+                            # Also detect reverse-direction relations with the same type.
+                            # Kanka returns 409 if trying to create the exact same relation
+                            # in the opposite direction (e.g., A 'commands' B and B 'commands' A).
+                            # Different relation types between two entities are allowed.
+                            proposed_relation = rc.get('relation', '').strip().lower()
+                            has_reverse_same_type = any(
+                                _rel_owner(r) == target_entity_id
+                                and _rel_target(r) == entity_id
+                                and (r.get('relation') if isinstance(r, dict) else getattr(r, 'relation', '')).strip().lower() == proposed_relation
                                 for r in existing_relations
                             )
-                            _debug(f'    has_reverse (stale check): {has_reverse}')
+                            _debug(f'    has_reverse_same_type: {has_reverse_same_type}')
 
-                            if has_reverse:
+                            if has_reverse_same_type:
                                 details.append(
-                                    f"Relation already exists between this entity and '{target_name}' "
+                                    f"Relation '{proposed_relation}' already exists between this entity and '{target_name}' "
                                     '(in the opposite direction — cannot create a duplicate link).'
                                 )
 
@@ -523,8 +529,14 @@ def create_app():
                 errors.append(f'Relation sync error: {e}')
 
         if errors:
-            return False, '; '.join(errors)
-        return True, '; '.join(details)
+            msg = '; '.join(errors)
+            if warnings:
+                msg += ' | Warnings: ' + '; '.join(warnings)
+            return {'ok': False, 'message': msg, 'warnings': list(warnings)}
+        result_msg = '; '.join(details)
+        if warnings:
+            result_msg += ' | Warnings: ' + '; '.join(warnings)
+        return {'ok': True, 'message': result_msg, 'warnings': list(warnings)}
 
     @app.route('/api/proposals/<int:index>/sync', methods=['POST'])
     def sync_proposal(index):
@@ -534,11 +546,12 @@ def create_app():
             return jsonify({'error': 'Proposal not found'}), 404
 
         with _sync_lock:
-            success, message = _sync_proposal_to_kanka(index)
+            sync_result = _sync_proposal_to_kanka(index)
 
         result = {
-            'ok': success,
-            'message': message,
+            'ok': sync_result['ok'],
+            'message': sync_result['message'],
+            'warnings': sync_result.get('warnings', []),
             'proposal': queue[index],
         }
         # Mark as applied after successful sync; caller should also update local state via /status
@@ -575,6 +588,8 @@ def create_app():
 
         if proposal.get('proposal_type') != 'update':
             return jsonify({'error': 'Only update proposals can be regenerated'}), 400
+
+        force_regenerate = request.args.get('force', '0').lower() in ('1', 'true')
 
         # Allow regeneration of truncated proposals, or force-regenerate via ?force=1.
         # Stale proposals without _journal_id are OK as long as source_journal is present.
@@ -622,6 +637,8 @@ def create_app():
 
         try:
             # Fetch the original journal entry (fallback: search by source_journal name if _journal_id missing)
+            source_name = ''
+            all_journals = []
             if journal_id:
                 try:
                     journals = client.get_journals(journal_ids=[journal_id])
@@ -661,7 +678,7 @@ def create_app():
                 _debug(f'journal matches after filter: {len(journals)}, searching for: "{source_name}"')
 
             if not journals:
-                sample_names = [_jname(j) for j in all_journals[:5]]
+                sample_names = [_jname(j) for j in (all_journals[:5] if all_journals else [])]
                 _debug('no journal match found. sample names:', sample_names)
                 return jsonify(
                     {
@@ -767,7 +784,7 @@ def create_app():
             return jsonify({'ok': False, 'error': f'LLM error during regeneration: {e}'}), 500
 
         no_text_change = normalize_text(result.get('updated_entry', '')) == normalize_text(entity_info['entry'])
-        if no_text_change and not result.get('relation_changes'):
+        if no_text_change and not result.get('relation_changes') and not force_regenerate:
             return jsonify(
                 {'ok': False, 'error': 'Regenerated output is identical to current synopsis — nothing changed.'}
             ), 409
@@ -1001,6 +1018,7 @@ textarea.synopsis-editor:focus { outline: none; border-color: var(--cyan); }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 .toast-success { background: #238636; color: white; }
 .toast-error { background: #da3633; color: white; }
+.toast-warning { background: var(--yellow); color: #0d1117; }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
 .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
 .sync-container { display: flex; flex-direction: column; height: calc(100vh - 205px); min-height: 120px; max-height: calc(100vh - 205px); }
@@ -1330,10 +1348,14 @@ async function approveAll() {
       if (!data) return;
       proposals[selectedIndex] = data.proposal;
       _advance(oldIndex);
-      if (data.sync && data.sync.ok) {
-        showToast('Synced to Kanka: ' + data.sync.message, 'success');
-      } else if (data.sync && !data.sync.ok) {
-        showToast('Kanka sync failed: ' + data.sync.message, 'error');
+      if (data.sync) {
+        if (data.sync.warnings && data.sync.warnings.length > 0) {
+          showToast('Synced with warnings: ' + data.sync.message, 'warning');
+        } else if (data.sync.ok) {
+          showToast('Synced to Kanka: ' + data.sync.message, 'success');
+        } else {
+          showToast('Kanka sync failed: ' + data.sync.message, 'error');
+        }
       } else {
         showToast('Approved all', 'success');
       }
@@ -1349,10 +1371,14 @@ async function approveSynopsisOnly() {
       if (!data) return;
       proposals[selectedIndex] = data.proposal;
       _advance(oldIndex);
-      if (data.sync && data.sync.ok) {
-        showToast('Synopsis synced to Kanka: ' + data.sync.message, 'success');
-      } else if (data.sync && !data.sync.ok) {
-        showToast('Kanka sync failed: ' + data.sync.message, 'error');
+      if (data.sync) {
+        if (data.sync.warnings && data.sync.warnings.length > 0) {
+          showToast('Synopsis synced with warnings: ' + data.sync.message, 'warning');
+        } else if (data.sync.ok) {
+          showToast('Synopsis synced to Kanka: ' + data.sync.message, 'success');
+        } else {
+          showToast('Kanka sync failed: ' + data.sync.message, 'error');
+        }
       } else {
         showToast('Synopsis approved', 'success');
       }

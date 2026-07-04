@@ -100,12 +100,14 @@ class KankaClient:
 
     # -- Journals (session notes) ---------------------------------------
 
-    def get_journals(self, since=None, journal_type=None):
+    def get_journals(self, since=None, journal_type=None, journal_ids=None):
         params = {}
         if since:
             params['last_sync'] = since
         if journal_type:
             params['type'] = journal_type
+        if journal_ids:
+            params['filter[id]'] = journal_ids
         resp = self._request('GET', 'journals', params=params)
         return resp.get('data') or []
 

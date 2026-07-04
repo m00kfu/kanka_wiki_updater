@@ -44,7 +44,7 @@ class TestDefaults:
     def test_kanka_base_url_defaults(self):
         import kanka_wiki_updater.config as config_mod
 
-        assert config_mod.KANKA_BASE_URL == 'https://api.kanka.io/1.0'
+        assert config_mod.KANKA_BASE_URL == 'https://api.kanka.io/1.0/'
 
     def test_lmstudio_base_url_defaults(self):
         import kanka_wiki_updater.config as config_mod

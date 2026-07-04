@@ -795,6 +795,53 @@ class TestApiProposalRegenerate:
 
         assert resp.status_code == 409
 
+    def test_regenerate_force_bypasses_identical_check(self, app_with_queue):
+        """POST with ?force=1 returns success even when output is identical."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import os
+
+        import kanka_wiki_updater.config as config
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
+
+        mock_entity = _types.SimpleNamespace(
+            id=101, entity_id='42', name='Kael Ironfist', local_id=101, entry='<p>Old synopsis.</p>', relations=[]
+        )
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_characters.return_value = [mock_entity]
+
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
+            ),
+            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+        ):
+            mock_chat.return_value = {
+                'updated_entry': '<p>Old synopsis.</p>',
+                'change_summary': '',
+                'relation_changes': [],
+            }
+            resp = app_with_queue.post('/api/proposals/1/regenerate?force=1')
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+
     def test_regenerate_success_updates_proposal(self, app_with_queue):
         """A successful regeneration updates the proposal and clears truncated flag."""
         import types as _types
