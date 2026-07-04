@@ -55,7 +55,11 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
     found = set()
     for entity_id, name in names_by_entity_id.items():
         name_lower = name.lower()
-        if name_lower in text_lower:
+        # Use word-boundary matching so "Xanathar" does not match inside
+        # "Xanathar's Guild".  Negative lookahead blocks possessive forms
+        # (e.g. "Xanathar's") since they usually refer to a compound noun
+        # like the guild, not the character itself.
+        if re.search(r'\b' + re.escape(name_lower) + r'\b(?!\s*\')', text_lower):
             found.add(entity_id)
             continue
         first_word = name_lower.split()[0] if name_lower.split() else name_lower

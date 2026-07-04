@@ -1458,7 +1458,7 @@ document.addEventListener('keydown', function(e) {
       }
       break;
     }
-    case 'e': startEdit('synopsis'); break;
+    case 'e': e.preventDefault(); if (!editingField) startEdit('synopsis'); break;
     case 'a': approveAll(); break;
     case 's': approveSynopsisOnly(); break;
     case 'r': rejectCurrent(); break;
