@@ -1097,7 +1097,9 @@ function renderContent() {
       '<button class="btn" onclick="regenerateProposal()" style="font-size:12px;padding:4px 12px;">&#x21bb; Regenerate Proposal</button>' +
       ' <span style="font-size:11px;color:var(--text-dim)">or press [g]</span></div>';
 
-    // Warnings for dropped mentions
+  }
+
+  // Warnings for dropped mentions (all proposal types)
   var prevEntry = p.previous_entry || '';
   var proposedEntry = p.proposed_entry || '';
   if (prevEntry && proposedEntry) {
