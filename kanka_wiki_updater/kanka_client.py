@@ -2,8 +2,9 @@
 
 import os
 import sys
+from email.utils import parsedate_to_datetime as _parsed
 
-import kanka
+import requests
 
 from . import config
 
@@ -23,11 +24,80 @@ class KankaError(RuntimeError):
 
 class KankaClient:
     def __init__(self):
-        self._client = kanka.KankaClient(
-            token=config.KANKA_TOKEN,
-            campaign_id=int(config.KANKA_CAMPAIGN_ID),
-            enable_rate_limit_retry=True,
+
+        self._base_url = config.KANKA_BASE_URL.rstrip('/')
+        self._campaign_id = int(config.KANKA_CAMPAIGN_ID)
+        self._retry_on_rate_limit = True
+
+        self._session = requests.Session()
+        self._session.headers.update(
+            {
+                'Authorization': f'Bearer {config.KANKA_TOKEN}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            }
         )
+
+    def _request(self, method: str, endpoint: str, **kwargs) -> dict:
+        """Make HTTP request to Kanka API with automatic retry on rate limits."""
+        import time as _time
+
+        url = f'{self._base_url}/campaigns/{self._campaign_id}/{endpoint}'
+        attempts = 0
+        delay = 1.0
+        max_delay = 15.0
+        max_retries = 8
+
+        while attempts <= max_retries:
+            try:
+                response = self._session.request(method, url, **kwargs)
+            except requests.RequestException as exc:
+                raise KankaError(f'Request failed: {exc}') from exc
+
+            if response.status_code == 429:
+                attempts += 1
+                if not self._retry_on_rate_limit or attempts > max_retries:
+                    raise KankaError('Rate limit exceeded after retries')
+                retry_after = response.headers.get('Retry-After')
+                if retry_after:
+                    try:
+                        delay = float(retry_after)
+                    except ValueError:
+                        try:
+                            delta = _parsed(retry_after) - _parsed(response.headers.get('Date', ''))
+                            delay = max(0, delta.total_seconds())
+                        except Exception:
+                            delay *= 2
+                else:
+                    remaining = response.headers.get('X-RateLimit-Remaining')
+                    reset = response.headers.get('X-RateLimit-Reset')
+                    if remaining and reset:
+                        try:
+                            if int(remaining) == 0:
+                                delay = max(0, int(reset) - _time.time())
+                        except (ValueError, TypeError):
+                            pass
+                    else:
+                        delay *= 2
+                delay = min(delay, max_delay)
+                _time.sleep(delay)
+                continue
+
+            if response.status_code == 401:
+                raise KankaError('Invalid authentication token')
+            elif response.status_code == 403:
+                raise KankaError('Access forbidden')
+            elif response.status_code == 404:
+                raise KankaError(f'Resource not found: {endpoint}')
+            elif response.status_code >= 400:
+                msg = response.text or f'HTTP {response.status_code}'
+                raise KankaError(f'API error {response.status_code}: {msg}')
+
+            if method == 'DELETE':
+                return {}
+            return response.json()
+
+        raise KankaError('Unexpected error in request retry logic')
 
     # -- Journals (session notes) ---------------------------------------
 
@@ -37,24 +107,27 @@ class KankaClient:
             params['last_sync'] = since
         if journal_type:
             params['type'] = journal_type
-        return self._client.journals.list(**params)  # returns list[Journal]
+        resp = self._request('GET', 'journals', params=params)
+        return resp.get('data') or []
 
     # -- Characters / Locations ------------------------------------------
 
     def get_characters(self):
-        return self._client.characters.list(related=True)  # returns list[Character]
+        resp = self._request('GET', 'characters', params={'related': True})
+        return resp.get('data') or []
 
     def get_locations(self):
-        return self._client.locations.list(related=True)  # returns list[Location]
+        resp = self._request('GET', 'locations', params={'related': True})
+        return resp.get('data') or []
 
     def update_entity_entry(self, kind, entity_local_id, entry_text):
         """kind is 'characters' or 'locations'; entity_local_id is the
         type-specific `id` field (NOT `entity_id`)."""
         html = entry_text.replace('\n\n', '<br><br>').replace('\n', '<br>')
         if kind == 'characters':
-            self._client.characters.update(entity_local_id, entry=html)
+            self._request('PATCH', f'characters/{entity_local_id}', json={'entry': html})
         elif kind == 'locations':
-            self._client.locations.update(entity_local_id, entry=html)
+            self._request('PATCH', f'locations/{entity_local_id}', json={'entry': html})
 
     def create_character(self, name, entry=None, **extra):
         """Create a new character. `name` is the only required field."""
@@ -63,8 +136,9 @@ class KankaClient:
             html = entry.replace('\n\n', '<br><br>').replace('\n', '<br>')
             data['entry'] = html
         data.update(extra)
-        char = self._client.characters.create(**data)
-        return {'data': {k: getattr(char, k, None) for k in ['id', 'entity_id', 'name', 'entry']}}
+        resp = self._request('POST', 'characters', json=data)
+        char_data = resp.get('data') or {}
+        return {'data': {k: char_data.get(k) for k in ['id', 'entity_id', 'name', 'entry']}}
 
     def create_location(self, name, entry=None, **extra):
         """Create a new location. `name` is the only required field."""
@@ -73,22 +147,23 @@ class KankaClient:
             html = entry.replace('\n\n', '<br><br>').replace('\n', '<br>')
             data['entry'] = html
         data.update(extra)
-        loc = self._client.locations.create(**data)
-        return {'data': {k: getattr(loc, k, None) for k in ['id', 'entity_id', 'name', 'entry']}}
+        resp = self._request('POST', 'locations', json=data)
+        loc_data = resp.get('data') or {}
+        return {'data': {k: loc_data.get(k) for k in ['id', 'entity_id', 'name', 'entry']}}
 
     def delete_character(self, local_id):
-        return self._client.characters.delete(local_id)  # returns bool
+        self._request('DELETE', f'characters/{local_id}')
+        return True
 
     def delete_location(self, local_id):
-        return self._client.locations.delete(local_id)  # returns bool
+        self._request('DELETE', f'locations/{local_id}')
+        return True
 
     # -- Relations --------------------------------------------------------
 
     def get_relations(self, entity_id):
         _debug(f'get_relations(entity_id={entity_id})')
-        # Use direct API call — python-kanka's list_for_entity tries to
-        # instantiate Relation objects but the vendor library has a broken import.
-        resp = self._client._request('GET', f'entities/{entity_id}/relations')
+        resp = self._request('GET', f'entities/{entity_id}/relations')
         data = resp.get('data') or []
         if isinstance(data, dict):
             data = [data]
@@ -100,8 +175,6 @@ class KankaClient:
             f'create_relation(entity_id={entity_id}, target_id={target_id}, relation={relation!r}, '
             f'attitude={attitude!r}, two_way={two_way}, visibility_id={visibility_id})'
         )
-        # Call the API directly with snake_case fields — python-kanka sends
-        # camelCase (ownerId, targetId) which Kanka's current API rejects.
         body = {
             'owner_id': entity_id,
             'target_id': target_id,
@@ -112,7 +185,7 @@ class KankaClient:
             body['attitude'] = attitude
         if two_way:
             body['two_way'] = True
-        resp = self._client._request('POST', f'entities/{entity_id}/relations', json=body)
+        resp = self._request('POST', f'entities/{entity_id}/relations', json=body)
         data = resp.get('data') or {}
         if isinstance(data, list):
             data = data[0] if data else {}
@@ -122,11 +195,11 @@ class KankaClient:
 
     def update_relation(self, entity_id, relation_id, **fields):
         _debug(f'update_relation(entity_id={entity_id}, relation_id={relation_id}, {fields})')
-        self._client._request('PATCH', f'entities/{entity_id}/relations/{relation_id}', json=fields)
+        self._request('PATCH', f'entities/{entity_id}/relations/{relation_id}', json=fields)
         _debug('  -> succeeded')
 
     def delete_relation(self, entity_id, relation_id):
         _debug(f'delete_relation(entity_id={entity_id}, relation_id={relation_id})')
-        self._client._request('DELETE', f'entities/{entity_id}/relations/{relation_id}')
+        self._request('DELETE', f'entities/{entity_id}/relations/{relation_id}')
         _debug('  -> succeeded')
         return True
