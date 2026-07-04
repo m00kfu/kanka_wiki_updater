@@ -238,6 +238,26 @@ def create_app():
                     if n == needle:
                         return eid
 
+                # Parse Kanka wiki links like [organisation:9419438|Zhentarim] or [entity:123]
+                import re as _re
+                wiki_match = _re.search(r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)\]', name)
+                if wiki_match:
+                    # The number inside is a Kanka entity_id — look it up in the index to verify
+                    candidate_eid = int(wiki_match.group(1))
+                    _debug(f"    parsed wiki link entity_id={candidate_eid} from '{name}'")
+                    # Build index if needed so we can validate the eid exists and get its kind
+                    if not _entity_index_cache:
+                        index = build_entity_index(client)
+                        name_map = {}
+                        for eid, data in index.items():
+                            name_map[data['name'].strip().lower()] = eid
+                        _entity_index_cache = (index, name_map)
+                        _debug(f'  built entity index with {len(index)} entities')
+                    index, name_map = _entity_index_cache
+                    if candidate_eid in index:
+                        _debug(f"    wiki link eid found in index -> '{index[candidate_eid]['name']}'")
+                        return candidate_eid
+
                 # Use cached index if available, else build fresh
                 if not _entity_index_cache:
                     index = build_entity_index(client)
