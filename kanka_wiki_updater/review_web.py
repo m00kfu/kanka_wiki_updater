@@ -8,6 +8,7 @@ data/pending_changes.json — the same file used by review.py. Both can coexist
 without conflict; they just need to agree on the JSON schema.
 """
 
+import contextlib
 import difflib
 import json
 import os
@@ -30,7 +31,7 @@ def _debug(*args):
 if __name__ == '__main__' and __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request  # noqa: E402
 
 try:
     from . import config as pkg_config
@@ -204,10 +205,8 @@ def create_app():
 
     def _sync_proposal_to_kanka(idx):
         """Actually push a proposal to Kanka.io. Returns (success, details)."""
-        try:
-            from .mentions import add_missing_entity_tags
-        except ImportError:
-            pass
+        with contextlib.suppress(ImportError):
+            from .mentions import add_missing_entity_tags  # noqa: F401
 
         queue = _load_queue()
         if idx >= len(queue):
@@ -276,7 +275,8 @@ def create_app():
                             return eid
                 if not candidates and not matches:
                     _debug(
-                        f"    no match at all for '{name}' — index has {len(index)} entities, names include: {[d['name'] for d in entity_names[:10]]}"
+                        f"    no match at all for '{name}' — index has {len(index)} entities, "
+                        f'names include: {[d["name"] for d in entity_names[:10]]}'
                     )
             except Exception as e:
                 errors.append(f'Resolution warning: {e}')
@@ -435,7 +435,8 @@ def create_app():
                                         entity_id, target_entity_id, rc['relation'], rc.get('attitude')
                                     )
                                     _debug(
-                                        f'    create_relation response keys: {list(resp.keys()) if isinstance(resp, dict) else type(resp)}'
+                                        f'    create_relation response keys: '
+                                        f'{list(resp.keys()) if isinstance(resp, dict) else type(resp)}'
                                     )
                                     _debug(f'    create_relation response: {resp}')
                                     details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
@@ -518,17 +519,7 @@ def create_app():
             'message': message,
             'proposal': queue[index],
         }
-        if success:
-            # Mark as applied after successful sync
-            mapping = {
-                'approved_all': 'applied',
-                'approved_synopsis_only': 'applied',
-            }
-            status_value = request.args.get('status', '')
-            status_key = f'status_{status_value}'
-            if hasattr(request, 'get_json') and request.get_json(silent=True):
-                status_value = request.get_json(silent=True).get('status', '')
-            # We just sync; the caller should still call /status to set local state
+        # Mark as applied after successful sync; caller should also update local state via /status
         _save_queue(queue)
         return jsonify(result)
 
@@ -541,6 +532,7 @@ def create_app():
         except Exception as e:
             print(f'[REGEN] ERROR loading queue: {e}', file=sys.stderr, flush=True)
             import traceback
+
             traceback.print_exc(file=sys.stderr)
             return jsonify({'error': str(e)}), 500
         if index >= len(queue):
@@ -548,14 +540,16 @@ def create_app():
 
         proposal = queue[index]
         if _DEBUG:
-            _debug('regenerate #{} type={} truncated={} entity_id={} journal_id={} source_journal={}'.format(
-                index,
-                proposal.get('proposal_type'),
-                proposal.get('truncated'),
-                proposal.get('entity_id'),
-                proposal.get('_journal_id'),
-                proposal.get('source_journal'),
-            ))
+            _debug(
+                'regenerate #{} type={} truncated={} entity_id={} journal_id={} source_journal={}'.format(
+                    index,
+                    proposal.get('proposal_type'),
+                    proposal.get('truncated'),
+                    proposal.get('entity_id'),
+                    proposal.get('_journal_id'),
+                    proposal.get('source_journal'),
+                )
+            )
 
         if proposal.get('proposal_type') != 'update':
             return jsonify({'error': 'Only update proposals can be regenerated'}), 400
@@ -570,8 +564,7 @@ def create_app():
                 {
                     'ok': False,
                     'error': (
-                        'This proposal lacks the data needed to regenerate. '
-                        'Re-run sync_pipeline for fresh proposals.'
+                        'This proposal lacks the data needed to regenerate. Re-run sync_pipeline for fresh proposals.'
                     ),
                 }
             ), 400
@@ -582,19 +575,18 @@ def create_app():
                 {
                     'ok': False,
                     'error': (
-                        "This proposal lacks both _journal_id and source_journal — "
-                        "cannot locate the original session."
+                        'This proposal lacks both _journal_id and source_journal — cannot locate the original session.'
                     ),
                 }
             ), 400
 
         try:
             _debug('about to import modules')
-            from kanka_wiki_updater.mentions import normalize_text, strip_html
-            from kanka_wiki_updater.sync_pipeline import EntityData, _rel_to_dict, relation_summary
             from kanka_wiki_updater.llm_client import chat_json
+            from kanka_wiki_updater.mentions import normalize_text, strip_html
             from kanka_wiki_updater.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
-        except ImportError as ie:
+            from kanka_wiki_updater.sync_pipeline import _rel_to_dict, relation_summary
+        except ImportError:
             _debug('ImportError:', tb_mod.format_exc())
             return jsonify({'error': 'Import error — cannot regenerate'}), 500
 
@@ -620,8 +612,8 @@ def create_app():
                         {
                             'ok': False,
                             'error': (
-                                "This proposal lacks _journal_id and source_journal — "
-                                "cannot locate the original session."
+                                'This proposal lacks _journal_id and source_journal — '
+                                'cannot locate the original session.'
                             ),
                         }
                     ), 400
@@ -762,7 +754,6 @@ def create_app():
 
         job = _sync_jobs[job_id]
         buffer = job['buffer']
-        last_flush = [0]  # mutable index into buffer
 
         def generate():
             try:

@@ -7,6 +7,7 @@ running anything.
 """
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -72,7 +73,5 @@ if LLM_PROVIDER == 'gemini' and not GEMINI_API_KEY:
 # on the command line, which takes priority over this default.
 _raw_batch_limit = os.environ.get('JOURNAL_BATCH_LIMIT', '').strip()
 JOURNAL_BATCH_LIMIT = int(_raw_batch_limit) if _raw_batch_limit else None
-
-from pathlib import Path
 
 DATA_DIR = os.environ.get('DATA_DIR', str(Path(__file__).resolve().parent.parent / 'data'))

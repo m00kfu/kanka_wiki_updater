@@ -9,7 +9,7 @@ class KankaModel(BaseModel):
     """Base for all Kanka models with common configuration."""
 
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
         validate_assignment=True,
         use_enum_values=True,
         populate_by_name=True,

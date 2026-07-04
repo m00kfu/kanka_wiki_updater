@@ -36,7 +36,7 @@ from .models.entities import (
 class KankaClient:
     """Main client for Kanka API interaction with automatic rate limit handling."""
 
-    BASE_URL = "https://api.kanka.io/1.0"
+    BASE_URL = 'https://api.kanka.io/1.0'
 
     def __init__(
         self,
@@ -56,8 +56,8 @@ class KankaClient:
         self.retry_delay = retry_delay
         self.max_retry_delay = max_retry_delay
 
-        self._debug_mode = os.environ.get("KANKA_DEBUG_MODE", "").lower() == "true"
-        self._debug_dir = Path(os.environ.get("KANKA_DEBUG_DIR", "kanka_debug"))
+        self._debug_mode = os.environ.get('KANKA_DEBUG_MODE', '').lower() == 'true'
+        self._debug_dir = Path(os.environ.get('KANKA_DEBUG_DIR', 'kanka_debug'))
         self._request_counter = 0
 
         if self._debug_mode:
@@ -68,9 +68,9 @@ class KankaClient:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
             }
         )
 
@@ -79,18 +79,18 @@ class KankaClient:
     def _init_managers(self):
         """Initialize entity managers for each entity type."""
         # Core entities
-        self._calendars = EntityManager(self, "calendars", Calendar)
-        self._characters = EntityManager(self, "characters", Character)
-        self._creatures = EntityManager(self, "creatures", Creature)
-        self._events = EntityManager(self, "events", Event)
-        self._families = EntityManager(self, "families", Family)
-        self._journals = EntityManager(self, "journals", Journal)
-        self._locations = EntityManager(self, "locations", Location)
-        self._notes = EntityManager(self, "notes", Note)
-        self._organisations = EntityManager(self, "organisations", Organisation)
-        self._quests = EntityManager(self, "quests", Quest)
-        self._races = EntityManager(self, "races", Race)
-        self._tags = EntityManager(self, "tags", Tag)
+        self._calendars = EntityManager(self, 'calendars', Calendar)
+        self._characters = EntityManager(self, 'characters', Character)
+        self._creatures = EntityManager(self, 'creatures', Creature)
+        self._events = EntityManager(self, 'events', Event)
+        self._families = EntityManager(self, 'families', Family)
+        self._journals = EntityManager(self, 'journals', Journal)
+        self._locations = EntityManager(self, 'locations', Location)
+        self._notes = EntityManager(self, 'notes', Note)
+        self._organisations = EntityManager(self, 'organisations', Organisation)
+        self._quests = EntityManager(self, 'quests', Quest)
+        self._races = EntityManager(self, 'races', Race)
+        self._tags = EntityManager(self, 'tags', Tag)
 
         # Relations manager
         self.relations = RelationsManager(self)
@@ -157,19 +157,19 @@ class KankaClient:
 
     def search(self, term: str, page: int = 1) -> list[SearchResult]:
         """Search across all entity types."""
-        params: dict[str, int | str] = {"page": page}
-        response = self._request("GET", f"search/{term}", params=params)
+        params: dict[str, int | str] = {'page': page}
+        response = self._request('GET', f'search/{term}', params=params)
 
-        self._last_search_meta = response.get("meta", {})
-        self._last_search_links = response.get("links", {})
-        self._last_search_sync: str | None = response.get("sync")
+        self._last_search_meta = response.get('meta', {})
+        self._last_search_links = response.get('links', {})
+        self._last_search_sync: str | None = response.get('sync')
 
-        return [SearchResult(**item) for item in response["data"]]
+        return [SearchResult(**item) for item in response['data']]
 
     def entity(self, entity_id: int) -> dict[str, Any]:
         """Get a single entity by entity_id."""
-        response = self._request("GET", f"entities/{entity_id}")
-        return response["data"]  # type: ignore[no-any-return]
+        response = self._request('GET', f'entities/{entity_id}')
+        return response['data']  # type: ignore[no-any-return]
 
     def entities(
         self,
@@ -179,37 +179,37 @@ class KankaClient:
         **filters,
     ) -> list[dict[str, Any]]:
         """Access the /entities endpoint with filters."""
-        params: dict[str, int | str] = {"page": page, "limit": limit}
+        params: dict[str, int | str] = {'page': page, 'limit': limit}
 
         if last_sync is not None:
-            params["lastSync"] = last_sync
+            params['lastSync'] = last_sync
 
-        if "types" in filters and isinstance(filters["types"], list):
-            params["types"] = ",".join(filters["types"])
-        elif "types" in filters:
-            params["types"] = filters["types"]
+        if 'types' in filters and isinstance(filters['types'], list):
+            params['types'] = ','.join(filters['types'])
+        elif 'types' in filters:
+            params['types'] = filters['types']
 
-        if "tags" in filters and isinstance(filters["tags"], list):
-            params["tags"] = ",".join(map(str, filters["tags"]))
-        elif "tags" in filters:
-            params["tags"] = filters["tags"]
+        if 'tags' in filters and isinstance(filters['tags'], list):
+            params['tags'] = ','.join(map(str, filters['tags']))
+        elif 'tags' in filters:
+            params['tags'] = filters['tags']
 
-        for key in ["name", "is_private", "created_by", "updated_by"]:
+        for key in ['name', 'is_private', 'created_by', 'updated_by']:
             if key in filters and filters[key] is not None:
                 if isinstance(filters[key], bool):
                     params[key] = int(filters[key])
                 else:
                     params[key] = filters[key]
 
-        response = self._request("GET", "entities", params=params)
-        self._last_entities_meta = response.get("meta", {})
-        self._last_entities_links = response.get("links", {})
-        self._last_entities_sync: str | None = response.get("sync")
-        return response["data"]  # type: ignore[no-any-return]
+        response = self._request('GET', 'entities', params=params)
+        self._last_entities_meta = response.get('meta', {})
+        self._last_entities_links = response.get('links', {})
+        self._last_entities_sync: str | None = response.get('sync')
+        return response['data']  # type: ignore[no-any-return]
 
     def _parse_rate_limit_headers(self, response) -> float | None:
         """Parse rate limit headers from response."""
-        retry_after = response.headers.get("Retry-After")
+        retry_after = response.headers.get('Retry-After')
         if retry_after:
             try:
                 return float(retry_after)
@@ -218,15 +218,13 @@ class KankaClient:
 
                 try:
                     retry_date = parsedate_to_datetime(retry_after)
-                    delta = retry_date - parsedate_to_datetime(
-                        response.headers.get("Date", "")
-                    )
+                    delta = retry_date - parsedate_to_datetime(response.headers.get('Date', ''))
                     return float(delta.total_seconds())
                 except Exception:
                     pass
 
-        remaining = response.headers.get("X-RateLimit-Remaining")
-        reset = response.headers.get("X-RateLimit-Reset")
+        remaining = response.headers.get('X-RateLimit-Remaining')
+        reset = response.headers.get('X-RateLimit-Reset')
 
         if remaining and reset:
             try:
@@ -239,79 +237,75 @@ class KankaClient:
 
         return None
 
-    def _log_debug_request(
-        self, method: str, url: str, request_data: dict, response, response_time: float
-    ):
+    def _log_debug_request(self, method: str, url: str, request_data: dict, response, response_time: float):
         """Log request and response to debug file."""
         if not self._debug_mode:
             return
 
         self._request_counter += 1
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-        endpoint_parts = url.replace(self.BASE_URL, "").strip("/").split("/")
-        endpoint_name = "_".join(endpoint_parts[2:])
+        endpoint_parts = url.replace(self.BASE_URL, '').strip('/').split('/')
+        endpoint_name = '_'.join(endpoint_parts[2:])
         if not endpoint_name:
-            endpoint_name = "root"
+            endpoint_name = 'root'
 
-        filename = (
-            f"{self._request_counter:04d}_{timestamp}_{method}_{endpoint_name}.json"
-        )
+        filename = f'{self._request_counter:04d}_{timestamp}_{method}_{endpoint_name}.json'
         filepath = self._debug_dir / filename
 
         debug_data = {
-            "timestamp": datetime.now().isoformat(),
-            "request_number": self._request_counter,
-            "request": {
-                "method": method,
-                "url": url,
-                "headers": dict(self.session.headers),
-                "params": request_data.get("params", {}),
-                "json": request_data.get("json", {}),
+            'timestamp': datetime.now().isoformat(),
+            'request_number': self._request_counter,
+            'request': {
+                'method': method,
+                'url': url,
+                'headers': dict(self.session.headers),
+                'params': request_data.get('params', {}),
+                'json': request_data.get('json', {}),
             },
-            "response": {
-                "status_code": response.status_code,
-                "headers": dict(response.headers),
-                "time_seconds": response_time,
-                "body": None,
+            'response': {
+                'status_code': response.status_code,
+                'headers': dict(response.headers),
+                'time_seconds': response_time,
+                'body': None,
             },
         }
 
         try:
             response_body = response.json()
-            if isinstance(debug_data["response"], dict):
-                debug_data["response"]["body"] = response_body
+            if isinstance(debug_data['response'], dict):
+                debug_data['response']['body'] = response_body
         except Exception:
-            if isinstance(debug_data["response"], dict):
-                debug_data["response"]["body"] = response.text
+            if isinstance(debug_data['response'], dict):
+                debug_data['response']['body'] = response.text
 
-        with open(filepath, "w") as f:
+        with open(filepath, 'w') as f:
             json.dump(debug_data, f, indent=2, default=str)
 
     def _handle_response(self, response, method: str, endpoint: str) -> dict[str, Any]:
         """Handle HTTP response, raising appropriate exceptions for errors."""
         if response.status_code == 401:
-            raise AuthenticationError("Invalid authentication token")
+            raise AuthenticationError('Invalid authentication token')
         elif response.status_code == 403:
-            raise ForbiddenError("Access forbidden")
+            raise ForbiddenError('Access forbidden')
         elif response.status_code == 404:
-            raise NotFoundError(f"Resource not found: {endpoint}")
+            raise NotFoundError(f'Resource not found: {endpoint}')
         elif response.status_code == 422:
             error_data = response.json() if response.text else {}
-            raise ValidationError(f"Validation error: {error_data}")
+            raise ValidationError(f'Validation error: {error_data}')
         elif response.status_code == 429:
-            raise RateLimitError("Rate limit exceeded")
+            raise RateLimitError('Rate limit exceeded')
         elif response.status_code >= 400:
-            raise KankaException(f"API error {response.status_code}: {response.text}")
+            raise KankaException(f'API error {response.status_code}: {response.text}')
 
-        if method == "DELETE":
+        if method == 'DELETE':
             return {}
 
         return response.json()  # type: ignore[no-any-return]
 
     def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
         """Make HTTP request to Kanka API with automatic retry on rate limits."""
-        url = f"{self.BASE_URL}/campaigns/{self.campaign_id}/{endpoint}"
+        url = f'{self.BASE_URL}/campaigns/{self.campaign_id}/{endpoint}'
 
         attempts = 0
         delay = self.retry_delay
@@ -330,9 +324,7 @@ class KankaClient:
                 if response.status_code == 429:
                     attempts += 1
                     if not self.enable_rate_limit_retry or attempts > self.max_retries:
-                        raise RateLimitError(
-                            f"Rate limit exceeded after {attempts-1} retries"
-                        )
+                        raise RateLimitError(f'Rate limit exceeded after {attempts - 1} retries')
 
                     suggested_delay = self._parse_rate_limit_headers(response)
                     if suggested_delay is not None:
@@ -351,7 +343,7 @@ class KankaClient:
 
         if last_exception:
             raise last_exception
-        raise KankaException("Unexpected error in request retry logic")
+        raise KankaException('Unexpected error in request retry logic')
 
     def _upload_request(
         self,
@@ -362,32 +354,30 @@ class KankaClient:
         **kwargs,
     ) -> dict[str, Any]:
         """Make a multipart upload request to the Kanka API."""
-        url = f"{self.BASE_URL}/campaigns/{self.campaign_id}/{endpoint}"
+        url = f'{self.BASE_URL}/campaigns/{self.campaign_id}/{endpoint}'
 
-        saved_content_type = self.session.headers.pop("Content-Type", None)
+        saved_content_type = self.session.headers.pop('Content-Type', None)
         try:
-            response = self.session.request(
-                method, url, files=files, data=data, **kwargs
-            )
+            response = self.session.request(method, url, files=files, data=data, **kwargs)
         finally:
             if saved_content_type is not None:
-                self.session.headers["Content-Type"] = saved_content_type
+                self.session.headers['Content-Type'] = saved_content_type
 
         return self._handle_response(response, method, endpoint)
 
     # Campaign Gallery methods
     def gallery(self, page: int = 1, limit: int = 30) -> list[GalleryImage]:
         """List campaign gallery images."""
-        params: dict[str, int | str] = {"page": page, "limit": limit}
-        response = self._request("GET", "images", params=params)
-        self._last_gallery_meta = response.get("meta", {})
-        self._last_gallery_links = response.get("links", {})
-        return [GalleryImage(**item) for item in response["data"]]
+        params: dict[str, int | str] = {'page': page, 'limit': limit}
+        response = self._request('GET', 'images', params=params)
+        self._last_gallery_meta = response.get('meta', {})
+        self._last_gallery_links = response.get('links', {})
+        return [GalleryImage(**item) for item in response['data']]
 
     def gallery_get(self, image_id: str) -> GalleryImage:
         """Get a specific gallery image by UUID."""
-        response = self._request("GET", f"images/{image_id}")
-        return GalleryImage(**response["data"])
+        response = self._request('GET', f'images/{image_id}')
+        return GalleryImage(**response['data'])
 
     def gallery_upload(
         self,
@@ -399,62 +389,62 @@ class KankaClient:
         file_path = Path(file_path)
         data: dict[str, Any] = {}
         if folder_id is not None:
-            data["folder_id"] = folder_id
+            data['folder_id'] = folder_id
         if visibility_id is not None:
-            data["visibility_id"] = visibility_id
+            data['visibility_id'] = visibility_id
 
-        with open(file_path, "rb") as f:
-            files = {"file[]": (file_path.name, f)}
-            response = self._upload_request("POST", "images", files=files, data=data)
+        with open(file_path, 'rb') as f:
+            files = {'file[]': (file_path.name, f)}
+            response = self._upload_request('POST', 'images', files=files, data=data)
 
-        return GalleryImage(**response["data"][0])
+        return GalleryImage(**response['data'][0])
 
     def gallery_delete(self, image_id: str) -> bool:
         """Delete a gallery image."""
-        self._request("DELETE", f"images/{image_id}")
+        self._request('DELETE', f'images/{image_id}')
         return True
 
     @property
     def last_gallery_meta(self) -> dict[str, Any]:
         """Get metadata from the last gallery() call."""
-        return getattr(self, "_last_gallery_meta", {})
+        return getattr(self, '_last_gallery_meta', {})
 
     @property
     def last_gallery_links(self) -> dict[str, Any]:
         """Get pagination links from the last gallery() call."""
-        return getattr(self, "_last_gallery_links", {})
+        return getattr(self, '_last_gallery_links', {})
 
     @property
     def last_search_meta(self) -> dict[str, Any]:
         """Get metadata from the last search() call."""
-        return getattr(self, "_last_search_meta", {})
+        return getattr(self, '_last_search_meta', {})
 
     @property
     def last_search_links(self) -> dict[str, Any]:
         """Get pagination links from the last search() call."""
-        return getattr(self, "_last_search_links", {})
+        return getattr(self, '_last_search_links', {})
 
     @property
     def last_search_sync(self) -> str | None:
         """Get the sync timestamp from the last search() call."""
-        return getattr(self, "_last_search_sync", None)
+        return getattr(self, '_last_search_sync', None)
 
     @property
     def last_entities_meta(self) -> dict[str, Any]:
         """Get metadata from the last entities() call."""
-        return getattr(self, "_last_entities_meta", {})
+        return getattr(self, '_last_entities_meta', {})
 
     @property
     def last_entities_links(self) -> dict[str, Any]:
         """Get pagination links from the last entities() call."""
-        return getattr(self, "_last_entities_links", {})
+        return getattr(self, '_last_entities_links', {})
 
     @property
     def last_entities_sync(self) -> str | None:
         """Get the sync timestamp from the last entities() call."""
-        return getattr(self, "_last_entities_sync", None)
+        return getattr(self, '_last_entities_sync', None)
 
     @property
     def entities_has_next_page(self) -> bool:
         """Check if more pages are available from the last entities() call."""
-        return bool(getattr(self, "_last_entities_links", {}).get("next"))
+        return bool(getattr(self, '_last_entities_links', {}).get('next'))

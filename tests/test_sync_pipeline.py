@@ -3,7 +3,6 @@
 from types import SimpleNamespace as AttrMap
 
 from kanka_wiki_updater.sync_pipeline import (
-    EntityData,
     _is_known_entity,
     apply_relation_changes_locally,
     build_entity_index,
@@ -377,7 +376,8 @@ def test_is_known_entity_case_insensitive():
 
 
 def test_propose_update_truncated_flag():
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from kanka_wiki_updater.sync_pipeline import propose_update
 
     journal = AttrMap(
@@ -406,7 +406,8 @@ def test_propose_update_truncated_flag():
 
 
 def test_propose_update_not_truncated():
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from kanka_wiki_updater.sync_pipeline import propose_update
 
     journal = AttrMap(
@@ -434,8 +435,9 @@ def test_propose_update_not_truncated():
 
 
 def test_propose_new_entity_truncation_heuristic():
-    from kanka_wiki_updater.sync_pipeline import propose_new_entities
     from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_new_entities
 
     journal = AttrMap(
         id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
@@ -458,7 +460,8 @@ def test_propose_new_entity_truncation_heuristic():
 
 
 def test_propose_update_stores_journal_id():
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from kanka_wiki_updater.sync_pipeline import propose_update
 
     journal = AttrMap(

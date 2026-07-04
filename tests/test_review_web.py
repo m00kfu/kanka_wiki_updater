@@ -42,7 +42,8 @@ def mock_queue(tmp_path):
         },
     ]
     queue_file = tmp_path / 'pending_changes.json'
-    json.dump(queue, open(queue_file, 'w'), indent=2)
+    with open(queue_file, 'w') as f:
+        json.dump(queue, f, indent=2)
     return str(queue_file), tmp_path
 
 
@@ -135,18 +136,20 @@ class TestApiProposalStatus:
         def make_entity(name):
             return types.SimpleNamespace(name=name)
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch(
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
                 },
-            ):
-                resp = app_with_queue.post(
-                    '/api/proposals/1/status',
-                    json={'status': 'approved_all'},
-                )
+            ),
+        ):
+            resp = app_with_queue.post(
+                '/api/proposals/1/status',
+                json={'status': 'approved_all'},
+            )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['proposal']['status'] == 'applied'
@@ -188,18 +191,20 @@ class TestApiProposalStatus:
         def make_entity(name):
             return types.SimpleNamespace(name=name)
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch(
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
                 },
-            ):
-                app_with_queue.post(
-                    '/api/proposals/1/status',
-                    json={'status': 'approved_all'},
-                )
+            ),
+        ):
+            app_with_queue.post(
+                '/api/proposals/1/status',
+                json={'status': 'approved_all'},
+            )
         import kanka_wiki_updater.review_web as rw
 
         # Reload from disk using review_web's dynamic path resolution
@@ -409,7 +414,7 @@ class TestNewlineEscaping:
         resp = app_with_queue.get('/')
         html = resp.data.decode()
         # The function should use escaped \r and \n in regex literals (not raw control bytes)
-        assert '.replace(/\\r/g, ' in html   # CR check - escaped text sequence
+        assert '.replace(/\\r/g, ' in html  # CR check - escaped text sequence
 
     def test_escape_js_html_escapes_backslashes(self, app_with_queue):
         """escapeJsHtml doubles backslashes for JS string safety."""
@@ -448,10 +453,10 @@ class TestNewlineEscaping:
             }
         ]
         queue_file = tmp_path / 'pending_changes.json'
-        json_mod.dump(queue, open(queue_file, 'w'), indent=2)
+        with open(queue_file, 'w') as f:
+            json_mod.dump(queue, f, indent=2)
 
         import kanka_wiki_updater.config as config
-        from flask import Flask
         from kanka_wiki_updater.review_web import create_app
 
         original_data_dir = config.DATA_DIR
@@ -515,13 +520,15 @@ class TestApiProposalSync:
         mock_client.create_character.return_value = {'data': {'id': 999, 'entity_id': '42', 'entry': ''}}
         mock_client.get_relations.return_value = []
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}):
-                resp = app_with_queue.post('/api/proposals/0/sync')
-                assert resp.status_code == 200
-                data = resp.get_json()
-                assert 'ok' in data
-                assert 'message' in data
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}),
+        ):
+            resp = app_with_queue.post('/api/proposals/0/sync')
+            assert resp.status_code == 200
+            data = resp.get_json()
+            assert 'ok' in data
+            assert 'message' in data
 
     def test_sync_new_entity_creates_character(self, app_with_queue):
         """Syncing a new_entity proposal calls create_character on KankaClient."""
@@ -531,33 +538,35 @@ class TestApiProposalSync:
         mock_client.create_character.return_value = {'data': {'id': 999, 'entity_id': '42', 'entry': ''}}
         mock_client.get_relations.return_value = []
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}):
-                resp = app_with_queue.post('/api/proposals/0/sync')
-                data = resp.get_json()
-                assert data['ok'] is True
-                mock_client.create_character.assert_called_once()
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}),
+        ):
+            data = app_with_queue.post('/api/proposals/0/sync').get_json()
+            assert data['ok'] is True
+            mock_client.create_character.assert_called_once()
 
     def test_sync_update_calls_update_entity_entry(self, app_with_queue):
         """Syncing an update proposal calls update_entity_entry on KankaClient."""
-        import types
         import unittest.mock as mock
 
         mock_client = mock.MagicMock()
         mock_client.get_relations.return_value = []
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch(
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
                 },
-            ):
-                resp = app_with_queue.post('/api/proposals/1/sync')
-                data = resp.get_json()
-                assert data['ok'] is True
-                mock_client.update_entity_entry.assert_called_once()
+            ),
+        ):
+            resp = app_with_queue.post('/api/proposals/1/sync')
+            data = resp.get_json()
+            assert data['ok'] is True
+            mock_client.update_entity_entry.assert_called_once()
 
     def test_sync_invalid_index_returns_404(self, app_with_queue):
         """POST /api/proposals/99/sync returns 404."""
@@ -588,18 +597,20 @@ class TestStatusWithSync:
         mock_client.create_character.return_value = {'data': {'id': 999, 'entity_id': '42', 'entry': ''}}
         mock_client.get_relations.return_value = []
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}):
-                resp = app_with_queue.post(
-                    '/api/proposals/0/status',
-                    json={'status': 'approved_all'},
-                )
-                assert resp.status_code == 200
-                data = resp.get_json()
-                assert 'sync' in data
-                assert data['ok'] is True
-                assert data['proposal']['status'] == 'applied'
-                assert 'Created character' in data['sync']['message']
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}),
+        ):
+            resp = app_with_queue.post(
+                '/api/proposals/0/status',
+                json={'status': 'approved_all'},
+            )
+            assert resp.status_code == 200
+            data = resp.get_json()
+            assert 'sync' in data
+            assert data['ok'] is True
+            assert data['proposal']['status'] == 'applied'
+            assert 'Created character' in data['sync']['message']
 
     def test_approve_sync_failure_returns_409(self, app_with_queue):
         """When sync fails, status update returns 409 with error details."""
@@ -634,49 +645,51 @@ class TestStatusWithSync:
 
     def test_approve_update_syncs_synopsis(self, app_with_queue):
         """Approving an update proposal syncs the synopsis to Kanka."""
-        import types
         import unittest.mock as mock
 
         mock_client = mock.MagicMock()
         mock_client.get_relations.return_value = []
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch(
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
                 },
-            ):
-                resp = app_with_queue.post(
-                    '/api/proposals/1/status',
-                    json={'status': 'approved_all'},
-                )
-                assert resp.status_code == 200
-                mock_client.update_entity_entry.assert_called_once()
+            ),
+        ):
+            resp = app_with_queue.post(
+                '/api/proposals/1/status',
+                json={'status': 'approved_all'},
+            )
+            assert resp.status_code == 200
+            mock_client.update_entity_entry.assert_called_once()
 
     def test_approve_synopsis_only_triggers_sync(self, app_with_queue):
         """Approving synopsis-only also triggers sync (synopsis is synced)."""
-        import types
         import unittest.mock as mock
 
         mock_client = mock.MagicMock()
         mock_client.get_relations.return_value = []
 
-        with mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with mock.patch(
+        with (
+            mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            mock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
                 },
-            ):
-                resp = app_with_queue.post(
-                    '/api/proposals/1/status',
-                    json={'status': 'approved_synopsis_only'},
-                )
-                assert resp.status_code == 200
-                mock_client.update_entity_entry.assert_called_once()
+            ),
+        ):
+            resp = app_with_queue.post(
+                '/api/proposals/1/status',
+                json={'status': 'approved_synopsis_only'},
+            )
+            assert resp.status_code == 200
+            mock_client.update_entity_entry.assert_called_once()
 
 
 class TestApiProposalRegenerate:
@@ -696,18 +709,19 @@ class TestApiProposalRegenerate:
 
     def test_regenerate_missing_journal_id_returns_400(self, app_with_queue):
         """A truncated proposal without _journal_id returns 400."""
-        import types as _types
         from unittest import mock as umock
 
         mock_client = umock.MagicMock()
         mock_client.get_relations.return_value = []
 
-        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with umock.patch(
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
-            ):
-                app_with_queue.post('/api/proposals/1/status', json={'status': 'rejected'})
+            ),
+        ):
+            app_with_queue.post('/api/proposals/1/status', json={'status': 'rejected'})
 
         import kanka_wiki_updater.review_web as rw
 
@@ -716,14 +730,16 @@ class TestApiProposalRegenerate:
         queue[1]['truncated'] = True
         queue[1]['_journal_id'] = 789
         queue[1].pop('_journal_id', None)
-        import kanka_wiki_updater.config as config
         import os
+
+        import kanka_wiki_updater.config as config
 
         queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
         with open(queue_file, 'w') as f:
             json.dump(queue, f, indent=2)
 
         from unittest import mock as umock
+
         # Mock get_journals to return empty list (no fallback match possible without _journal_id)
         mock_client = umock.MagicMock()
         mock_client.get_journals.return_value = []
@@ -742,8 +758,9 @@ class TestApiProposalRegenerate:
         queue = rw_module._load_queue()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
-        import kanka_wiki_updater.config as config
         import os
+
+        import kanka_wiki_updater.config as config
 
         queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
         with open(queue_file, 'w') as f:
@@ -760,19 +777,21 @@ class TestApiProposalRegenerate:
         mock_client.get_journals.return_value = [mock_journal]
         mock_client.get_characters.return_value = [mock_entity]
 
-        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with umock.patch(
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
-            ):
-                with umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat:
-                    # Return identical entry — no change detected
-                    mock_chat.return_value = {
-                        'updated_entry': '<p>Old synopsis.</p>',
-                        'change_summary': '',
-                        'relation_changes': [],
-                    }
-                    resp = app_with_queue.post('/api/proposals/1/regenerate')
+            ),
+            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+        ):
+            # Return identical entry — no change detected
+            mock_chat.return_value = {
+                'updated_entry': '<p>Old synopsis.</p>',
+                'change_summary': '',
+                'relation_changes': [],
+            }
+            resp = app_with_queue.post('/api/proposals/1/regenerate')
 
         assert resp.status_code == 409
 
@@ -786,8 +805,9 @@ class TestApiProposalRegenerate:
         queue = rw_module._load_queue()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
-        import kanka_wiki_updater.config as config
         import os
+
+        import kanka_wiki_updater.config as config
 
         queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
         with open(queue_file, 'w') as f:
@@ -804,19 +824,21 @@ class TestApiProposalRegenerate:
         mock_client.get_journals.return_value = [mock_journal]
         mock_client.get_characters.return_value = [mock_entity]
 
-        with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
-            with umock.patch(
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
-            ):
-                with umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat:
-                    # Return a different entry — change detected
-                    mock_chat.return_value = {
-                        'updated_entry': '<p>New synopsis text.</p>',
-                        'change_summary': 'Updated.',
-                        'relation_changes': [],
-                    }
-                    resp = app_with_queue.post('/api/proposals/1/regenerate')
+            ),
+            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+        ):
+            # Return a different entry — change detected
+            mock_chat.return_value = {
+                'updated_entry': '<p>New synopsis text.</p>',
+                'change_summary': 'Updated.',
+                'relation_changes': [],
+            }
+            resp = app_with_queue.post('/api/proposals/1/regenerate')
 
         assert resp.status_code == 200
         data = resp.get_json()
@@ -830,15 +852,15 @@ class TestRegenerateApiErrors:
 
     def test_regenerate_journal_fetch_fails(self, app_with_queue):
         """When _journal_id exists but journal fetch fails, return 400 not 500."""
-        import types as _types
         from unittest import mock as umock
 
         rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
         queue = rw_module._load_queue()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
-        import kanka_wiki_updater.config as config
         import os
+
+        import kanka_wiki_updater.config as config
 
         queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
         with open(queue_file, 'w') as f:
@@ -856,7 +878,6 @@ class TestRegenerateApiErrors:
 
     def test_regenerate_fallback_journal_fetch_fails(self, app_with_queue):
         """When _journal_id is missing and fallback journal search fails, return 400."""
-        import types as _types
         from unittest import mock as umock
 
         rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
@@ -865,8 +886,9 @@ class TestRegenerateApiErrors:
         if '_journal_id' in queue[1]:
             del queue[1]['_journal_id']
         queue[1]['truncated'] = True
-        import kanka_wiki_updater.config as config
         import os
+
+        import kanka_wiki_updater.config as config
 
         queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
         with open(queue_file, 'w') as f:
@@ -891,8 +913,9 @@ class TestRegenerateApiErrors:
         queue = rw_module._load_queue()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
-        import kanka_wiki_updater.config as config
         import os
+
+        import kanka_wiki_updater.config as config
 
         queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
         with open(queue_file, 'w') as f:

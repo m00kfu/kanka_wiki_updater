@@ -1,7 +1,6 @@
 """Tests for terminal color helpers (colorama enabled/disabled)."""
 
 import sys
-from unittest.mock import patch
 
 
 def _reload_colors():
@@ -27,7 +26,7 @@ class TestColorWrapping:
         assert 'world' in result
 
     def test_all_colors_exist(self):
-        from kanka_wiki_updater.colors import red, green, yellow, cyan, magenta, bold, dim
+        from kanka_wiki_updater.colors import bold, cyan, dim, green, magenta, red, yellow
 
         for fn in [red, green, yellow, cyan, magenta, bold, dim]:
             result = fn('test')

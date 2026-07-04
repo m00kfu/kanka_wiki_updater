@@ -57,7 +57,7 @@ class EntityAsset(KankaModel):
     created_by: int | None = None
     updated_at: datetime | None = None
     updated_by: int | None = None
-    url: str | None = Field(default=None, alias="_url")
+    url: str | None = Field(default=None, alias='_url')
 
 
 class EntityImageData(KankaModel):
@@ -75,7 +75,7 @@ class EntityImageInfo(KankaModel):
     header: EntityImageData | None = None
 
 
-T = TypeVar("T", bound=KankaModel)
+T = TypeVar('T', bound=KankaModel)
 
 
 class EntityResponse[KankaModel]:

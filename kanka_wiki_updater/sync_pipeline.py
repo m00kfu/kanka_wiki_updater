@@ -16,7 +16,10 @@ import os
 import re
 import sys
 import time
+from difflib import SequenceMatcher
 from pathlib import Path
+
+from pydantic import BaseModel
 
 _DEBUG = bool(os.environ.get('KANKA_DEBUG'))  # type: ignore[unused-ignore,assignment]
 
@@ -25,9 +28,6 @@ def _debug(*args):
     if _DEBUG:
         print('[DEBUG]', *args, file=sys.stderr)
 
-
-from pydantic import BaseModel
-from difflib import SequenceMatcher
 
 _MIN_NAME_LENGTH = 4
 

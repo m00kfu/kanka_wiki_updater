@@ -106,9 +106,7 @@ def _extract_json(text, finish_reason=None):
         truncated = False
         trunc_msg = '[TRUNCATED: model hit token limit. Output may be incomplete -- review carefully.]'
 
-        if finish_reason == 'length':
-            truncated = True
-        elif _looks_truncated(result):
+        if finish_reason == 'length' or _looks_truncated(result):
             truncated = True
 
         if truncated:

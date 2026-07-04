@@ -39,7 +39,6 @@ class TestProgressRendering:
         tracker = ProgressTracker(3)
         tracker.done = 2
         rendered = tracker._render()
-        pct_part = rendered[22:25]
         assert '67%' in rendered or '66%' in rendered
 
     def test_label_appended(self):
