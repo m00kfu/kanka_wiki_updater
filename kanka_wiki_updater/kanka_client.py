@@ -1,4 +1,4 @@
-"""Wrapper around python-kanka library for Kanka API."""
+"""Thin HTTP wrapper around the Kanka API v1 using requests.Session."""
 
 import os
 import sys

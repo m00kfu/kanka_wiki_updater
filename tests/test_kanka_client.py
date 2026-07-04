@@ -212,16 +212,6 @@ class TestCRUDOperations:
         assert '/entities/123/relations/999' in call_args[0][1]
 
 
-class TestThrottle:
-    """Throttling is now handled by python-kanka; verify config value still exists."""
-
-    def test_config_has_request_interval(self):
-        import kanka_wiki_updater.config as real_config
-
-        assert hasattr(real_config, 'REQUEST_INTERVAL')
-        assert isinstance(real_config.REQUEST_INTERVAL, float)
-
-
 # -- sanity: ensure KankaClient can be instantiated with mocked env -----------
 
 

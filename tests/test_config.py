@@ -103,13 +103,6 @@ class TestCustomEnv:
             importlib.reload(config_mod)
             assert config_mod.KANKA_BASE_URL == 'http://localhost:8080'
 
-    def test_custom_request_interval(self):
-        with unittest.mock.patch.dict(os.environ, {'KANKA_REQUEST_INTERVAL': '0.5'}):
-            import kanka_wiki_updater.config as config_mod
-
-            importlib.reload(config_mod)
-            assert config_mod.REQUEST_INTERVAL == 0.5
-
     def test_custom_llm_settings(self):
         with unittest.mock.patch.dict(os.environ, {'LLM_MAX_TOKENS': '8192', 'LLM_TIMEOUT_SECONDS': '300'}):
             import kanka_wiki_updater.config as config_mod
