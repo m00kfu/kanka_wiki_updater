@@ -585,7 +585,7 @@ def create_app():
             from kanka_wiki_updater.llm_client import chat_json
             from kanka_wiki_updater.mentions import normalize_text, strip_html
             from kanka_wiki_updater.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
-            from kanka_wiki_updater.sync_pipeline import _rel_to_dict, relation_summary
+            from kanka_wiki_updater.sync_pipeline import relation_summary
         except ImportError:
             _debug('ImportError:', tb_mod.format_exc())
             return jsonify({'error': 'Import error — cannot regenerate'}), 500
@@ -593,7 +593,12 @@ def create_app():
         try:
             _debug('about to create KankaClient')
             client = KankaClient()
+            _debug('KankaClient created OK')
+        except Exception as e:
+            _debug(f'KankaClient creation failed: {e}')
+            return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
 
+        try:
             # Fetch the original journal entry (fallback: search by source_journal name if _journal_id missing)
             if journal_id:
                 try:
@@ -617,6 +622,7 @@ def create_app():
                             ),
                         }
                     ), 400
+                _debug(f'fetching all journals to find "{source_name}"')
                 try:
                     all_journals = client.get_journals()
                 except Exception as api_err:
@@ -626,13 +632,19 @@ def create_app():
                             'error': f'Cannot contact Kanka to look up journal "{source_name}": {api_err}',
                         }
                     ), 400
-                journals = [j for j in all_journals if (getattr(j, 'name', '') or '').lower() == source_name.lower()]
+                _debug(f'total journals fetched: {len(all_journals)}')
+                def _jname(j):
+                    return (j.get('name') if isinstance(j, dict) else getattr(j, 'name', '')) or ''
+                journals = [j for j in all_journals if _jname(j).lower() == source_name.lower()]
+                _debug(f'journal matches after filter: {len(journals)}, searching for: "{source_name}"')
 
             if not journals:
+                sample_names = [_jname(j) for j in all_journals[:5]]
+                _debug('no journal match found. sample names:', sample_names)
                 return jsonify(
                     {
                         'ok': False,
-                        'error': 'Could not fetch journal from Kanka.',
+                        'error': f'Could not find journal matching "{source_name}" — fetched {len(all_journals)} journals.',
                     }
                 ), 400
             journal = journals[0]
@@ -648,7 +660,15 @@ def create_app():
                         'error': f'Cannot contact Kanka to fetch entities: {api_err}',
                     }
                 ), 400
-            entity_data = next((e for e in entity_raw if e.id == proposal['entity_local_id']), None)
+            entity_data = next(
+                (
+                    e
+                    for e in entity_raw
+                    if (isinstance(e, dict) and e.get('id') == proposal['entity_local_id'])
+                    or getattr(e, 'id', None) == proposal['entity_local_id']
+                ),
+                None,
+            )
         except Exception as api_err:
             _debug('regenerate error:', tb_mod.format_exc())
             return jsonify(
@@ -659,10 +679,14 @@ def create_app():
             ), 500
 
         if _DEBUG:
-            _debug('journal found:', getattr(journal, 'name', None))
+            _debug(
+                'journal found:', journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', None)
+            )
             _debug('entity_data:', entity_data)
 
-        session_text = strip_html(getattr(journal, 'entry', '') or '')
+        session_text = strip_html(
+            (journal.get('entry') or '') if isinstance(journal, dict) else (getattr(journal, 'entry', '') or '')
+        )
         if not session_text.strip():
             return jsonify({'ok': False, 'error': 'Journal entry is empty.'}), 400
 
@@ -672,20 +696,40 @@ def create_app():
             'kind': proposal['entity_kind'],
             'local_id': proposal['entity_local_id'],
             'name': proposal['entity_name'],
-            'entry': getattr(entity_data, 'entry', '') or '',
+            'entry': (entity_data.get('entry') or '')
+            if isinstance(entity_data, dict)
+            else (getattr(entity_data, 'entry', '') or ''),
             'relations': [],
         }
-        rels = getattr(entity_data, 'relations', []) or []
+        rels = (
+            (entity_data.get('relations') or [])
+            if isinstance(entity_data, dict)
+            else (getattr(entity_data, 'relations', []) or [])
+        )
         for r in rels:
-            entity_info['relations'].append(_rel_to_dict(r))
+            entity_info['relations'].append(
+                r
+                if isinstance(r, dict)
+                else {
+                    'target_id': getattr(r, 'target_id', None),
+                    'owner_id': getattr(r, 'owner_id', None),
+                    'relation': getattr(r, 'relation', ''),
+                    'attitude': getattr(r, 'attitude', None) if hasattr(r, 'attitude') else None,
+                }
+            )
 
         user_prompt = USER_PROMPT_TEMPLATE.format(
             name=entity_info['name'],
             entity_kind=entity_info['kind'],
             current_entry=strip_html(entity_info['entry']) or '(no synopsis yet)',
             current_relations=relation_summary(entity_info['relations'], idx),
-            journal_name=getattr(journal, 'name', None) or 'Session note',
-            journal_date=getattr(journal, 'date', None) or getattr(journal, 'created_at', '') or '',
+            journal_name=(journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', None))
+            or 'Session note',
+            journal_date=(
+                (journal.get('date') if isinstance(journal, dict) else getattr(journal, 'date', None))
+                or (journal.get('created_at') if isinstance(journal, dict) else getattr(journal, 'created_at', ''))
+                or ''
+            ),
             session_text=session_text,
         )
 

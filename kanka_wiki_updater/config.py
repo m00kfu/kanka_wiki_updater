@@ -26,7 +26,7 @@ def _require(name):
 
 KANKA_TOKEN = _require('KANKA_TOKEN')
 KANKA_CAMPAIGN_ID = _require('KANKA_CAMPAIGN_ID')
-KANKA_BASE_URL = os.environ.get('KANKA_BASE_URL', 'https://api.kanka.io/1.0')
+KANKA_BASE_URL = os.environ.get('KANKA_BASE_URL', 'https://api.kanka.io/1.0/')
 
 # LM Studio's local server is OpenAI-compatible. Default port is 1234.
 LMSTUDIO_BASE_URL = os.environ.get('LMSTUDIO_BASE_URL', 'http://localhost:1234/v1')

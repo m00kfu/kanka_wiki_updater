@@ -19,8 +19,6 @@ import time
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from pydantic import BaseModel
-
 _DEBUG = bool(os.environ.get('KANKA_DEBUG'))  # type: ignore[unused-ignore,assignment]
 
 
@@ -107,48 +105,33 @@ except ImportError:
     )
 
 
-class EntityData(BaseModel):
-    kind: str
-    local_id: int
-    name: str
-    entry: str = ''
-    relations: list = None
-
-    def model_post_init(self, __context):
-        if self.relations is None:
-            self.relations = []
-
-
-def _rel_to_dict(rel):
-    """Convert a Relation model to the dict shape expected by apply_relation_changes_locally."""
-    d = {
-        'target_id': getattr(rel, 'target_id', None),
-        'owner_id': getattr(rel, 'owner_id', None),
-        'relation': getattr(rel, 'relation', ''),
-    }
-    if hasattr(rel, 'attitude'):
-        d['attitude'] = rel.attitude
-    return d
-
-
 def build_entity_index(client):
-    """One pass over characters + locations, keyed by entity_id (the
-    cross-entity-type id used by relations and mentions)."""
+    """One pass over characters + locations + organizations, keyed by
+    entity_id (the cross-entity-type id used by relations and mentions)."""
     index = {}
-    for kind, rows in (('character', client.get_characters()), ('location', client.get_locations())):
+    for kind, get_fn in (
+        ('character', client.get_characters),
+        ('location', client.get_locations),
+        ('organization', client.get_organizations),
+    ):
+        try:
+            rows = get_fn()
+        except Exception as e:
+            _debug(f'  build_entity_index: {kind}: ERROR — {e}')
+            continue
         _debug(f'  build_entity_index: {kind}: {len(rows)} items')
         for row in rows:
-            entry_text = getattr(row, 'entry', '') or ''
-            rels = getattr(row, 'relations', []) or []
-            name = getattr(row, 'name', '<UNKNOWN>')
-            _debug(f'    [{kind}] eid={row.entity_id} local_id={row.id} name={name!r}')
-            index[row.entity_id] = EntityData(
-                kind=kind,
-                local_id=row.id,
-                name=name,
-                entry=entry_text,
-                relations=[_rel_to_dict(r) for r in rels],
-            ).model_dump()
+            entry_text = row.get('entry', '') or ''
+            rels = row.get('relations', []) or []
+            name = row.get('name', '<UNKNOWN>')
+            _debug(f'    [{kind}] eid={row["entity_id"]} local_id={row["id"]} name={name!r}')
+            index[row['entity_id']] = {
+                'kind': kind,
+                'local_id': row['id'],
+                'name': name,
+                'entry': entry_text,
+                'relations': list(rels),
+            }
     return index
 
 
@@ -157,16 +140,12 @@ def relation_summary(relations, index):
         return '(none on record)'
     lines = []
     for rel in relations:
-        target_id = rel.get('target_id') if isinstance(rel, dict) else getattr(rel, 'target_id', None)
-        other_id = (
-            target_id
-            if target_id and target_id in index
-            else (rel.get('owner_id') if isinstance(rel, dict) else getattr(rel, 'owner_id', None))
-        )
+        target_id = rel.get('target_id')
+        other_id = target_id if target_id and target_id in index else rel.get('owner_id')
         other = index.get(other_id)
-        name = other.name if other else f'entity #{other_id}'
-        rel_name = rel.get('relation') if isinstance(rel, dict) else getattr(rel, 'relation', '')
-        attitude = rel.get('attitude') if isinstance(rel, dict) else getattr(rel, 'attitude', None)
+        name = other['name'] if other else f'entity #{other_id}'
+        rel_name = rel.get('relation', '')
+        attitude = rel.get('attitude')
         lines.append(f'- {rel_name} -> {name} (attitude: {attitude})')
     return '\n'.join(lines)
 
@@ -179,7 +158,7 @@ def find_mentioned_entities(journal_entry_raw, index):
 
 
 def propose_update(entity_id, entity, journal, index):
-    session_text = strip_html(getattr(journal, 'entry', '') or '')
+    session_text = strip_html(journal.get('entry', '') or '')
     if not session_text.strip():
         return None
 
@@ -188,8 +167,8 @@ def propose_update(entity_id, entity, journal, index):
         entity_kind=entity['kind'],
         current_entry=strip_html(entity['entry']) or '(no synopsis yet)',
         current_relations=relation_summary(entity['relations'], index),
-        journal_name=getattr(journal, 'name', None) or 'Session note',
-        journal_date=getattr(journal, 'date', None) or getattr(journal, 'created_at', '') or '',
+        journal_name=journal.get('name') or 'Session note',
+        journal_date=journal.get('date') or journal.get('created_at', '') or '',
         session_text=session_text,
     )
     try:
@@ -211,8 +190,8 @@ def propose_update(entity_id, entity, journal, index):
         'entity_kind': entity['kind'],
         'entity_local_id': entity['local_id'],
         'entity_name': entity['name'],
-        'source_journal': getattr(journal, 'name', None),
-        '_journal_id': journal.id,
+        'source_journal': journal.get('name'),
+        '_journal_id': journal['id'],
         'previous_entry': entity['entry'],
         'proposed_entry': result.get('updated_entry', '') or entity['entry'],
         'change_summary': result.get('change_summary', ''),
@@ -237,24 +216,24 @@ def journal_sort_key(journal):
       3. created_at, for journals with no date set at all -- these sort
          after every dated journal rather than disrupting the timeline.
     """
-    raw = getattr(journal, 'date', None) or ''
+    raw = journal.get('date') or ''
     raw = raw.strip() if isinstance(raw, str) else str(raw).strip() if raw else ''
     match = DATE_RE.match(raw)
     if match:
         year, month, day = (int(g) for g in match.groups())
-        return (0, year, month, day, getattr(journal, 'created_at', '') or '')
+        return (0, year, month, day, journal.get('created_at', '') or '')
 
-    year = getattr(journal, 'calendar_year', None)
+    year = journal.get('calendar_year')
     if year is not None:
         return (
             0,
             int(year),
-            getattr(journal, 'calendar_month', 0) or 0,
-            getattr(journal, 'calendar_day', 0) or 0,
-            getattr(journal, 'created_at', '') or '',
+            journal.get('calendar_month') or 0,
+            journal.get('calendar_day') or 0,
+            journal.get('created_at', '') or '',
         )
 
-    return (1, 0, 0, 0, getattr(journal, 'created_at', '') or '')
+    return (1, 0, 0, 0, journal.get('created_at', '') or '')
 
 
 def apply_relation_changes_locally(entity_id, relation_changes, index, name_to_id):
@@ -293,14 +272,14 @@ def propose_new_entities(journal, known_names):
     names (any case) to exclude -- callers should add a name to it as soon
     as it's been suggested, so the same backlog run doesn't propose the
     same new entity once per journal that mentions them."""
-    session_text = strip_html(getattr(journal, 'entry', '') or '')
+    session_text = strip_html(journal.get('entry', '') or '')
     if not session_text.strip():
         return []
 
     user_prompt = NEW_ENTITY_USER_PROMPT_TEMPLATE.format(
         known_names='\n'.join(f'- {n}' for n in sorted(known_names)) or '(none yet)',
-        journal_name=getattr(journal, 'name', None) or 'Session note',
-        journal_date=getattr(journal, 'date', None) or getattr(journal, 'created_at', '') or '',
+        journal_name=journal.get('name') or 'Session note',
+        journal_date=journal.get('date') or journal.get('created_at', '') or '',
         session_text=session_text,
     )
     try:
@@ -359,7 +338,7 @@ def main(limit=None):
     print(f'Fetched {len(journals)} journal(s) from Kanka.')
 
     processed_ids = state.get_processed_journal_ids()
-    to_process = [j for j in journals if j.id not in processed_ids]
+    to_process = [j for j in journals if j['id'] not in processed_ids]
 
     # Oldest first by the journal's in-fiction date, so a character's
     # synopsis builds up in story order rather than whatever order the API
@@ -382,14 +361,14 @@ def main(limit=None):
     total_new_entities = 0
     for i, journal in enumerate(to_process, start=1):
         t0 = time.time()
-        mentioned = find_mentioned_entities(getattr(journal, 'entry', ''), index)
+        mentioned = find_mentioned_entities(journal.get('entry', ''), index)
         new_candidates = propose_new_entities(journal, known_names)
 
         # Calculate total work units for this journal
         total_units = len(mentioned) + (1 if new_candidates else 0)
 
         if total_units > 0:
-            print(f'      {getattr(journal, "name", None)}')
+            print(f'      {journal.get("name")}')
             tracker = ProgressTracker(total_units)
 
             for entity_id in mentioned:
@@ -416,13 +395,13 @@ def main(limit=None):
             tracker.mark_done('New-entity scan')
             tracker.finish()
         else:
-            print(f"  ({i}/{len(to_process)}) '{getattr(journal, 'name', None)}': no entities found")
+            print(f"  ({i}/{len(to_process)}) '{journal.get('name')}': no entities found")
 
         # Always mark journal processed regardless of tracker usage
-        state.mark_journal_processed(journal.id, title=getattr(journal, 'name', None))
+        state.mark_journal_processed(journal['id'], title=journal.get('name'))
         elapsed = time.time() - t0
         mins, secs = divmod(int(elapsed), 60)
-        print(f"      ({i}/{len(to_process)}) '{getattr(journal, 'name', None)}' processed in {mins:02d}:{secs:02d}")
+        print(f"      ({i}/{len(to_process)}) '{journal.get('name')}' processed in {mins:02d}:{secs:02d}")
 
     # Resolve relation conflicts across all queued proposals for this run
     if total_proposals > 0:
@@ -444,7 +423,7 @@ def main(limit=None):
     # set, silently skip the ones already done (via processed_journals.json),
     # and pick up where this run left off.
     if journals and len(to_process) == total_new:
-        newest = max(j.updated_at for j in journals)
+        newest = max(j['updated_at'] for j in journals)
         state.set_last_sync(newest)
 
     if total_proposals or total_new_entities:

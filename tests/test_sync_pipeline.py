@@ -1,7 +1,5 @@
 """Tests for sync_pipeline pure functions."""
 
-from types import SimpleNamespace as AttrMap
-
 from kanka_wiki_updater.sync_pipeline import (
     _is_known_entity,
     apply_relation_changes_locally,
@@ -10,12 +8,6 @@ from kanka_wiki_updater.sync_pipeline import (
     journal_sort_key,
     relation_summary,
 )
-
-
-def _d(d):
-    """Convert a dict to SimpleNamespace for attribute access."""
-    return AttrMap((k, _d(v) if isinstance(v, dict) else v) for k, v in d.items())
-
 
 # --- build_entity_index tests (Task 9) ---
 
@@ -33,9 +25,12 @@ def test_build_entity_index_characters():
 
     class MockClient:
         def get_characters(self):
-            return [_d(r) for r in client_data]
+            return client_data
 
         def get_locations(self):
+            return []
+
+        def get_organizations(self):
             return []
 
     index = build_entity_index(MockClient())
@@ -61,7 +56,10 @@ def test_build_entity_index_locations():
             return []
 
         def get_locations(self):
-            return [_d(r) for r in client_data]
+            return client_data
+
+        def get_organizations(self):
+            return []
 
     index = build_entity_index(MockClient())
     assert 789 in index
@@ -76,6 +74,9 @@ def test_build_entity_index_empty():
         def get_locations(self):
             return []
 
+        def get_organizations(self):
+            return []
+
     index = build_entity_index(MockClient())
     assert len(index) == 0
 
@@ -83,9 +84,12 @@ def test_build_entity_index_empty():
 def test_build_entity_index_missing_entry():
     class MockClient:
         def get_characters(self):
-            return [_d({'entity_id': 1, 'id': 2, 'name': 'Bob', 'relations': []})]
+            return [{'entity_id': 1, 'id': 2, 'name': 'Bob', 'relations': []}]
 
         def get_locations(self):
+            return []
+
+        def get_organizations(self):
             return []
 
     index = build_entity_index(MockClient())
@@ -95,9 +99,12 @@ def test_build_entity_index_missing_entry():
 def test_build_entity_index_missing_relations():
     class MockClient:
         def get_characters(self):
-            return [_d({'entity_id': 1, 'id': 2, 'name': 'Bob', 'entry': 'Test'})]
+            return [{'entity_id': 1, 'id': 2, 'name': 'Bob', 'entry': 'Test'}]
 
         def get_locations(self):
+            return []
+
+        def get_organizations(self):
             return []
 
     index = build_entity_index(MockClient())
@@ -113,7 +120,7 @@ def test_relation_summary_empty():
 
 
 def test_relation_summary_with_relations():
-    entity_data = AttrMap(name='Bob')
+    entity_data = {'name': 'Bob'}
     index = {456: entity_data}
     relations = [
         {'target_id': 456, 'relation': 'Sworn enemy', 'attitude': -80},
@@ -134,8 +141,8 @@ def test_relation_summary_missing_target():
 
 
 def test_relation_summary_multiple():
-    entity1 = AttrMap(name='Alice')
-    entity2 = AttrMap(name='Bob')
+    entity1 = {'name': 'Alice'}
+    entity2 = {'name': 'Bob'}
     index = {1: entity1, 2: entity2}
     relations = [
         {'target_id': 1, 'relation': 'Friend', 'attitude': 80},
@@ -147,7 +154,7 @@ def test_relation_summary_multiple():
 
 
 def test_relation_summary_none_attitude():
-    entity_data = AttrMap(name='Alice')
+    entity_data = {'name': 'Alice'}
     index = {1: entity_data}
     relations = [{'target_id': 1, 'relation': 'Acquaintance', 'attitude': None}]
     result = relation_summary(relations, index)
@@ -201,28 +208,28 @@ def test_find_mentioned_entities_empty_text():
 
 
 def test_journal_sort_key_gregorian_date():
-    j = AttrMap(date='2024-06-15', created_at='2024-06-15T10:00:00')
+    j = {'date': '2024-06-15', 'created_at': '2024-06-15T10:00:00'}
     result = journal_sort_key(j)
     assert result[0] == 0
     assert result[1] == 2024
 
 
 def test_journal_sort_key_custom_calendar():
-    j = AttrMap(calendar_year=5, calendar_month=3, calendar_day=12)
+    j = {'calendar_year': 5, 'calendar_month': 3, 'calendar_day': 12}
     result = journal_sort_key(j)
     assert result[0] == 0
     assert result[1] == 5
 
 
 def test_journal_sort_key_fallback_to_created_at():
-    j = AttrMap(created_at='2024-06-15T10:00:00')
+    j = {'created_at': '2024-06-15T10:00:00'}
     result = journal_sort_key(j)
     assert result[0] == 1
 
 
 def test_journal_sort_key_date_over_created():
-    j_dated = AttrMap(date='2024-06-15', created_at='2024-07-01T10:00:00')
-    j_undated = AttrMap(created_at='2024-06-10T10:00:00')
+    j_dated = {'date': '2024-06-15', 'created_at': '2024-07-01T10:00:00'}
+    j_undated = {'created_at': '2024-06-10T10:00:00'}
 
     key_dated = journal_sort_key(j_dated)
     key_undated = journal_sort_key(j_undated)
@@ -231,13 +238,13 @@ def test_journal_sort_key_date_over_created():
 
 
 def test_journal_sort_key_empty_date():
-    j = AttrMap(date='', created_at='2024-06-15T10:00:00')
+    j = {'date': '', 'created_at': '2024-06-15T10:00:00'}
     result = journal_sort_key(j)
     assert result[0] == 1
 
 
 def test_journal_sort_key_no_date_or_created():
-    j = AttrMap()
+    j = {}
     result = journal_sort_key(j)
     assert result[0] == 1
     assert result[4] == ''
@@ -376,13 +383,17 @@ def test_is_known_entity_case_insensitive():
 
 
 def test_propose_update_truncated_flag():
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     from kanka_wiki_updater.sync_pipeline import propose_update
 
-    journal = AttrMap(
-        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
-    )
+    journal = {
+        'id': 789,
+        'name': 'Session note',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
     entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
 
     with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
@@ -392,27 +403,24 @@ def test_propose_update_truncated_flag():
             'relation_changes': [],
             'truncated': True,  # LLM hit token limit
         }
-        with patch('kanka_wiki_updater.sync_pipeline.KankaClient') as mock_client:
-            mock_instance = MagicMock()
-            mock_instance.entry = 'Old synopsis'
-            mock_instance.relations = []
-            mock_instance.get.return_value = [mock_instance]
-            mock_client.return_value.get_characters.return_value = []
-            mock_client.return_value.get_locations.return_value = []
 
-            result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
 
     assert result['truncated'] is True
 
 
 def test_propose_update_not_truncated():
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     from kanka_wiki_updater.sync_pipeline import propose_update
 
-    journal = AttrMap(
-        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
-    )
+    journal = {
+        'id': 789,
+        'name': 'Session note',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
     entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
 
     with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
@@ -421,15 +429,8 @@ def test_propose_update_not_truncated():
             'change_summary': '',
             'relation_changes': [],
         }
-        with patch('kanka_wiki_updater.sync_pipeline.KankaClient') as mock_client:
-            mock_instance = MagicMock()
-            mock_instance.entry = 'Old synopsis'
-            mock_instance.relations = []
-            mock_instance.get.return_value = [mock_instance]
-            mock_client.return_value.get_characters.return_value = []
-            mock_client.return_value.get_locations.return_value = []
 
-            result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
 
     assert 'truncated' not in result or result['truncated'] is False
 
@@ -439,9 +440,13 @@ def test_propose_new_entity_truncation_heuristic():
 
     from kanka_wiki_updater.sync_pipeline import propose_new_entities
 
-    journal = AttrMap(
-        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
-    )
+    journal = {
+        'id': 789,
+        'name': 'Session note',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
 
     with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
         mock_chat.return_value = {
@@ -460,13 +465,17 @@ def test_propose_new_entity_truncation_heuristic():
 
 
 def test_propose_update_stores_journal_id():
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     from kanka_wiki_updater.sync_pipeline import propose_update
 
-    journal = AttrMap(
-        id=789, name='Session note', date='2024-01-01', entry='Alice saved the day.', created_at='2024-01-02T10:00:00'
-    )
+    journal = {
+        'id': 789,
+        'name': 'Session note',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
     entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
 
     with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
@@ -475,14 +484,7 @@ def test_propose_update_stores_journal_id():
             'change_summary': '',
             'relation_changes': [],
         }
-        with patch('kanka_wiki_updater.sync_pipeline.KankaClient') as mock_client:
-            mock_instance = MagicMock()
-            mock_instance.entry = 'Old synopsis'
-            mock_instance.relations = []
-            mock_instance.get.return_value = [mock_instance]
-            mock_client.return_value.get_characters.return_value = []
-            mock_client.return_value.get_locations.return_value = []
 
-            result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
 
     assert result['_journal_id'] == 789

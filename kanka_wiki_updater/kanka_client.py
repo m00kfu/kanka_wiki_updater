@@ -119,6 +119,10 @@ class KankaClient:
         resp = self._request('GET', 'locations', params={'related': True})
         return resp.get('data') or []
 
+    def get_organizations(self):
+        resp = self._request('GET', 'organisations', params={'related': True})
+        return resp.get('data') or []
+
     def update_entity_entry(self, kind, entity_local_id, entry_text):
         """kind is 'characters' or 'locations'; entity_local_id is the
         type-specific `id` field (NOT `entity_id`)."""
