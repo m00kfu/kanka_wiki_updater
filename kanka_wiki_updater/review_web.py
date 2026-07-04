@@ -240,7 +240,7 @@ def create_app():
 
                 # Parse Kanka wiki links like [organisation:9419438|Zhentarim] or [entity:123]
                 import re as _re
-                wiki_match = _re.search(r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)\]', name)
+                wiki_match = _re.search(r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)', name)
                 if wiki_match:
                     # The number inside is a Kanka entity_id — look it up in the index to verify
                     candidate_eid = int(wiki_match.group(1))
