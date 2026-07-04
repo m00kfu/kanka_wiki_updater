@@ -285,7 +285,8 @@ def create_app():
         try:
             if proposal.get('proposal_type') == 'new_entity':
                 entity_type = proposal.get('suggested_type', 'character')
-                kind_param = 'characters' if entity_type == 'character' else 'locations'
+                kind_param_map = {'character': 'characters', 'location': 'locations', 'organization': 'organizations'}
+                kind_param = kind_param_map.get(entity_type, 'characters')
                 _debug(f'  creating {entity_type}: name={proposal["entity_name"]!r}')
                 result = getattr(client, f'create_{entity_type}')(
                     proposal['entity_name'], entry=proposal.get('draft_entry', '')
@@ -306,8 +307,9 @@ def create_app():
                     errors.append(f"Created entity but couldn't read entity_id from response. Raw response: {result}")
 
             elif proposal.get('proposal_type') == 'update':
-                # Update synopsis entry
-                kind_param = 'characters' if proposal['entity_kind'] == 'character' else 'locations'
+                # Update synopsis entry — map entity_kind to API plural form
+                kind_map = {'character': 'characters', 'location': 'locations', 'organization': 'organizations'}
+                kind_param = kind_map.get(proposal['entity_kind'], 'characters')
                 _debug(f"  updating {kind_param}/{proposal['entity_local_id']} for '{proposal['entity_name']}'")
                 client.update_entity_entry(
                     kind_param,
