@@ -369,14 +369,43 @@ def test_is_known_entity_empty_name():
 
 
 def test_is_known_entity_short_suggestion_skipped_for_substring_and_fuzzy():
-    # Short suggestions are skipped entirely to avoid false positives.
-    assert _is_known_entity('A', ['Alice', 'Bob']) is False  # single char
+    # Short suggestions skip fuzzy matching to avoid false positives, but
+    # exact match still works. Substring checks are also skipped for very
+    # short names (< 4 chars) since they'd be substrings of many names.
+    assert _is_known_entity('A', ['Alice', 'Bob']) is False  # single char -- too short even for substring
     assert _is_known_entity('Of', ['Officer', 'Waterdeep']) is False  # too short for fuzzy
 
 
 def test_is_known_entity_case_insensitive():
     assert _is_known_entity('WATERDEEP', ['waterdeep']) is True
     assert _is_known_entity('waterdeep', ['Waterdeep']) is True
+
+
+def test_is_known_entity_full_name_fuzzy_match():
+    # Full-name fuzzy matching catches near-misses where neither name is a
+    # substring of the other but they share significant overlap.
+    # "Aerendel Stoneclaw" vs "Lord Aerendyl" differ in second word, ratio ~0.45
+    assert _is_known_entity('Aerendel Stoneclaw', ['Lord Aerendyl']) is False
+    # But "Aerendel Stormwind" vs "Aerendyl Stormwind" share most chars (ratio ~0.89)
+    assert _is_known_entity('Aerendel Stormwind', ['Aerendyl Stormwind']) is True
+
+
+def test_is_known_entity_unicode_accent_normalization():
+    # Accented names should match their unaccented equivalents.
+    assert _is_known_entity('Jose', ['Jos\u00e9']) is True
+    assert _is_known_entity('Jos\u00e9', ['Jose']) is True
+
+
+def test_is_known_entity_trailing_space_in_known_name():
+    # Trailing/leading whitespace in known names should not prevent matching.
+    assert _is_known_entity('Aerendyl', [' Aerendyl ']) is True
+    assert _is_known_entity('  Aerendyl  ', ['Aerendyl']) is True
+
+
+def test_is_known_entity_partial_name_is_substring():
+    # A suggestion that is a substring of an existing entity name should match.
+    assert _is_known_entity('Stonehand', ['Aerendyl Stonehand']) is True
+    assert _is_known_entity('Aerendel', ['Lord Aerendyl']) is False  # not a substring, fuzzy < threshold
 
 
 # --- propose_update truncation flag tests (Task 16: truncated output detection) ---

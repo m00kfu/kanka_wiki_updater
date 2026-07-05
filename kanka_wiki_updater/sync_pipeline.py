@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -30,46 +31,67 @@ def _debug(*args):
 _MIN_NAME_LENGTH = 4
 
 
+def _normalize_name(name):
+    """Strip accents/diacritics and collapse whitespace for comparison."""
+    name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
+    return ' '.join(name.split())
+
+
 def _is_known_entity(suggested_name, known_names):
     """Return True if *suggested_name* looks like an existing entity.
 
-    Checks two heuristics against every name in *known_names*:
-      1. **Substring containment** -- the suggestion is contained within a
+    Checks multiple heuristics against every name in *known_names*:
+      1. **Exact match** (case-insensitive) on normalized names.
+      2. **Substring containment** -- the suggestion is contained within a
          known name or vice-versa (e.g. "Aerendyl" inside "Aerendyl Stonehand").
-      2. **Fuzzy match** -- SequenceMatcher ratio ≥ 0.84 on lower-cased names
-         whose first word is at least 4 characters long.
+      3. **Fuzzy match on first words** -- SequenceMatcher ratio ≥ 0.84 when
+         both first words are at least 4 characters long.
+      4. **Fuzzy match on full names** -- catches cases where neither name is a
+         substring of the other but they share significant overlap (e.g.
+         "Aerendel Stoneclaw" vs "Lord Aerendyl").
 
-    Short suggestions (< 4 chars) are skipped to avoid false positives from
-    common words like "the", "of", or single letters."""
-    suggested = (suggested_name or '').strip().lower()
+    Single-character suggestions skip all checks to avoid matching every word.
+    Very short suggestions (< 4 chars) skip fuzzy checks; exact and substring
+    still apply."""
+    suggested = (suggested_name or '').strip()
     if not suggested:
         return False
-    # Skip very short suggestions entirely -- they'll always be substrings
-    # of longer names, causing massive false-positive rate.
-    if len(suggested) < _MIN_NAME_LENGTH:
-        return False
 
-    # Fast exact check (already done in the caller, but keep here for completeness).
-    known_lower = {n.lower() for n in known_names}
-    if suggested in known_lower:
+    # Normalize for comparison: strip accents, collapse whitespace.
+    norm_suggested = _normalize_name(suggested).lower()
+    known_normed = [_normalize_name(n).lower() for n in known_names]
+
+    # Fast exact check -- always applies even to single-char names.
+    if norm_suggested in known_normed:
         return True
 
-    for name in known_names:
-        lower_name = name.lower()
-        # Skip very short names to avoid false positives.
-        first_word = lower_name.split()[0] if lower_name.split() else lower_name
-        if len(first_word) < _MIN_NAME_LENGTH:
+    # Skip substring and fuzzy checks for very short suggestions (1-3 chars)
+    # to avoid matching common words as substrings of many names.
+    if len(norm_suggested) < _MIN_NAME_LENGTH:
+        return False
+
+    for lower_name in known_normed:
+        if not lower_name:
             continue
 
         # Substring containment (bidirectional).
-        if suggested in lower_name or lower_name in suggested:
+        if norm_suggested in lower_name or lower_name in norm_suggested:
             return True
 
         # Fuzzy match on the first word.
+        suggested_first = norm_suggested.split()[0] if norm_suggested.split() else norm_suggested
+        known_first = lower_name.split()[0] if lower_name.split() else lower_name
         if (
-            len(suggested.split()[0]) >= _MIN_NAME_LENGTH
-            and SequenceMatcher(None, suggested.split()[0], first_word).ratio() >= 0.84
+            len(suggested_first) >= _MIN_NAME_LENGTH
+            and len(known_first) >= _MIN_NAME_LENGTH
+            and SequenceMatcher(None, suggested_first, known_first).ratio() >= 0.84
         ):
+            return True
+
+        # Fuzzy match on full names -- catches near-misses where neither name
+        # is a substring of the other but they share significant overlap
+        # (e.g. "Aerendel Stoneclaw" vs "Lord Aerendyl").
+        if SequenceMatcher(None, norm_suggested, lower_name).ratio() >= 0.84:
             return True
 
     return False
@@ -123,7 +145,7 @@ def build_entity_index(client):
         for row in rows:
             entry_text = row.get('entry', '') or ''
             rels = row.get('relations', []) or []
-            name = row.get('name', '<UNKNOWN>')
+            name = (row.get('name') or '<UNKNOWN>').strip()
             _debug(f'    [{kind}] eid={row["entity_id"]} local_id={row["id"]} name={name!r}')
             index[row['entity_id']] = {
                 'kind': kind,
