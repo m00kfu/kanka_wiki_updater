@@ -949,7 +949,7 @@ class TestRegenerateApiErrors:
 
         assert resp.status_code == 400
         data = resp.get_json()
-        assert 'Cannot contact Kanka' in data['error']
+        assert 'Cannot fetch journals from Kanka' in data['error']
 
     def test_regenerate_entity_fetch_fails(self, app_with_queue):
         """When entity fetch fails after journal is found, return 400 not 500."""

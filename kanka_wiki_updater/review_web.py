@@ -636,57 +636,48 @@ def create_app():
             return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
 
         try:
-            # Fetch the original journal entry (fallback: search by source_journal name if _journal_id missing)
-            source_name = ''
-            all_journals = []
-            if journal_id:
-                try:
-                    journals = client.get_journals(journal_ids=[journal_id])
-                except Exception as api_err:
-                    return jsonify(
-                        {
-                            'ok': False,
-                            'error': f'Cannot fetch journal #{journal_id} from Kanka: {api_err}',
-                        }
-                    ), 400
-            else:
-                source_name = proposal.get('source_journal', '')
-                if not source_name:
-                    return jsonify(
-                        {
-                            'ok': False,
-                            'error': (
-                                'This proposal lacks _journal_id and source_journal — '
-                                'cannot locate the original session.'
-                            ),
-                        }
-                    ), 400
-                _debug(f'fetching all journals to find "{source_name}"')
-                try:
-                    all_journals = client.get_journals()
-                except Exception as api_err:
-                    return jsonify(
-                        {
-                            'ok': False,
-                            'error': f'Cannot contact Kanka to look up journal "{source_name}": {api_err}',
-                        }
-                    ), 400
-                _debug(f'total journals fetched: {len(all_journals)}')
-                def _jname(j):
-                    return (j.get('name') if isinstance(j, dict) else getattr(j, 'name', '')) or ''
-                journals = [j for j in all_journals if _jname(j).lower() == source_name.lower()]
-                _debug(f'journal matches after filter: {len(journals)}, searching for: "{source_name}"')
+            # Fetch ALL session journals since last_sync so the LLM sees full context.
+            # When _journal_id is present, use that specific journal as primary (for header/diff).
+            from kanka_wiki_updater import state as sync_state
 
-            if not journals:
-                sample_names = [_jname(j) for j in (all_journals[:5] if all_journals else [])]
-                _debug('no journal match found. sample names:', sample_names)
+            last_sync = sync_state.get_last_sync()
+            try:
+                all_recent_journals = client.get_journals(since=last_sync, journal_type=pkg_config.SESSION_JOURNAL_TYPE or None)
+            except Exception as api_err:
                 return jsonify(
                     {
                         'ok': False,
-                        'error': f'Could not find journal matching "{source_name}" — fetched {len(all_journals)} journals.',
+                        'error': f'Cannot fetch journals from Kanka: {api_err}',
                     }
                 ), 400
-            journal = journals[0]
+
+            if not all_recent_journals:
+                return jsonify({'ok': False, 'error': 'No session journals found since last sync.'}), 400
+
+            _debug(f'[REGEN] fetched {len(all_recent_journals)} session journal(s) since last_sync={last_sync!r}')
+
+            source_name = proposal.get('source_journal', '')
+
+            # Pick the primary journal for header/diff display.
+            def _jname(j):
+                return (j.get('name') if isinstance(j, dict) else getattr(j, 'name', '')) or ''
+
+            primary_journal = None
+            if journal_id:
+                # Use the specific journal by ID as primary (original behavior).
+                for j in all_recent_journals:
+                    jid = j.get('id') if isinstance(j, dict) else getattr(j, 'id', None)
+                    if jid == journal_id:
+                        primary_journal = j
+                        break
+            elif source_name:
+                # Fallback: try to match by name.
+                for j in all_recent_journals:
+                    if source_name.lower() in _jname(j).lower():
+                        primary_journal = j
+                        break
+
+            journal = primary_journal or all_recent_journals[0]
 
             # Fetch fresh entity data (may have changed since original sync)
             try:
@@ -723,11 +714,15 @@ def create_app():
             )
             _debug('entity_data:', entity_data)
 
-        session_text = strip_html(
-            (journal.get('entry') or '') if isinstance(journal, dict) else (getattr(journal, 'entry', '') or '')
-        )
+        # Build session_text from the single source journal for this proposal.
+        _raw_entry = (journal.get('entry') or '') if isinstance(journal, dict) else (getattr(journal, 'entry', '') or '')
+        jn = (journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', '')) or 'Untitled'
+        session_text = f'{jn}:\n{strip_html(_raw_entry)}'.strip()
+        _debug(f'[REGEN] primary journal: {(journal.get("name") if isinstance(journal, dict) else getattr(journal, "name", "?"))!r}')
+        _debug(f'[REGEN] session_text length: {len(session_text)} chars')
+        _debug(f'[REGEN] session_text (first 500): {session_text[:500]!r}')
         if not session_text.strip():
-            return jsonify({'ok': False, 'error': 'Journal entry is empty.'}), 400
+            return jsonify({'ok': False, 'error': 'All journal entries are empty.'}), 400
 
         # Build entity index for relation resolution
         idx = build_entity_index(client)
@@ -757,18 +752,22 @@ def create_app():
                 }
             )
 
+        # Build journal name/date summary for the prompt header.
+        if len(all_recent_journals) > 1:
+            j_names = [j.get('name') if isinstance(j, dict) else getattr(j, 'name', '') or '' for j in all_recent_journals]
+            journal_name_str = f'{len(j_names)} session notes ({", ".join(n for n in j_names if n)[:200]}…)'
+        else:
+            journal_name_str = (all_recent_journals[0].get('name') if isinstance(all_recent_journals[0], dict) else getattr(all_recent_journals[0], 'name', '')) or 'Session note'
+
         user_prompt = USER_PROMPT_TEMPLATE.format(
             name=entity_info['name'],
             entity_kind=entity_info['kind'],
             current_entry=strip_html(entity_info['entry']) or '(no synopsis yet)',
             current_relations=relation_summary(entity_info['relations'], idx),
-            journal_name=(journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', None))
-            or 'Session note',
-            journal_date=(
-                (journal.get('date') if isinstance(journal, dict) else getattr(journal, 'date', None))
-                or (journal.get('created_at') if isinstance(journal, dict) else getattr(journal, 'created_at', ''))
-                or ''
-            ),
+            journal_name=journal_name_str,
+            journal_date=(all_recent_journals[0].get('date') if isinstance(all_recent_journals[0], dict) else getattr(all_recent_journals[0], 'date', None))
+            or (all_recent_journals[0].get('created_at') if isinstance(all_recent_journals[0], dict) else getattr(all_recent_journals[0], 'created_at', ''))
+            or '',
             session_text=session_text,
         )
 
@@ -783,8 +782,24 @@ def create_app():
         except Exception as e:
             return jsonify({'ok': False, 'error': f'LLM error during regeneration: {e}'}), 500
 
-        no_text_change = normalize_text(result.get('updated_entry', '')) == normalize_text(entity_info['entry'])
+        _debug(f'[REGEN] LLM result keys={list(result.keys())}')
+        _debug(f'[REGEN] LLM updated_entry (first 200)={result.get("updated_entry", "")[:200]!r}')
+        _debug(
+            f'[REGEN] current entry (first 200)={(entity_data.get("entry") if isinstance(entity_data, dict) else getattr(entity_data, "entry", ""))[:200]!r}'
+        )
+        _debug(f'[REGEN] session_text length: {len(session_text)} chars')
+        _debug(f'[REGEN] entity_info.entry length: {len(entity_info["entry"])} chars')
+        norm_llm = normalize_text(result.get('updated_entry', ''))
+        norm_cur = normalize_text(entity_info['entry'])
+        _debug(f'[REGEN] normalized LLM (first 200)={norm_llm[:200]!r}')
+        _debug(f'[REGEN] normalized current (first 200)={norm_cur[:200]!r}')
+        _debug(f'[REGEN] norm_equal={norm_llm == norm_cur}')
+
+        no_text_change = norm_llm == norm_cur
         if no_text_change and not result.get('relation_changes') and not force_regenerate:
+            _debug(f'[REGEN] change_summary={result.get("change_summary")!r}')
+            _debug(f'[REGEN] relation_changes={result.get("relation_changes")!r}')
+            _debug(f'[REGEN] uncertain={result.get("uncertain")!r}')
             return jsonify(
                 {'ok': False, 'error': 'Regenerated output is identical to current synopsis — nothing changed.'}
             ), 409
