@@ -126,13 +126,15 @@ class KankaClient:
         return resp.get('data') or []
 
     def update_entity_entry(self, kind, entity_local_id, entry_text):
-        """kind is 'characters' or 'locations'; entity_local_id is the
+        """kind is 'characters', 'locations', or 'organisations'; entity_local_id is the
         type-specific `id` field (NOT `entity_id`)."""
         html = entry_text.replace('\n\n', '<br><br>').replace('\n', '<br>')
         if kind == 'characters':
             self._request('PATCH', f'characters/{entity_local_id}', json={'entry': html})
         elif kind == 'locations':
             self._request('PATCH', f'locations/{entity_local_id}', json={'entry': html})
+        elif kind == 'organisations':
+            self._request('PATCH', f'organisations/{entity_local_id}', json={'entry': html})
 
     def create_character(self, name, entry=None, **extra):
         """Create a new character. `name` is the only required field."""

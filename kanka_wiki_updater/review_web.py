@@ -240,7 +240,11 @@ def create_app():
 
                 # Parse Kanka wiki links like [organisation:9419438|Zhentarim] or [entity:123]
                 import re as _re
-                wiki_match = _re.search(r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)', name)
+
+                wiki_match = _re.search(
+                    r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)',
+                    name,
+                )
                 if wiki_match:
                     # The number inside is a Kanka entity_id — look it up in the index to verify
                     candidate_eid = int(wiki_match.group(1))
@@ -305,7 +309,7 @@ def create_app():
         try:
             if proposal.get('proposal_type') == 'new_entity':
                 entity_type = proposal.get('suggested_type', 'character')
-                kind_param_map = {'character': 'characters', 'location': 'locations', 'organization': 'organizations'}
+                kind_param_map = {'character': 'characters', 'location': 'locations', 'organization': 'organisations'}
                 kind_param = kind_param_map.get(entity_type, 'characters')
                 _debug(f'  creating {entity_type}: name={proposal["entity_name"]!r}')
                 result = getattr(client, f'create_{entity_type}')(
@@ -328,7 +332,7 @@ def create_app():
 
             elif proposal.get('proposal_type') == 'update':
                 # Update synopsis entry — map entity_kind to API plural form
-                kind_map = {'character': 'characters', 'location': 'locations', 'organization': 'organizations'}
+                kind_map = {'character': 'characters', 'location': 'locations', 'organization': 'organisations'}
                 kind_param = kind_map.get(proposal['entity_kind'], 'characters')
                 _debug(f"  updating {kind_param}/{proposal['entity_local_id']} for '{proposal['entity_name']}'")
                 client.update_entity_entry(
@@ -398,9 +402,7 @@ def create_app():
                             target_entity_id = resolve_name_to_id(client, target_name)
                             _debug(f"    resolved target '{target_name}' -> entity_id={target_entity_id!r}")
                             if not target_entity_id:
-                                warnings.append(
-                                    f'Skipped delete relation -> {target_name}: entity not found in Kanka.'
-                                )
+                                warnings.append(f'Skipped delete relation -> {target_name}: entity not found in Kanka.')
                                 continue
                             existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
                             _debug(f'    existing relation lookup: {existing is not None}')
@@ -443,7 +445,10 @@ def create_app():
                             has_reverse_same_type = any(
                                 _rel_owner(r) == target_entity_id
                                 and _rel_target(r) == entity_id
-                                and (r.get('relation') if isinstance(r, dict) else getattr(r, 'relation', '')).strip().lower() == proposed_relation
+                                and (r.get('relation') if isinstance(r, dict) else getattr(r, 'relation', ''))
+                                .strip()
+                                .lower()
+                                == proposed_relation
                                 for r in existing_relations
                             )
                             _debug(f'    has_reverse_same_type: {has_reverse_same_type}')
@@ -642,7 +647,9 @@ def create_app():
 
             last_sync = sync_state.get_last_sync()
             try:
-                all_recent_journals = client.get_journals(since=last_sync, journal_type=pkg_config.SESSION_JOURNAL_TYPE or None)
+                all_recent_journals = client.get_journals(
+                    since=last_sync, journal_type=pkg_config.SESSION_JOURNAL_TYPE or None
+                )
             except Exception as api_err:
                 return jsonify(
                     {
@@ -715,10 +722,14 @@ def create_app():
             _debug('entity_data:', entity_data)
 
         # Build session_text from the single source journal for this proposal.
-        _raw_entry = (journal.get('entry') or '') if isinstance(journal, dict) else (getattr(journal, 'entry', '') or '')
+        _raw_entry = (
+            (journal.get('entry') or '') if isinstance(journal, dict) else (getattr(journal, 'entry', '') or '')
+        )
         jn = (journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', '')) or 'Untitled'
         session_text = f'{jn}:\n{strip_html(_raw_entry)}'.strip()
-        _debug(f'[REGEN] primary journal: {(journal.get("name") if isinstance(journal, dict) else getattr(journal, "name", "?"))!r}')
+        _debug(
+            f'[REGEN] primary journal: {(journal.get("name") if isinstance(journal, dict) else getattr(journal, "name", "?"))!r}'
+        )
         _debug(f'[REGEN] session_text length: {len(session_text)} chars')
         _debug(f'[REGEN] session_text (first 500): {session_text[:500]!r}')
         if not session_text.strip():
@@ -754,10 +765,16 @@ def create_app():
 
         # Build journal name/date summary for the prompt header.
         if len(all_recent_journals) > 1:
-            j_names = [j.get('name') if isinstance(j, dict) else getattr(j, 'name', '') or '' for j in all_recent_journals]
+            j_names = [
+                j.get('name') if isinstance(j, dict) else getattr(j, 'name', '') or '' for j in all_recent_journals
+            ]
             journal_name_str = f'{len(j_names)} session notes ({", ".join(n for n in j_names if n)[:200]}…)'
         else:
-            journal_name_str = (all_recent_journals[0].get('name') if isinstance(all_recent_journals[0], dict) else getattr(all_recent_journals[0], 'name', '')) or 'Session note'
+            journal_name_str = (
+                all_recent_journals[0].get('name')
+                if isinstance(all_recent_journals[0], dict)
+                else getattr(all_recent_journals[0], 'name', '')
+            ) or 'Session note'
 
         user_prompt = USER_PROMPT_TEMPLATE.format(
             name=entity_info['name'],
@@ -765,8 +782,16 @@ def create_app():
             current_entry=strip_html(entity_info['entry']) or '(no synopsis yet)',
             current_relations=relation_summary(entity_info['relations'], idx),
             journal_name=journal_name_str,
-            journal_date=(all_recent_journals[0].get('date') if isinstance(all_recent_journals[0], dict) else getattr(all_recent_journals[0], 'date', None))
-            or (all_recent_journals[0].get('created_at') if isinstance(all_recent_journals[0], dict) else getattr(all_recent_journals[0], 'created_at', ''))
+            journal_date=(
+                all_recent_journals[0].get('date')
+                if isinstance(all_recent_journals[0], dict)
+                else getattr(all_recent_journals[0], 'date', None)
+            )
+            or (
+                all_recent_journals[0].get('created_at')
+                if isinstance(all_recent_journals[0], dict)
+                else getattr(all_recent_journals[0], 'created_at', '')
+            )
             or '',
             session_text=session_text,
         )
