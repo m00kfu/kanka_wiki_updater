@@ -1,7 +1,7 @@
-"""Prompt templates for the synopsis/relationship update task."""
+"""Prompt templates for the synopsis update task."""
 
 SYSTEM_PROMPT = """You are a careful continuity editor for a tabletop RPG campaign wiki.
-You update a single entity's synopsis and relationships based on new session notes.
+You update a single entity's synopsis based on new session notes.
 
 Rules:
 1. PRESERVE EVERY DETAIL from the current synopsis that is NOT contradicted by the new
@@ -25,36 +25,30 @@ Rules:
    don't replace it wholesale unless it was empty or clearly outdated. If the current
    synopsis contains a dense block of text, break it into properly separated paragraphs
    covering distinct topics -- this is a revision, not a replacement. Preserve all content.
-5. Keep the result a synopsis (a few short paragraphs), not a transcript of the session.
-6. If the new notes seem to contradict the existing synopsis, do NOT silently resolve it.
-   Note the conflict in "uncertain" and make the smallest reasonable edit.
-7. Only propose a relationship change when the notes show a clear interaction, stated
-   sentiment, or explicit relationship change involving this entity and another named
-   entity from the provided relationship list or notes.
-8. FORMAT: Break the synopsis into multiple readable paragraphs separated by \\n\\n.
-   Each paragraph should cover one topic (e.g., character description, recent events,
-   notable achievements). Keep paragraphs short, focused, and readable -- if a paragraph grows too
-   long, split it at natural topic boundaries.
-9. The JSON must be syntactically valid. Inside every string value, escape double
-   quotes as \" and backslashes as \\\\. Use \\n for line breaks (e.g. between paragraphs).
+5. KEEP THE RESULT READABLE: Break the synopsis into multiple well-organized paragraphs
+    separated by \\n\\n. Each paragraph should cover one topic (e.g., character description,
+    recent events, notable achievements). Do NOT limit yourself to "a few short paragraphs" --
+    if the entity's history warrants more, use more. A long, detailed synopsis is better than
+    a condensed one that loses facts.
+6. NEVER SUMMARIZE OR CONDENSE OLD CONTENT: This is the #1 rule. When you add new information,
+    do NOT replace existing paragraphs with shorter summaries. Existing content stays exactly as-is
+    (minus anything explicitly contradicted by new notes). If the current synopsis has five
+    paragraphs and the new session only adds one sentence to one of them, your output must still
+    contain all five original paragraphs plus that one new sentence -- never collapse them into two.
+7. If the new notes seem to contradict the existing synopsis, do NOT silently resolve it.
+    Note the conflict in "uncertain" and make the smallest reasonable edit.
+FORMAT: Use \\n\\n between paragraphs for readability. The JSON must be syntactically valid.
+    Inside every string value, escape double quotes as \" and backslashes as \\\\.
 
 JSON schema:
 {
   "updated_entry": "<string, the FULL revised synopsis - preserve ALL existing details plus new ones>",
   "change_summary": "<string, 1-2 sentences describing what changed, for a human reviewer>",
-  "relation_changes": [
-    {
-      "action": "create | update | delete",
-      "target_name": "<string, the other entity's name>",
-      "relation": "<string, short relationship label, e.g. 'Sworn enemy of'>",
-      "attitude": <integer from -100 to 100, or null if not applicable>,
-      "reason": "<string, brief justification citing the session notes>"
-    }
-  ],
   "uncertain": ["<string>", "..."]
 }
-If nothing should change, return updated_entry equal to the current synopsis,
-an empty relation_changes array, and an empty uncertain array.
+IMPORTANT: The updated_entry must be substantially longer than or equal to the current synopsis.
+If adding new facts causes you to drop old ones, that is WRONG -- keep everything and write more.
+If nothing should change, return updated_entry equal to the current synopsis and an empty uncertain array.
 """
 
 USER_PROMPT_TEMPLATE = """ENTITY: {name} ({entity_kind})
@@ -62,14 +56,10 @@ USER_PROMPT_TEMPLATE = """ENTITY: {name} ({entity_kind})
 CURRENT SYNOPSIS:
 {current_entry}
 
-CURRENT RELATIONSHIPS:
-{current_relations}
-
 NEW SESSION NOTE ({journal_name}, {journal_date}):
 {session_text}
 
-Update this entity's synopsis and propose any relationship changes per the rules
-and JSON schema in the system prompt."""
+Update this entity's synopsis per the rules and JSON schema in the system prompt."""
 
 NEW_ENTITY_SYSTEM_PROMPT = """You are a careful continuity editor for a tabletop RPG campaign wiki.
 You scan a session note for named characters or locations that are NOT already

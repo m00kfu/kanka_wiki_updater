@@ -33,6 +33,9 @@ def test_build_entity_index_characters():
         def get_organizations(self):
             return []
 
+        def get_creatures(self):
+            return []
+
     index = build_entity_index(MockClient())
     assert 123 in index
     assert index[123]['kind'] == 'character'
@@ -61,6 +64,9 @@ def test_build_entity_index_locations():
         def get_organizations(self):
             return []
 
+        def get_creatures(self):
+            return []
+
     index = build_entity_index(MockClient())
     assert 789 in index
     assert index[789]['kind'] == 'location'
@@ -75,6 +81,9 @@ def test_build_entity_index_empty():
             return []
 
         def get_organizations(self):
+            return []
+
+        def get_creatures(self):
             return []
 
     index = build_entity_index(MockClient())
@@ -92,6 +101,9 @@ def test_build_entity_index_missing_entry():
         def get_organizations(self):
             return []
 
+        def get_creatures(self):
+            return []
+
     index = build_entity_index(MockClient())
     assert index[1]['entry'] == ''
 
@@ -105,6 +117,9 @@ def test_build_entity_index_missing_relations():
             return []
 
         def get_organizations(self):
+            return []
+
+        def get_creatures(self):
             return []
 
     index = build_entity_index(MockClient())

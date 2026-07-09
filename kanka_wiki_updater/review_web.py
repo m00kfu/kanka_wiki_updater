@@ -1237,6 +1237,13 @@ function renderContent() {
     html += '<div class="warning">&#9888; This new-entity suggestion may be truncated — the LLM output was cut off. Edit manually to fix.</div>';
   }
 
+  // Info loss warning: proposed synopsis is much shorter than previous
+  var prevLen = (p.previous_entry || '').length;
+  var newLen = (p.proposed_entry || '').length;
+  if (prevLen > 200 && newLen < 0.65 * prevLen) {
+    html += '<div class="warning critical">&#9888; WARNING: The proposed synopsis (' + newLen + ' chars) is much shorter than the previous version (' + prevLen + ' chars). This likely means old content was summarized/condensed instead of preserved. Review carefully.</div>';
+  }
+
   // Synopsis / draft editing area
   html += '<div class="diff-section"><h3>' + (p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis') + '</h3><div class="diff-container">';
   if (editingField === 'synopsis') {

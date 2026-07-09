@@ -113,17 +113,60 @@ class KankaClient:
 
     # -- Characters / Locations ------------------------------------------
 
+    def _get_all_pages(self, endpoint, page_size=50, extra_params=None):
+        """Fetch all pages of results from a paginated Kanka API endpoint.
+
+        Follows the `links.next` URL from each response until exhausted.
+        Returns a combined list of all items across every page.
+        """
+        params = {'related': True}
+        if extra_params:
+            params.update(extra_params)
+        params['page[size]'] = page_size
+
+        all_items = []
+        url = f'{self._base_url}/campaigns/{self._campaign_id}/{endpoint}'
+        attempts = 0
+        max_retries = 3
+
+        while True:
+            if attempts > max_retries:
+                break
+            try:
+                response = self._session.request('GET', url, params=params)
+            except requests.RequestException as exc:
+                raise KankaError(f'Request failed: {exc}') from exc
+
+            if response.status_code == 429:
+                attempts += 1
+                _time.sleep(3.0)
+                continue
+
+            data = response.json()
+            items = data.get('data') or []
+            all_items.extend(items)
+
+            links = data.get('links', {})
+            next_url = links.get('next')
+            if not next_url:
+                break
+            url = next_url
+            params.clear()
+            attempts = 0
+
+        return all_items
+
     def get_characters(self):
-        resp = self._request('GET', 'characters', params={'related': True})
-        return resp.get('data') or []
+        return self._get_all_pages('characters') or []
 
     def get_locations(self):
-        resp = self._request('GET', 'locations', params={'related': True})
-        return resp.get('data') or []
+        return self._get_all_pages('locations') or []
 
     def get_organizations(self):
-        resp = self._request('GET', 'organisations', params={'related': True})
-        return resp.get('data') or []
+        return self._get_all_pages('organisations') or []
+
+    def get_creatures(self):
+        return self._get_all_pages('creatures') or []
 
     def update_entity_entry(self, kind, entity_local_id, entry_text):
         """kind is 'characters', 'locations', or 'organisations'; entity_local_id is the

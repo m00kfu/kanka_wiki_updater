@@ -221,6 +221,20 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
     )
     if unlinked_warning:
         print(colors.yellow(unlinked_warning))
+    # Warn when the LLM output is significantly shorter than the input,
+    # suggesting information was lost through summarization.
+    _prev_len = len(proposal.get('previous_entry', ''))
+    _new_len = len(proposal.get('proposed_entry', ''))
+    if _prev_len > 200 and _new_len < 0.65 * _prev_len:
+        print(
+            colors.bold(
+                colors.red(
+                    f'  !! WARNING: The proposed synopsis ({_new_len} chars) is much shorter '
+                    f'than the previous version ({_prev_len} chars). This likely means the LLM '
+                    f'summarized/condensed old content instead of preserving it. Review carefully.'
+                )
+            )
+        )
     if proposal.get('uncertain'):
         print(colors.yellow('Flagged as uncertain:'))
         for note in proposal['uncertain']:

@@ -112,7 +112,6 @@ try:
         SYSTEM_PROMPT,
         USER_PROMPT_TEMPLATE,
     )
-    from .relation_conflicts import apply_resolutions
 except ImportError:
     from kanka_wiki_updater import config, state
     from kanka_wiki_updater.kanka_client import KankaClient
@@ -128,13 +127,14 @@ except ImportError:
 
 
 def build_entity_index(client):
-    """One pass over characters + locations + organizations, keyed by
+    """One pass over characters + locations + organizations + creatures, keyed by
     entity_id (the cross-entity-type id used by relations and mentions)."""
     index = {}
     for kind, get_fn in (
         ('character', client.get_characters),
         ('location', client.get_locations),
         ('organization', client.get_organizations),
+        ('creature', client.get_creatures),
     ):
         try:
             rows = get_fn()
@@ -188,7 +188,6 @@ def propose_update(entity_id, entity, journal, index):
         name=entity['name'],
         entity_kind=entity['kind'],
         current_entry=strip_html(entity['entry']) or '(no synopsis yet)',
-        current_relations=relation_summary(entity['relations'], index),
         journal_name=journal.get('name') or 'Session note',
         journal_date=journal.get('date') or journal.get('created_at', '') or '',
         session_text=session_text,
@@ -202,9 +201,22 @@ def propose_update(entity_id, entity, journal, index):
         print(f'  ! LLM error for {entity["name"]}: {e}', file=sys.stderr)
         return None
 
-    no_text_change = normalize_text(result.get('updated_entry', '')) == normalize_text(entity['entry'])
-    if no_text_change and not result.get('relation_changes'):
+    proposed_text = result.get('updated_entry', '') or entity['entry']
+    previous_text = entity['entry']
+
+    # Detect when the LLM output is significantly shorter than the input,
+    # which often means information was lost (summarized/condensed instead
+    # of preserved). Flag it so review.py can warn the human reviewer.
+    _info_loss_threshold = 0.65  # flag if new text < 65% of old text length
+    is_potentially_truncated = len(proposed_text) < _info_loss_threshold * len(previous_text)
+
+    no_text_change = normalize_text(proposed_text) == normalize_text(previous_text)
+    if no_text_change:
         return None  # model decided nothing meaningfully changed
+
+    result['truncated'] = result.get('truncated', False) or '[TRUNCATED:' in (result.get('change_summary', '') or '')
+    if is_potentially_truncated and not result['truncated']:
+        result['_info_loss_warning'] = True  # internal flag for review.py
 
     return {
         'proposal_type': 'update',
@@ -214,12 +226,13 @@ def propose_update(entity_id, entity, journal, index):
         'entity_name': entity['name'],
         'source_journal': journal.get('name'),
         '_journal_id': journal['id'],
-        'previous_entry': entity['entry'],
-        'proposed_entry': result.get('updated_entry', '') or entity['entry'],
+        'previous_entry': previous_text,
+        'proposed_entry': proposed_text,
         'change_summary': result.get('change_summary', ''),
-        'relation_changes': result.get('relation_changes', []),
+        'relation_changes': [],
         'uncertain': result.get('uncertain', []),
         'truncated': result.get('truncated', False) or '[TRUNCATED:' in (result.get('change_summary', '') or ''),
+        '_info_loss_warning': is_potentially_truncated and not result['truncated'],
         'status': 'pending',
     }
 
@@ -401,7 +414,6 @@ def main(limit=None):
                     state.append_to_queue([proposal])
                     total_proposals += 1
                     entity['entry'] = proposal['proposed_entry']
-                    apply_relation_changes_locally(entity_id, proposal['relation_changes'], index, name_to_id)
 
             # New-entity scanning
             if new_candidates:
@@ -425,20 +437,6 @@ def main(limit=None):
         mins, secs = divmod(int(elapsed), 60)
         print(f"      ({i}/{len(to_process)}) '{journal.get('name')}' processed in {mins:02d}:{secs:02d}")
 
-    # Resolve relation conflicts across all queued proposals for this run
-    if total_proposals > 0:
-        current_queue = state.load_queue()
-        resolved_queue, conflicts = apply_resolutions(current_queue, index)
-
-        for c in conflicts:
-            if c['conflict_kind'] == 'label_mismatch':
-                print(
-                    f'  ! Auto-updated existing relation: {c["entity_name"]} ↔ {c["target_name"]}: '
-                    f"'{c['existing_type']}' → '{c['proposed_type']}'"
-                )
-
-        state.save_queue(resolved_queue)
-
     # Only advance the API's "lastSync" cursor once everything fetched this
     # run has actually been processed. If --limit left some journals
     # unprocessed, leave the cursor alone -- next run will re-fetch the same
@@ -450,8 +448,7 @@ def main(limit=None):
 
     if total_proposals or total_new_entities:
         print(
-            f'\nQueued {total_proposals} synopsis/relationship update(s) and '
-            f'{total_new_entities} new entity suggestion(s) this run.'
+            f'\nQueued {total_proposals} synopsis update(s) and {total_new_entities} new entity suggestion(s) this run.'
         )
         print('Run `python -m kanka_wiki_updater.review` to review and publish them.')
     else:
