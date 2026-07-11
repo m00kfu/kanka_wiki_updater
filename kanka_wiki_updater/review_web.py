@@ -309,7 +309,12 @@ def create_app():
         try:
             if proposal.get('proposal_type') == 'new_entity':
                 entity_type = proposal.get('suggested_type', 'character')
-                kind_param_map = {'character': 'characters', 'location': 'locations', 'organization': 'organisations'}
+                kind_param_map = {
+                    'character': 'characters',
+                    'location': 'locations',
+                    'organization': 'organisations',
+                    'creature': 'creatures',
+                }
                 kind_param = kind_param_map.get(entity_type, 'characters')
                 _debug(f'  creating {entity_type}: name={proposal["entity_name"]!r}')
                 result = getattr(client, f'create_{entity_type}')(
@@ -332,7 +337,12 @@ def create_app():
 
             elif proposal.get('proposal_type') == 'update':
                 # Update synopsis entry — map entity_kind to API plural form
-                kind_map = {'character': 'characters', 'location': 'locations', 'organization': 'organisations'}
+                kind_map = {
+                    'character': 'characters',
+                    'location': 'locations',
+                    'organization': 'organisations',
+                    'creature': 'creatures',
+                }
                 kind_param = kind_map.get(proposal['entity_kind'], 'characters')
                 _debug(f"  updating {kind_param}/{proposal['entity_local_id']} for '{proposal['entity_name']}'")
                 client.update_entity_entry(
@@ -1072,6 +1082,13 @@ textarea.synopsis-editor:focus { outline: none; border-color: var(--cyan); }
 .relation-editor select, .relation-editor input { background: #0d1117; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 13px; margin-right: 8px; }
 .shortcuts { position: fixed; bottom: 70px; right: 20px; font-size: 11px; color: var(--text-dim); text-align: right; line-height: 1.8; }
 kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; font-family: monospace; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(13,17,23,0.85); display: none; align-items: center; justify-content: center; z-index: 999; flex-direction: column; gap: 16px; }
+.loading-overlay.visible { display: flex; }
+.loading-spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--text); font-size: 14px; font-weight: 500; text-align: center; max-width: 400px; line-height: 1.5; }
+.loading-detail { color: var(--text-dim); font-size: 12px; margin-top: -8px; }
+#syncIndicator .loading-spinner { animation-duration: 0.6s; border-left-color: var(--cyan); border-top-color: transparent; }
 .add-relation-form { margin-top: 12px; padding: 10px; background: var(--surface); border: 1px dashed var(--border); border-radius: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .add-relation-form input, .add-relation-form select { background: #0d1117; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 13px; }
 .add-relation-form button { padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; background: var(--green); color: white; border: none; }
@@ -1092,6 +1109,10 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
     <button class="btn btn-secondary" onclick="cancelEdit()" style="padding:4px 12px;font-size:12px;">Cancel</button>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="syncIndicator" style="display:none;background:#0d1f3a;border-bottom:1px solid var(--cyan);padding:6px 24px;font-size:12px;color:var(--cyan);align-items:center;gap:8px;">
+    <span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span>
+    <span id="syncIndicatorText">Sync running...</span>
+  </div>
   <div class="main">
     <div class="sidebar" id="sidebar"></div>
     <div class="content" id="content"></div>
@@ -1111,6 +1132,11 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
     <kbd>r</kbd> reject &nbsp; <kbd>q</kbd> quit (close tab)
   </div>
   <div class="toast" id="toast"></div>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Loading...</div>
+    <div class="loading-detail" id="loadingDetail"></div>
+  </div>
 </div>
 
 <script>
@@ -1390,8 +1416,10 @@ async function approveAll() {
   if (selectedIndex === null) return;
   if (editingField) await saveEdit();
   var oldIndex = selectedIndex;
+  showLoading('Approving all proposals...', 'This may take a moment while changes are synced to Kanka.');
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_all'})
     .then(function(data) {
+      hideLoading();
       if (!data) return;
       proposals[selectedIndex] = data.proposal;
       _advance(oldIndex);
@@ -1406,15 +1434,18 @@ async function approveAll() {
       } else {
         showToast('Approved all', 'success');
       }
-    });
+    })
+    .catch(function() { hideLoading(); });
 }
 
 async function approveSynopsisOnly() {
   if (selectedIndex === null) return;
   if (editingField) await saveEdit();
   var oldIndex = selectedIndex;
+  showLoading('Syncing synopsis to Kanka...', 'Updating the wiki entry.');
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_synopsis_only'})
     .then(function(data) {
+      hideLoading();
       if (!data) return;
       proposals[selectedIndex] = data.proposal;
       _advance(oldIndex);
@@ -1429,7 +1460,8 @@ async function approveSynopsisOnly() {
       } else {
         showToast('Synopsis approved', 'success');
       }
-    });
+    })
+    .catch(function() { hideLoading(); });
 }
 
 async function rejectCurrent() {
@@ -1437,7 +1469,7 @@ async function rejectCurrent() {
   var oldIndex = selectedIndex;
   if (editingField) await saveEdit();
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'rejected'})
-    .then(function(data) { if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Rejected', 'error'); } });
+    .then(function(data) { hideLoading(); if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Rejected', 'error'); } });
 }
 
 function _advance(fromIndex) {
@@ -1535,13 +1567,10 @@ async function regenerateProposal() {
   var p = proposals[selectedIndex];
   if (!p || p.proposal_type !== 'update') { showToast('Only update proposals can be regenerated', 'error'); return; }
 
-  // Show loading state
-  var banner = document.getElementById('truncationWarning');
-  if (banner) {
-    banner.innerHTML += ' <span style="color:var(--blue);font-size:12px">Generating...</span>';
-  }
+  showLoading('Regenerating proposal...', 'Contacting LLM for fresh output — this may take a moment.');
 
   var result = await apiCall('/api/proposals/' + selectedIndex + '/regenerate', 'POST');
+  hideLoading();
   if (!result) return;
 
   if (result.ok) {
@@ -1551,9 +1580,6 @@ async function regenerateProposal() {
     showToast('Regeneration successful — proposal updated with fresh LLM output.', 'success');
   } else {
     var msg = result.error || 'Regeneration failed';
-    if (banner) {
-      banner.innerHTML = '&#9888; Regeneration: <strong>' + escapeHtml(msg) + '</strong> ' + banner.innerHTML;
-    }
     showToast(msg, 'error');
   }
 }
@@ -1565,6 +1591,49 @@ function showToast(message, type) {
   toast.textContent = message;
   toast.className = 'toast toast-' + type + ' show';
   setTimeout(function(){ toast.classList.remove('show'); }, 7000);
+}
+
+// ── Loading overlay ─────────────────────────────────────────────────────────
+
+var _loadingRefreshInterval = null;
+
+function showLoading(message, detail) {
+  var overlay = document.getElementById('loadingOverlay');
+  var textEl = document.getElementById('loadingText');
+  var detailEl = document.getElementById('loadingDetail');
+  overlay.classList.add('visible');
+  if (textEl) textEl.textContent = message || 'Processing...';
+  if (detailEl) detailEl.textContent = detail || '';
+
+  // Auto-refresh the loading status from server while sync is running
+  if (_loadingRefreshInterval) clearInterval(_loadingRefreshInterval);
+  _loadingRefreshInterval = setInterval(function() {
+    fetch('/api/sync/status')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data && data.active && data.jobs && data.jobs.length > 0) {
+          var job = data.jobs[0];
+          var statusText = 'Status: ' + job.status.toUpperCase();
+          if (job.output_lines_count > 0) {
+            statusText += ' — ' + job.output_lines_count + ' lines';
+          }
+          if (detailEl) detailEl.textContent = statusText;
+        } else {
+          clearInterval(_loadingRefreshInterval);
+          _loadingRefreshInterval = null;
+        }
+      })
+      .catch(function() {});
+  }, 1000);
+}
+
+function hideLoading() {
+  var overlay = document.getElementById('loadingOverlay');
+  overlay.classList.remove('visible');
+  if (_loadingRefreshInterval) {
+    clearInterval(_loadingRefreshInterval);
+    _loadingRefreshInterval = null;
+  }
 }
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -1634,7 +1703,7 @@ async function runSync() {
   var result = await apiCall('/api/sync/run', 'POST');
   if (!result || !result.job_id) return;
 
-  currentSyncJob = { job_id: result.job_id, status: 'running', output: '' };
+  currentSyncJob = { job_id: result.job_id, status: 'running', output: '', outputLines: 0 };
   renderContent();
 
   // Connect to SSE stream
@@ -1644,6 +1713,8 @@ async function runSync() {
     var data = JSON.parse(e.data);
     if (data.type === 'output') {
       currentSyncJob.output += data.text + '\\n';
+      currentSyncJob.outputLines++;
+      updateSyncIndicator();
       var pre = document.getElementById('syncOutput');
       if (pre) {
         pre.textContent = currentSyncJob.output;
@@ -1656,6 +1727,7 @@ async function runSync() {
     var data = JSON.parse(e.data);
     currentSyncJob.status = data.status;
     renderContent();
+    updateSyncIndicator();
   });
 
   syncEventSource.addEventListener('end', function() {
@@ -1663,6 +1735,7 @@ async function runSync() {
     syncEventSource = null;
     currentSyncJob = null;
     renderContent();
+    updateSyncIndicator();
     // Refresh proposals after sync completes
     loadProposals();
   });
@@ -1700,6 +1773,24 @@ if (proposals.length > 0) { selectProposal(0); }
 else { document.getElementById('content').innerHTML = '<div class="empty-state"><h3>No pending proposals</h3>Run sync_pipeline first.</div>'; }
 
 setInterval(updateStats, 5000);
+
+// ── Background sync indicator (header bar when pipeline runs) ───────────────
+
+function updateSyncIndicator() {
+  var indicator = document.getElementById('syncIndicator');
+  if (!indicator) return;
+  if (currentSyncJob && currentSyncJob.status === 'running') {
+    var statusText = 'Sync: Running';
+    if (currentSyncJob.outputLines > 0) {
+      statusText += ' — ' + currentSyncJob.outputLines + ' lines';
+    }
+    document.getElementById('syncIndicatorText').textContent = statusText;
+    indicator.style.display = 'flex';
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+</script>
 </script>
 </body>
 </html>"""

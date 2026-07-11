@@ -289,8 +289,14 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
         print()
         return proposal
 
+    _KIND_MAP = {
+        'character': 'characters',
+        'location': 'locations',
+        'organization': 'organisations',
+        'creature': 'creatures',
+    }
     client.update_entity_entry(
-        'characters' if proposal['entity_kind'] == 'character' else 'locations',
+        _KIND_MAP.get(proposal['entity_kind'], 'characters'),
         proposal['entity_local_id'],
         proposal['proposed_entry'],
     )

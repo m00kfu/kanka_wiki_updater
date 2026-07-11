@@ -169,7 +169,7 @@ class KankaClient:
         return self._get_all_pages('creatures') or []
 
     def update_entity_entry(self, kind, entity_local_id, entry_text):
-        """kind is 'characters', 'locations', or 'organisations'; entity_local_id is the
+        """kind is 'characters', 'locations', 'organisations', or 'creatures'; entity_local_id is the
         type-specific `id` field (NOT `entity_id`)."""
         html = entry_text.replace('\n\n', '<br><br>').replace('\n', '<br>')
         if kind == 'characters':
@@ -178,6 +178,8 @@ class KankaClient:
             self._request('PATCH', f'locations/{entity_local_id}', json={'entry': html})
         elif kind == 'organisations':
             self._request('PATCH', f'organisations/{entity_local_id}', json={'entry': html})
+        elif kind == 'creatures':
+            self._request('PATCH', f'creatures/{entity_local_id}', json={'entry': html})
 
     def create_character(self, name, entry=None, **extra):
         """Create a new character. `name` is the only required field."""
@@ -207,6 +209,21 @@ class KankaClient:
 
     def delete_location(self, local_id):
         self._request('DELETE', f'locations/{local_id}')
+        return True
+
+    def create_creature(self, name, entry=None, **extra):
+        """Create a new creature. `name` is the only required field."""
+        data = {'name': name}
+        if entry:
+            html = entry.replace('\n\n', '<br><br>').replace('\n', '<br>')
+            data['entry'] = html
+        data.update(extra)
+        resp = self._request('POST', 'creatures', json=data)
+        creature_data = resp.get('data') or {}
+        return {'data': {k: creature_data.get(k) for k in ['id', 'entity_id', 'name', 'entry']}}
+
+    def delete_creature(self, local_id):
+        self._request('DELETE', f'creatures/{local_id}')
         return True
 
     # -- Relations --------------------------------------------------------

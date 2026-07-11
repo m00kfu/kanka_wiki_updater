@@ -96,8 +96,14 @@ def revert_update_entry(entry, client):
     for rr in reversed(entry.get('relation_results', [])):
         revert_relation_result(entry['entity_id'], rr, client)
 
+    _KIND_MAP = {
+        'character': 'characters',
+        'location': 'locations',
+        'organization': 'organisations',
+        'creature': 'creatures',
+    }
     client.update_entity_entry(
-        'characters' if entry['entity_kind'] == 'character' else 'locations',
+        _KIND_MAP.get(entry['entity_kind'], 'characters'),
         entry['entity_local_id'],
         entry['previous_entry'],
     )
