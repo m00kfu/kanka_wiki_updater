@@ -21,12 +21,22 @@ LINK_SPAN_RE = re.compile(
     r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]'
 )
 TAG_RE = re.compile(r'<[^>]+>')
+BLOCK_TAGS_RE = re.compile(r'<(p|div)[\s>/]|</(?:p|div)>', re.IGNORECASE)
+INLINE_BREAKS_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
 
 
 def strip_html(raw):
     if not raw:
         return ''
-    return html.unescape(TAG_RE.sub(' ', raw)).strip()
+    # Convert block-level tags (p, div) to double newlines for paragraph breaks
+    text = BLOCK_TAGS_RE.sub('\n\n', raw)
+    # Convert inline line breaks (<br>) to single newlines
+    text = INLINE_BREAKS_RE.sub('\n', text)
+    # Collapse runs of 3+ newlines into exactly 2 (one blank line separator)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    # Strip remaining HTML tags and unescape entities
+    text = html.unescape(TAG_RE.sub(' ', text))
+    return text.strip()
 
 
 def normalize_text(raw):

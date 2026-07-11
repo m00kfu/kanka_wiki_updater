@@ -12,7 +12,16 @@ from kanka_wiki_updater.mentions import (
 
 
 def test_strip_html_basic():
+    # <br> tags become newlines; leading/trailing whitespace is stripped
     assert strip_html('<br><br>test') == 'test'
+
+
+def test_strip_html_preserves_paragraphs():
+    assert strip_html('<p>First paragraph.</p><br><p>Second paragraph.</p>') == 'First paragraph.\n\nSecond paragraph.'
+
+
+def test_strip_html_block_tags():
+    assert '\n\n' in strip_html('<div>A block</div><p>Another block</p>')
 
 
 def test_strip_html_empty():

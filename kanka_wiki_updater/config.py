@@ -56,11 +56,20 @@ GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash-latest')
 GEMINI_TEMPERATURE = float(os.environ.get('GEMINI_TEMPERATURE', '0.2'))
 GEMINI_MAX_TOKENS = int(os.environ.get('GEMINI_MAX_TOKENS', '4096'))
 
-# Validation: Gemini requires an API key
+# OpenCode Zen settings. Only required when LLM_PROVIDER == "opencode".
+OPENCODE_API_KEY = os.environ.get('OPENCODE_API_KEY', '')
+OPENCODE_MODEL = os.environ.get('OPENCODE_MODEL', 'openai/gpt-oss-120b')
+
+# Validation: API keys required for cloud providers
 if LLM_PROVIDER == 'gemini' and not GEMINI_API_KEY:
     raise ValueError(
         'LLM_PROVIDER is set to "gemini" but GEMINI_API_KEY is not set. '
         'Add your Google AI Studio API key to .env or set LLM_PROVIDER=lmstudio.'
+    )
+if LLM_PROVIDER == 'opencode' and not OPENCODE_API_KEY:
+    raise ValueError(
+        'LLM_PROVIDER is set to "opencode" but OPENCODE_API_KEY is not set. '
+        'Add your OpenCode API key to .env or set LLM_PROVIDER=lmstudio.'
     )
 
 # Optional cap on how many new journals to process in a single sync run

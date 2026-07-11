@@ -1,9 +1,9 @@
 """
 LLM provider implementations for the Kanka wiki updater pipeline.
 
-Supports LM Studio (local OpenAI-compatible server) and Google Gemini via API.
-Provider-specific HTTP logic lives here; llm_client.py re-exports chat_json() so
-existing callers don't need to change their imports.
+Supports LM Studio (local OpenAI-compatible server), Google Gemini via API, and
+OpenCode Zen (cloud OpenAI-compatible API). Provider-specific HTTP logic lives here;
+llm_client.py re-exports chat_json() so existing callers don't need to change their imports.
 """
 
 import json
@@ -174,6 +174,64 @@ def lmstudio_chat(system_prompt, user_prompt, temperature=0.2, max_tokens=None):
     return _extract_json(content, finish_reason=finish_reason)
 
 
+def opencode_chat(system_prompt, user_prompt, temperature=0.2, max_tokens=None):
+    """Send a request to OpenCode Zen's OpenAI-compatible API."""
+    api_key = config.OPENCODE_API_KEY
+
+    if not api_key:
+        raise LLMError('OPENCODE_API_KEY is not set. Add it to your .env file.')
+
+    try:
+        resp = requests.post(
+            'https://opencode.ai/zen/v1/chat/completions',
+            headers={'Authorization': f'Bearer {api_key}'},
+            json={
+                'model': config.OPENCODE_MODEL,
+                'temperature': temperature,
+                'max_tokens': max_tokens or config.LLM_MAX_TOKENS,
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt},
+                ],
+            },
+            timeout=config.LLM_TIMEOUT_SECONDS,
+        )
+    except requests.exceptions.Timeout as e:
+        raise LLMError(
+            f"OpenCode Zen didn't respond within {config.LLM_TIMEOUT_SECONDS}s. "
+            'Check your network connection or raise LLM_TIMEOUT_SECONDS in .env.'
+        ) from e
+
+    if resp.status_code == 401:
+        raise LLMError('OpenCode API returned 401 -- invalid or expired API key.')
+    if resp.status_code == 429:
+        raise LLMError('OpenCode API returned 429 -- rate limit hit. Wait a moment and retry.')
+
+    resp.raise_for_status()
+    data = resp.json()
+    choice = data['choices'][0]
+    message = choice.get('message', {})
+    content = (message.get('content') or '').strip()
+    finish_reason = choice.get('finish_reason')
+
+    if not content:
+        reasoning = message.get('reasoning_content') or message.get('reasoning') or ''
+        if finish_reason == 'length':
+            raise LLMError(
+                'Model returned no content -- it hit the token limit '
+                f'(max_tokens={max_tokens or config.LLM_MAX_TOKENS}) before producing an '
+                'answer. Raise LLM_MAX_TOKENS in your .env.'
+            )
+        if reasoning:
+            raise LLMError(
+                'Model produced reasoning text but no final answer '
+                f'(finish_reason={finish_reason}). Disable thinking or fix stop sequence.'
+            )
+        raise LLMError(f'Model returned empty content (finish_reason={finish_reason}).')
+
+    return _extract_json(content, finish_reason=finish_reason)
+
+
 def gemini_chat(system_prompt, user_prompt, temperature=0.2, max_tokens=None):
     """Send a request to Google Gemini's generative language API."""
     api_key = config.GEMINI_API_KEY
@@ -218,6 +276,11 @@ def gemini_chat(system_prompt, user_prompt, temperature=0.2, max_tokens=None):
         )
     if resp.status_code == 429:
         raise LLMError('Gemini API returned 429 -- rate limit hit. Wait a moment and retry.')
+    if resp.status_code == 503:
+        raise LLMError(
+            'Gemini API returned 503 -- Service Unavailable (temporary server overload). '
+            'Wait a few seconds and try again.'
+        )
 
     resp.raise_for_status()
     data = resp.json()
@@ -255,6 +318,10 @@ def chat_json(system_prompt, user_prompt, temperature=None, max_tokens=None):
         temp = temperature if temperature is not None else config.GEMINI_TEMPERATURE
         tokens = max_tokens if max_tokens is not None else config.GEMINI_MAX_TOKENS
         return gemini_chat(system_prompt, user_prompt, temp, tokens)
+    elif config.LLM_PROVIDER == 'opencode':
+        temp = temperature if temperature is not None else 0.2
+        tokens = max_tokens if max_tokens is not None else config.LLM_MAX_TOKENS
+        return opencode_chat(system_prompt, user_prompt, temp, tokens)
     else:
         temp = temperature if temperature is not None else 0.2
         tokens = max_tokens if max_tokens is not None else config.LLM_MAX_TOKENS
