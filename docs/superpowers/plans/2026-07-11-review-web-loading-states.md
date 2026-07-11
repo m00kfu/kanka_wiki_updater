@@ -896,9 +896,10 @@ git commit -m "fix: address review feedback on loading states"
 2. **Placeholder scan:** No "TBD", "TODO", or vague references — every step has exact code and commands.
 3. **Type consistency:** All JS functions use ES5 syntax consistent with the existing file; CSS variable names match `:root` definitions in the same file.
 4. **No new dependencies:** Only existing Python/JS/CSS in review_web.py is modified.
-```
 
-Plan complete and saved to `docs/superpowers/plans/2026-07-11-review-web-loading-states.md`. Two execution options:
+---
+
+Plan complete. Two execution options:
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 
