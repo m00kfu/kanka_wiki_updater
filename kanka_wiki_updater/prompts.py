@@ -22,9 +22,11 @@ Rules:
    even if rewriting the surrounding text. This overrides any formatting cleanup.
 4. NO INVENTIONS: Only add facts stated or strongly implied in the new notes. Never invent 
    backstory, items, abilities, or relationships.
-5. READABILITY & FORMATTING: Organize the synopsis into distinct, well-separated paragraphs. 
-   You must separate paragraphs using literal '\\n\\n' characters inside the JSON string. 
-6. CHRONOLOGICAL PARAGRAPH SPLITTING (CRITICAL): Do NOT append new campaign events or recent 
+5. READABILITY & FORMATTING: Organize the synopsis into distinct, well-separated paragraphs.
+   You MUST preserve all paragraph breaks from the existing synopsis and add new ones for each topic shift.
+   Separate every paragraph with EXACTLY \\n\\n (backslash-backslash-n-backslash-backslash-n).
+   NEVER collapse multiple paragraphs into a single block of text.
+ 6. CHRONOLOGICAL PARAGRAPH SPLITTING (CRITICAL): Do NOT append new campaign events or recent
    session developments onto the end of an existing paragraph containing general lore, backstory, 
    or older history. 
    - Static lore, historical descriptions, and permanent characteristics must live in their own 
@@ -33,16 +35,26 @@ Rules:
      recent arrivals, battles, discoveries, or rests) must be written in a brand-new, completely 
      separate paragraph at the end of the synopsis, separated by a literal '\\n\\n'.
 7. RESOLVE CONFLICTS: If new notes contradict the current synopsis, do not silently resolve 
-   it. Note the conflict in the "uncertain" array and make the smallest reasonable edit.
+    it. Note the conflict in the "uncertain" array and make the smallest reasonable edit.
+8. ATTRIBUTION: When new facts, events, relationships, or status changes are added based on the session notes, set
+   _is_new_info to true in your JSON output. If you are only rephrasing, refining formatting, or restructuring existing
+   content without adding new facts, set _is_new_info to false.
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 
 JSON schema:
 {
-  "updated_entry": "First paragraph containing static entity lore or description.\\n\\nSecond paragraph containing campaign events and new updates from the recent sessions, separated by two escaped newline characters.",
-  "change_summary": "<string, 1-2 sentences describing what changed>",
-  "uncertain": ["<string>", "..."]
+   "updated_entry": "<paragraph 1>\\n\\n<paragraph 2>\\n\\n<paragraph 3>",
+   "change_summary": "<string, 1-2 sentences describing what changed>",
+   "_is_new_info": <boolean — true when new facts/events/relationships are added to the synopsis;
+     false when only rephrasing or refining existing content>,
+   "uncertain": ["<string>", "..."]
 }
+
+CRITICAL FORMATTING RULES:
+- Your updated_entry MUST contain \\n\\n (backslash-backslash-n-backslash-backslash-n) between every paragraph.
+- NEVER output a solid block of text with all paragraphs merged together.
+- Every paragraph from the existing synopsis must appear in your output, separated by \\n\\n.
 """
 
 USER_PROMPT_TEMPLATE = """ENTITY: {name} ({entity_kind})
