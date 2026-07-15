@@ -534,3 +534,137 @@ def test_propose_update_stores_journal_id():
     assert result['_journal_id'] == 789
 
 
+# --- _is_new_info and journal link injection tests (Task 3) ---
+
+
+def test_propose_update_injects_journal_link_when_new_info():
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'name': 'Session 1: The Beginning',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': 'Old synopsis.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis about Alice.',
+            'change_summary': 'Added new info',
+            '_is_new_info': True,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    assert result['proposed_entry'].startswith('[journal:789|Session 1: The Beginning] ')
+
+
+def test_propose_update_no_journal_link_when_not_new_info():
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'name': 'Session 1',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': 'Old synopsis.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis about Alice.',
+            'change_summary': 'Rephrased',
+            '_is_new_info': False,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    assert '[journal:' not in result['proposed_entry']
+
+
+def test_propose_update_no_journal_link_when_missing_field():
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'name': 'Session 1',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': 'Old synopsis.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM output without _is_new_info field (backward compat)
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis about Alice.',
+            'change_summary': 'Added info',
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    assert '[journal:' not in result['proposed_entry']
+
+
+def test_propose_update_sanitize_journal_name_special_chars():
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'name': 'Session | Special ] Name',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': 'Old synopsis.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        mock_chat.return_value = {
+            'updated_entry': 'New synopsis about Alice.',
+            'change_summary': 'Added info',
+            '_is_new_info': True,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    # Pipe and bracket should be stripped from the link text
+    assert '[journal:789|Session  Special  Name] ' in result['proposed_entry']
