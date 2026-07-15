@@ -85,8 +85,12 @@ def create_app():
 
     @app.route('/')
     def index():
+        try:
+            from . import config as pkg_config
+        except ImportError:
+            from kanka_wiki_updater import config as pkg_config
         queue = _load_queue()
-        return render_template_string(INDEX_HTML, PROPOSALS=queue)
+        return render_template_string(INDEX_HTML, PROPOSALS=queue, KANKA_CAMPAIGN_ID=pkg_config.KANKA_CAMPAIGN_ID)
 
     @app.route('/api/proposals')
     def get_proposals():
@@ -786,6 +790,12 @@ def create_app():
                 else getattr(all_recent_journals[0], 'name', '')
             ) or 'Session note'
 
+        # Extract the first journal ID for the prompt.
+        first_journal = all_recent_journals[0]
+        journal_id = (
+            first_journal.get('id') if isinstance(first_journal, dict) else getattr(first_journal, 'id', None)
+        ) or ''
+
         user_prompt = USER_PROMPT_TEMPLATE.format(
             name=entity_info['name'],
             entity_kind=entity_info['kind'],
@@ -793,16 +803,17 @@ def create_app():
             current_relations=relation_summary(entity_info['relations'], idx),
             journal_name=journal_name_str,
             journal_date=(
-                all_recent_journals[0].get('date')
-                if isinstance(all_recent_journals[0], dict)
-                else getattr(all_recent_journals[0], 'date', None)
+                first_journal.get('date')
+                if isinstance(first_journal, dict)
+                else getattr(first_journal, 'date', None)
             )
             or (
-                all_recent_journals[0].get('created_at')
-                if isinstance(all_recent_journals[0], dict)
-                else getattr(all_recent_journals[0], 'created_at', '')
+                first_journal.get('created_at')
+                if isinstance(first_journal, dict)
+                else getattr(first_journal, 'created_at', '')
             )
             or '',
+            journal_id=journal_id,
             session_text=session_text,
         )
 
@@ -826,8 +837,20 @@ def create_app():
         _debug(f'[REGEN] entity_info.entry length: {len(entity_info["entry"])} chars')
         norm_llm = normalize_text(result.get('updated_entry', ''))
         norm_cur = normalize_text(entity_info['entry'])
-        _debug(f'[REGEN] normalized LLM (first 200)={norm_llm[:200]!r}')
-        _debug(f'[REGEN] normalized current (first 200)={norm_cur[:200]!r}')
+        _debug(
+            f'[REGEN] normalized LLM ({len(norm_llm)} chars, first 300)={norm_llm[:300]!r}'
+        )
+        _debug(
+            f'[REGEN] normalized current ({len(norm_cur)} chars, first 300)={norm_cur[:300]!r}'
+        )
+        if norm_llm != norm_cur:
+            common = 0
+            min_len = min(len(norm_llm), len(norm_cur))
+            while common < min_len and norm_llm[common] == norm_cur[common]:
+                common += 1
+            _debug(
+                f'[REGEN] strings diverge at char {common}: LLM={norm_llm[max(common-20,0):common+40]!r} current={norm_cur[max(common-20,0):common+40]!r}'
+            )
         _debug(f'[REGEN] norm_equal={norm_llm == norm_cur}')
 
         no_text_change = norm_llm == norm_cur
@@ -839,7 +862,10 @@ def create_app():
                 {'ok': False, 'error': 'Regenerated output is identical to current synopsis — nothing changed.'}
             ), 409
 
-        queue[index]['proposed_entry'] = result.get('updated_entry', '') or entity_info['entry']
+        raw_proposed = result.get('updated_entry', '') or entity_info['entry']
+        # Strip newlines — the LLM echoes \n from <br>-converted prompt text, and
+        # Kanka will render those as hard line breaks.  Collapse to single spaces.
+        queue[index]['proposed_entry'] = ' '.join(raw_proposed.split()) if raw_proposed else ''
         queue[index]['change_summary'] = result.get('change_summary', '')
         queue[index]['relation_changes'] = result.get('relation_changes', [])
         queue[index]['uncertain'] = result.get('uncertain', [])
@@ -1141,6 +1167,7 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
 
 <script>
 let proposals = {{ PROPOSALS | tojson }};
+var campaignId = {{ KANKA_CAMPAIGN_ID | tojson }};
 let selectedIndex = null;
 let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
@@ -1225,11 +1252,15 @@ function renderContent() {
   // Header
   if (p.proposal_type === 'new_entity') {
     html += '<div class="proposal-header"><h2>New ' + p.suggested_type + ': <span id="entityNameDisplay">' + escapeJsHtml(p.entity_name) + '</span></h2>';
-    html += '<div class="source">&larr; ' + escapeJsHtml(p.source_journal) + '</div></div>';
+    var sourceLink = p._source_journal_url ? '<a href="' + p._source_journal_url + '" target="_blank" rel="noopener noreferrer">' : '';
+    var sourceClose = p._source_journal_url ? '</a>' : '';
+    html += '<div class="source">&larr; ' + sourceLink + escapeJsHtml(p.source_journal) + sourceClose + '</div></div>';
   } else {
     var statusIcon = {pending:'&#9675;', applied:'<span style="color:var(--green)">&#10003;</span>', rejected:'<span style="color:var(--red)">&#10007;</span>'}[p.status] || '&#9675;';
     html += '<div class="proposal-header"><h2>' + statusIcon + ' ' + escapeJsHtml(p.entity_name) + ' <span style="font-weight:400;color:var(--text-dim);font-size:16px">(' + p.entity_kind + ')</span></h2>';
-    html += '<div class="source">&larr; ' + escapeJsHtml(p.source_journal) + '</div>';
+    var sourceLink = p._source_journal_url ? '<a href="' + p._source_journal_url + '" target="_blank" rel="noopener noreferrer">' : '';
+    var sourceClose = p._source_journal_url ? '</a>' : '';
+    html += '<div class="source">&larr; ' + sourceLink + escapeJsHtml(p.source_journal) + sourceClose + '</div>';
     if (p.change_summary) { html += '<div class="summary">' + escapeJsHtml(p.change_summary) + '</div>'; }
     html += '</div>';
 
@@ -1277,7 +1308,7 @@ function renderContent() {
     html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtmlForTextarea(stripHtml(currentText) || '') + '</textarea>';
   } else {
     if (p.proposal_type === 'new_entity') {
-      html += '<div class="diff-line" style="cursor:pointer" onclick="startEdit(&quot;synopsis&quot;)">' + escapeJsHtml((p.draft_entry || '(none)').replace(/\\n/g, ' ')) + '</div>';
+      html += '<div class="diff-line" style="cursor:pointer" onclick="startEdit(&quot;synopsis&quot;)">' + renderJournalLinks(p.draft_entry || '(none)') + '</div>';
       html += '<div style="padding:4px 12px;font-size:11px;color:var(--text-dim)">Click to edit</div>';
     } else {
       var prevLines = stripHtml(p.previous_entry).split('\\n');
@@ -1285,12 +1316,12 @@ function renderContent() {
       var maxLen = Math.max(prevLines.length, newLines.length);
       for (var i = 0; i < maxLen; i++) {
         if (i >= prevLines.length) {
-          html += '<div class="diff-line diff-add">' + escapeJsHtml(newLines[i]) + '</div>';
+          html += '<div class="diff-line diff-add">' + renderJournalLinks(newLines[i]) + '</div>';
         } else if (i >= newLines.length) {
           html += '<div class="diff-line diff-del">' + escapeJsHtml(prevLines[i]) + '</div>';
         } else if (prevLines[i] !== newLines[i]) {
           html += '<div class="diff-line diff-del">' + escapeJsHtml(prevLines[i]) + '</div>';
-          html += '<div class="diff-line diff-add">' + escapeJsHtml(newLines[i]) + '</div>';
+          html += '<div class="diff-line diff-add">' + renderJournalLinks(newLines[i]) + '</div>';
         } else {
           html += '<div class="diff-line" style="padding-left:20px">' + escapeJsHtml(prevLines[i]) + '</div>';
         }
@@ -1393,6 +1424,13 @@ function stripHtml(html) {
   var tmp = document.createElement('div');
   tmp.innerHTML = html || '';
   return tmp.textContent || tmp.innerText || '';
+}
+
+function renderJournalLinks(text) {
+  // Convert [journal:N] patterns to clickable links in synopsis text
+  if (!campaignId || !text) return escapeJsHtml(text);
+  var escaped = escapeJsHtml(text);
+  return escaped.replace(/\[journal:(\d+)\]/g, '<a href="https://app.kanka.io/campaigns/' + campaignId + '/journal/$1" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;">' + '[journal:$1]' + '</a>');
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────

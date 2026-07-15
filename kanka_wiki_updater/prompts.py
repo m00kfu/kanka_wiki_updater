@@ -10,9 +10,18 @@ Rules:
    explicitly contradicted) plus any new facts from this session. Never drop older
    information just because the new session note doesn't mention it -- old facts don't
    become false simply by virtue of being unmentioned in a single session.
-2. Only add or update facts that are stated or strongly implied in the new session notes.
+2. FOCUS ON ENTITY RELEVANCE: Only add new facts from the session notes that are directly
+   relevant, personal, or significant to the specific entity being updated.
+   - For CHARACTERS: Focus on their specific actions, personal choices, acquired items,
+     status changes, or direct interactions. Avoid summarizing the entire party's collective
+     actions or retelling the entire session's plot in an individual's bio. If the party
+     did something as a group, only include it if it represents a major milestone for them
+     or directly impacts their personal arc; keep general group movements highly brief.
+   - For LOCATIONS/ITEMS: Only include details that describe, occur at, or directly involve
+     that specific location or item.
+3. Only add or update facts that are stated or strongly implied in the new session notes.
    Never invent backstory, items, abilities, or relationships that aren't supported by the text.
-3. NEVER remove, simplify, or convert an existing [entity:N], [character:N], or
+4. NEVER remove, simplify, or convert an existing [entity:N], [character:N], or
    [location:N] mention link into plain text -- not even when you're rewriting the
    sentence around it for an unrelated reason. Copy that exact bracket token, including
    any |Display Name suffix, into your revised text character-for-character. Example: if
@@ -21,24 +30,25 @@ Rules:
    "[location:42|Waterdeep]" in your output -- not "Waterdeep", not "the city", not
    "[location:42]" with the display name dropped. This rule overrides any general instinct
    to "clean up" or simplify the prose.
-4. Preserve the voice and level of detail of the existing synopsis. Extend or revise it;
+5. Preserve the voice and level of detail of the existing synopsis. Extend or revise it;
    don't replace it wholesale unless it was empty or clearly outdated. If the current
    synopsis contains a dense block of text, break it into properly separated paragraphs
    covering distinct topics -- this is a revision, not a replacement. Preserve all content.
-5. KEEP THE RESULT READABLE: Break the synopsis into multiple well-organized paragraphs
-    separated by \\n\\n. Each paragraph should cover one topic (e.g., character description,
-    recent events, notable achievements). Do NOT limit yourself to "a few short paragraphs" --
-    if the entity's history warrants more, use more. A long, detailed synopsis is better than
-    a condensed one that loses facts.
-6. NEVER SUMMARIZE OR CONDENSE OLD CONTENT: This is the #1 rule. When you add new information,
-    do NOT replace existing paragraphs with shorter summaries. Existing content stays exactly as-is
-    (minus anything explicitly contradicted by new notes). If the current synopsis has five
-    paragraphs and the new session only adds one sentence to one of them, your output must still
-    contain all five original paragraphs plus that one new sentence -- never collapse them into two.
-7. If the new notes seem to contradict the existing synopsis, do NOT silently resolve it.
-    Note the conflict in "uncertain" and make the smallest reasonable edit.
-FORMAT: Use \\n\\n between paragraphs for readability. The JSON must be syntactically valid.
-    Inside every string value, escape double quotes as \" and backslashes as \\\\.
+6. KEEP THE RESULT READABLE: Break the synopsis into multiple well-organized paragraphs
+   separated by \n\n. Each paragraph should cover one topic (e.g., character description,
+   recent events, notable achievements). If the existing synopsis is a wall of text or poorly
+   formatted, reformat it into proper paragraph breaks for readability without changing meaning.
+   Do NOT limit yourself to "a few short paragraphs" -- if the entity's history warrants more,
+   use more. A long, detailed synopsis is better than a condensed one that loses facts.
+7. NEVER SUMMARIZE OR CONDENSE OLD CONTENT: This is the #1 rule. When you add new information,
+   do NOT replace existing paragraphs with shorter summaries. Existing content stays exactly as-is
+   (minus anything explicitly contradicted by new notes). If the current synopsis has five
+   paragraphs and the new session only adds one sentence to one of them, your output must still
+   contain all five original paragraphs plus that one new sentence -- never collapse them into two.
+8. If the new notes seem to contradict the existing synopsis, do NOT silently resolve it.
+   Note the conflict in "uncertain" and make the smallest reasonable edit.
+FORMAT: Use \n\n between paragraphs for readability. The JSON must be syntactically valid.
+   Inside every string value, escape double quotes as \" and backslashes as \\\\.
 
 JSON schema:
 {

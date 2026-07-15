@@ -126,6 +126,44 @@ except ImportError:
     )
 
 
+_JOURNAL_REF_OPEN = '[journal:'
+_JOURNAL_REF_CLOSE = '/journal]'
+
+
+def _build_journal_url(journal_id):
+    """Build a web URL to view the source journal entry in Kanka's UI."""
+    return f'https://app.kanka.io/campaigns/{config.KANKA_CAMPAIGN_ID}/journal/{journal_id}'
+
+
+def _annotate_journals(text, journal_id):
+    """Insert [journal:N] markers at paragraph boundaries so the LLM can
+    attribute facts back to their source session note.
+
+    Each content block in *text* gets wrapped with opening/closing tags so
+    rule-4 of the prompt preserves them verbatim in the LLM output.
+    """
+    if not journal_id or not text:
+        return text
+    parts = re.split(r'(\n+)', text)
+    result = []
+    first_block = True
+    for part in parts:
+        stripped = part.strip()
+        if not stripped:
+            result.append(part)
+            continue
+        is_list_item = bool(re.match(r'^\s*[-*•]|\d+\.\s', part))
+        if first_block and not is_list_item:
+            result.append(f'{_JOURNAL_REF_OPEN}{journal_id}]{part}')
+            first_block = False
+        elif not is_list_item:
+            result.append(f'{_JOURNAL_REF_CLOSE}\n{_JOURNAL_REF_OPEN}{journal_id}]')
+            result.append(part)
+        else:
+            result.append(part)
+    return ''.join(result) + _JOURNAL_REF_CLOSE
+
+
 def build_entity_index(client):
     """One pass over characters + locations + organizations + creatures, keyed by
     entity_id (the cross-entity-type id used by relations and mentions)."""
@@ -180,9 +218,11 @@ def find_mentioned_entities(journal_entry_raw, index):
 
 
 def propose_update(entity_id, entity, journal, index):
-    session_text = strip_html(journal.get('entry', '') or '')
-    if not session_text.strip():
+    raw_text = strip_html(journal.get('entry', '') or '')
+    if not raw_text.strip():
         return None
+
+    session_text = _annotate_journals(raw_text, str(journal.get('id') or ''))
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         name=entity['name'],
@@ -190,6 +230,7 @@ def propose_update(entity_id, entity, journal, index):
         current_entry=strip_html(entity['entry']) or '(no synopsis yet)',
         journal_name=journal.get('name') or 'Session note',
         journal_date=journal.get('date') or journal.get('created_at', '') or '',
+        journal_id=str(journal.get('id') or ''),
         session_text=session_text,
     )
     try:
@@ -201,7 +242,11 @@ def propose_update(entity_id, entity, journal, index):
         print(f'  ! LLM error for {entity["name"]}: {e}', file=sys.stderr)
         return None
 
-    proposed_text = result.get('updated_entry', '') or entity['entry']
+    raw_proposed = result.get('updated_entry', '') or entity['entry']
+    # Strip newlines — the LLM echoes \n from <br>-converted prompt text, and
+    # Kanka will render those as hard line breaks.  Collapse to single spaces
+    # so "word1\nword2" becomes "word1 word2" not "word1  word2".
+    proposed_text = ' '.join(raw_proposed.split())
     previous_text = entity['entry']
 
     # Detect when the LLM output is significantly shorter than the input,
@@ -226,6 +271,7 @@ def propose_update(entity_id, entity, journal, index):
         'entity_name': entity['name'],
         'source_journal': journal.get('name'),
         '_journal_id': journal['id'],
+        '_source_journal_url': _build_journal_url(journal['id']),
         'previous_entry': previous_text,
         'proposed_entry': proposed_text,
         'change_summary': result.get('change_summary', ''),
@@ -345,6 +391,7 @@ def propose_new_entities(journal, known_names):
             if last in (',', ':', ';', '(', '['):
                 is_truncated = True
 
+        journal_id = getattr(journal, 'id', None) or (journal.get('id') if isinstance(journal, dict) else None)
         proposals.append(
             {
                 'proposal_type': 'new_entity',
@@ -353,6 +400,7 @@ def propose_new_entities(journal, known_names):
                 'draft_entry': candidate.get('draft_entry', ''),
                 'reason': candidate.get('reason', ''),
                 'source_journal': getattr(journal, 'name', None),
+                '_source_journal_url': _build_journal_url(journal_id) if journal_id else None,
                 'truncated': is_truncated,
                 'status': 'pending',
             }
@@ -394,6 +442,7 @@ def main(limit=None):
     known_names = set(name_to_id.keys())
     total_proposals = 0
     total_new_entities = 0
+
     for i, journal in enumerate(to_process, start=1):
         t0 = time.time()
         mentioned = find_mentioned_entities(journal.get('entry', ''), index)
@@ -413,7 +462,6 @@ def main(limit=None):
                 if proposal:
                     state.append_to_queue([proposal])
                     total_proposals += 1
-                    entity['entry'] = proposal['proposed_entry']
 
             # New-entity scanning
             if new_candidates:

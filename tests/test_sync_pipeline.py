@@ -532,3 +532,5 @@ def test_propose_update_stores_journal_id():
         result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
 
     assert result['_journal_id'] == 789
+
+

@@ -21,7 +21,9 @@ LINK_SPAN_RE = re.compile(
     r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]'
 )
 TAG_RE = re.compile(r'<[^>]+>')
-BLOCK_TAGS_RE = re.compile(r'<(p|div)[\s>/]|</(?:p|div)>', re.IGNORECASE)
+BLOCK_TAGS_RE = re.compile(
+    r'<\s*(p|div)\b[^>]*>|</(?:p|div)\s*>', re.IGNORECASE
+)
 INLINE_BREAKS_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
 
 

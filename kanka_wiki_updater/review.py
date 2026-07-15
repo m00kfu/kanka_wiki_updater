@@ -20,6 +20,7 @@ Usage:
 """
 
 import difflib
+import re
 import sys
 from pathlib import Path
 
@@ -63,15 +64,33 @@ def has_meaningful_change(proposal):
     return not same_text or bool(proposal.get('relation_changes'))
 
 
+_JOURNAL_RE = re.compile(r'\[journal:(\d+)\]')
+
+
+def _render_journal_links(text):
+    """Convert [journal:N] patterns to clickable terminal hyperlinks."""
+    try:
+        from . import config as pkg_config
+    except ImportError:
+        from kanka_wiki_updater import config as pkg_config
+
+    def _replace(match):
+        journal_id = match.group(1)
+        link = f'https://app.kanka.io/campaigns/{pkg_config.KANKA_CAMPAIGN_ID}/journal/{journal_id}'
+        return f'\033]8;;{link}\033\\{match.group(0)}\033]8;;\033\\'
+
+    return _JOURNAL_RE.sub(_replace, text)
+
+
 def print_diff(old, new):
     old_lines = strip_html(old).splitlines() or ['']
     new_lines = strip_html(new).splitlines() or ['']
     diff = list(difflib.unified_diff(old_lines, new_lines, lineterm=''))
     for line in diff[2:]:  # skip the --- / +++ header lines
         if line.startswith('+'):
-            print(' ', colors.green(line))
+            print(' ', colors.green(_render_journal_links(line[1:])))
         elif line.startswith('-'):
-            print(' ', colors.red(line))
+            print(' ', colors.red(line[1:]))
         elif line.startswith('@@'):
             print(' ', colors.dim(line))
         else:
@@ -87,9 +106,12 @@ def prompt_choice(prompt, choices='yna'):
 
 def review_new_entity_proposal(proposal, index, name_to_id, client, save_fn=None):
     print('\n' + colors.dim('=' * 70))
+    journal_link = proposal.get('_source_journal_url')
+    source_label = proposal['source_journal'] or ''
+    source_display = f'\033]8;;{journal_link}\033\\{source_label}\033]8;;\033\\' if journal_link else source_label
     print(
         colors.bold(colors.magenta(f'NEW {proposal["suggested_type"].upper()}: {proposal["entity_name"]}'))
-        + colors.dim(f'  <-  {proposal["source_journal"]}')
+        + colors.dim(f'  <-  {source_display}')
     )
     print(colors.dim('-' * 70))
     if proposal.get('reason'):
@@ -207,9 +229,12 @@ def review_proposal(proposal, index, name_to_id, client, update_num=None, total_
         print(colors.dim('=' * 3 + banner + '=' * max(0, right_pad)))
     else:
         print('\n' + colors.dim('=' * 70))
+    journal_link = proposal.get('_source_journal_url')
+    source_label = proposal['source_journal'] or ''
+    source_display = f'\033]8;;{journal_link}\033\\{source_label}\033]8;;\033\\' if journal_link else source_label
     print(
         colors.bold(colors.cyan(f'{proposal["entity_name"]} ({proposal["entity_kind"]})'))
-        + colors.dim(f'  <-  {proposal["source_journal"]}')
+        + colors.dim(f'  <-  {source_display}')
     )
     print(colors.dim('-' * 70))
     print(f'Summary: {proposal["change_summary"]}')

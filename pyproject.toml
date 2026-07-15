@@ -8,7 +8,7 @@ select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "RUF"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"kanka_wiki_updater/review_web.py" = ["E501"]
+"kanka_wiki_updater/review_web.py" = ["E501", "W605"]
 
 [tool.ruff.format]
 quote-style = "single"
