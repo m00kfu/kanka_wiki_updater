@@ -243,10 +243,20 @@ def propose_update(entity_id, entity, journal, index):
         return None
 
     raw_proposed = result.get('updated_entry', '') or entity['entry']
-    # Strip newlines — the LLM echoes \n from <br>-converted prompt text, and
-    # Kanka will render those as hard line breaks.  Collapse to single spaces
-    # so "word1\nword2" becomes "word1 word2" not "word1  word2".
-    proposed_text = ' '.join(raw_proposed.split())
+    # Preserve paragraph breaks (\n\n) while collapsing single newlines to
+    # spaces so the LLM's intended paragraph structure is kept intact.
+    _NBSP = '\x00\x01'  # no-break-paragraph placeholder
+    proposed_text = raw_proposed.replace('\n\n', _NBSP).replace('\n', ' ')
+    proposed_text = re.sub(r' +', ' ', proposed_text)
+    proposed_text = proposed_text.replace(_NBSP, '\n\n')
+
+    # Inject journal attribution link when LLM flags new information.
+    _is_new_info = result.get('_is_new_info') is True
+    if _is_new_info:
+        journal_id = journal['id']
+        journal_name = (journal.get('name') or '').replace('|', '').replace(']', '')
+        proposed_text = f'[journal:{journal_id}|{journal_name}] {proposed_text}'
+
     previous_text = entity['entry']
 
     # Detect when the LLM output is significantly shorter than the input,
