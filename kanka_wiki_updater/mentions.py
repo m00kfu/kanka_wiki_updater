@@ -21,9 +21,7 @@ LINK_SPAN_RE = re.compile(
     r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]'
 )
 TAG_RE = re.compile(r'<[^>]+>')
-BLOCK_TAGS_RE = re.compile(
-    r'<\s*(p|div)\b[^>]*>|</(?:p|div)\s*>', re.IGNORECASE
-)
+BLOCK_TAGS_RE = re.compile(r'<\s*(p|div)\b[^>]*>|</(?:p|div)\s*>', re.IGNORECASE)
 INLINE_BREAKS_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
 
 
@@ -57,29 +55,128 @@ def linked_entity_ids(raw_entry):
     return {int(m) for m in MENTION_RE.findall(raw_entry or '')}
 
 
+def _extends_into_known_name(matched_words, known_names):
+    """Check if a sequence of words starting from a fuzzy match position
+    forms another known entity's full name (at least 2 words).
+
+    Used to prevent partial matches: when first-word fuzzy matching finds
+    'xanathar' in text and the next word is 'guild', check whether
+    'xanathar guild' is itself a known entity name. If so, skip adding
+    the partial match since the compound entity owns that region of text.
+
+    Only checks candidates with 2+ words to avoid false positives where
+    a single-word entity's own name triggers the check against itself.
+
+    Args:
+        matched_words: list of consecutive words from the text starting at
+                       the fuzzy-match position (includes the first word).
+        known_names: set of all known entity names (lowercased).
+
+    Returns:
+        True if matched_words forms a multi-word known entity's full name,
+        False otherwise or if no match is found.
+    """
+    # Only check candidates with 2+ words to avoid matching single-word
+    # entities against themselves (e.g., 'xanathar' in all_names_lower)
+    for i in range(2, len(matched_words) + 1):
+        candidate = ' '.join(matched_words[:i])
+        if candidate in known_names:
+            return True
+    return False
+
+
 def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
     """Catch plain-text mentions of known names that weren't @-linked.
+
+    Uses word-boundary matching for exact matches and fuzzy first-word
+    comparison as a fallback for misspelled or abbreviated references.
+    For compound entity names (e.g. 'Xanathar Guild'), first-word fuzzy
+    matching is context-aware: if the matched region extends into another
+    known entity's full name, the partial match is skipped to prevent
+    treating 'Xanathar' and 'Xanathar Guild' as interchangeable.
+
     This is a cheap word-window fuzzy match -- good enough for proper
     nouns, not meant to be perfect. Always double-check the review queue
     rather than trusting this blindly."""
     text_lower = (text or '').lower()
     words = text_lower.split()
     found = set()
+
+    # Build lowercase lookup of all known names for context checks.
+    all_names_lower = {name.lower() for name in names_by_entity_id.values()}
+
     for entity_id, name in names_by_entity_id.items():
         name_lower = name.lower()
+        word_parts = name_lower.split()
+
         # Use word-boundary matching so "Xanathar" does not match inside
         # "Xanathar's Guild".  Negative lookahead blocks possessive forms
         # (e.g. "Xanathar's") since they usually refer to a compound noun
         # like the guild, not the character itself.
-        if re.search(r'\b' + re.escape(name_lower) + r'\b(?!\s*\')', text_lower):
+        exact_pattern = r'\b' + re.escape(name_lower) + r'\b(?!\s*\')'
+        if re.search(exact_pattern, text_lower):
+            # For single-word names, check whether all occurrences are inside
+            # known compound entity names (e.g. "Xanathar" inside
+            # "Xanathar Guild"). If so, skip to avoid treating them as
+            # interchangeable mentions.
+            if len(word_parts) == 1:
+                all_inside_compounds = True
+                for m in re.finditer(exact_pattern, text_lower):
+                    match_text = m.group()
+                    # Get everything after this match and extract the following words
+                    remainder = text_lower[m.end():]
+                    remaining_words = remainder.split()
+                    following_words = [w.strip('.,!?;:\'"') for w in remaining_words[:len(word_parts) + 2]]
+
+                    if not _extends_into_known_name(
+                        [match_text, *following_words], all_names_lower
+                    ):
+                        all_inside_compounds = False
+                        break
+
+                if all_inside_compounds:
+                    continue  # every occurrence is part of a compound entity
+
             found.add(entity_id)
             continue
-        first_word = name_lower.split()[0] if name_lower.split() else name_lower
-        if len(first_word) >= 4:
-            for word in words:
-                if SequenceMatcher(None, first_word, word.strip('.,!?;:\'"')).ratio() >= threshold:
-                    found.add(entity_id)
-                    break
+
+        first_word = word_parts[0] if word_parts else name_lower
+        if len(first_word) < 4:
+            continue
+
+        # For compound names, check whether the fuzzy-matched region
+        # extends into another known entity's full name. If so, skip
+        # this partial match to avoid treating 'Xanathar' and
+        # 'Xanathar Guild' as interchangeable entities.
+        is_compound = len(word_parts) > 1
+
+        for word_idx, word in enumerate(words):
+            clean_word = word.strip('.,!?;:\'"')
+            # For compound names, strip possessive suffixes so "Xanathar's"
+            # fuzzy-matches the first-word of "Xanathar Guild", then let the
+            # context check decide whether to accept or skip based on following
+            # words (e.g. "guild" → compound owns this region).
+            # For single-word names, block fuzzy matching when the text word
+            # has a possessive suffix -- this preserves the original intent of
+            # the exact-match possessive exclusion.
+            if is_compound:
+                clean_word = re.sub(r"'s$", '', clean_word)
+            elif "'s" in clean_word or "'" in clean_word:
+                continue  # possessive form -- skip to respect original exclusion
+
+            if SequenceMatcher(None, first_word, clean_word).ratio() >= threshold:
+                # Check context: are subsequent words part of another entity?
+                if is_compound:
+                    following_words = [w.strip('.,!?;:\'"') for w in words[word_idx + 1 : word_idx + len(word_parts)]]
+                    if _extends_into_known_name(
+                        [clean_word, *following_words],
+                        all_names_lower,
+                    ):
+                        continue  # another compound owns this region
+
+                found.add(entity_id)
+                break
+
     return found
 
 

@@ -103,6 +103,70 @@ def test_fuzzy_name_matches_none_input():
     assert result == set()
 
 
+def test_fuzzy_name_matches_compound_prefix_no_false_positive():
+    # "Xanathar" (char) and "Xanathar Guild" (org) should not be interchangeable.
+    # When text contains the full compound name, only the org is matched.
+    names = {123: 'Xanathar', 456: 'Xanathar Guild'}
+    result = fuzzy_name_matches('the Xanathar Guild attacked', names)
+    assert 456 in result  # compound exact match
+    assert 123 not in result  # char should NOT be matched via partial
+
+
+def test_fuzzy_name_matches_standalone_first_word_no_compound_match():
+    # When text contains just "xanathar" (no following compound word),
+    # the character entity matches but not the compound.
+    names = {123: 'Xanathar', 456: 'Xanathar Guild'}
+    result = fuzzy_name_matches('the Xanathar arrived late', names)
+    assert 123 in result  # exact word-boundary match for char
+
+
+def test_fuzzy_name_matches_compound_with_possessive():
+    # "Xanathar's guild" - possessive excludes the character via lookahead;
+    # compound fuzzy first-word is skipped because 'guild' follows.
+    names = {123: 'Xanathar', 456: 'Xanathar Guild'}
+    result = fuzzy_name_matches("the Xanathar's guild attacked", names)
+    assert 123 not in result  # possessive exclusion blocks exact match
+
+
+def test_fuzzy_name_matches_single_word_unaffected():
+    # Single-word entity names should still use full fuzzy first-word matching.
+    names = {123: 'Alice', 456: 'Bob'}
+    result = fuzzy_name_matches('Alic went to the party', names)
+    assert 123 in result  # "Alic" fuzzy-matches "Alice"
+
+
+def test_fuzzy_name_matches_multiple_compounds_no_cross_contamination():
+    # Two different compound entities should not falsely match each other.
+    names = {1: 'Stormwind City', 2: 'Stormwind'}
+    result = fuzzy_name_matches('The Stormwind City guards patrolled.', names)
+    assert 1 in result  # exact compound match
+    assert 2 not in result  # partial should be skipped
+
+
+def test_fuzzy_name_matches_compound_only_first_word_in_text():
+    # When only the first word of a compound appears (no following words),
+    # fuzzy first-word matching still applies since there's no extension.
+    names = {1: 'Xanathar', 2: 'Xanathar Guild'}
+    result = fuzzy_name_matches('xanathar is here', names)
+    assert 1 in result  # exact word-boundary match
+
+
+def test_fuzzy_name_matches_three_word_compound():
+    # Three-word compound names should also get context-aware checking.
+    names = {1: 'Blackwood', 2: 'Blackwood Forest', 3: 'Blackwood Forest Temple'}
+    result = fuzzy_name_matches('The Blackwood Forest was dangerous.', names)
+    assert 2 in result  # exact match for two-word compound
+    assert 1 not in result  # partial should be skipped
+
+
+def test_fuzzy_name_matches_context_check_false_negative():
+    # When the following words don't form a known entity, fuzzy first-word
+    # matching should still apply (no false negative from context check).
+    names = {1: 'Alic', 2: 'Alice'}
+    result = fuzzy_name_matches('Alic went to the party', names)
+    assert 2 in result  # "Alic" fuzzy-matches "Alice" first word
+
+
 # --- find_unlinked_mentions tests (Task 2) ---
 
 
