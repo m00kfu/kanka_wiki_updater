@@ -544,6 +544,7 @@ def test_propose_update_injects_journal_link_when_new_info():
 
     journal = {
         'id': 789,
+        'entity_id': 9431667,
         'name': 'Session 1: The Beginning',
         'date': '2024-01-01',
         'entry': 'Alice saved the day.',
@@ -567,7 +568,49 @@ def test_propose_update_injects_journal_link_when_new_info():
         result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
 
     assert result is not None
-    assert result['proposed_entry'].startswith('[journal:789|Session 1: The Beginning] ')
+    # Single paragraph — appended at end after whitespace collapse.
+    assert '[journal:9431667|Session 1: The Beginning]' in result['proposed_entry']
+
+
+def test_propose_update_injects_journal_link_before_last_paragraph():
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session 1: The Beginning',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': '<p>Old content.</p>',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM returns old content + new paragraph at end (per prompt instructions).
+        mock_chat.return_value = {
+            'updated_entry': '<p>Old content about Alice.</p>\n\nFollowing her adventures, Alice retired.',
+            'change_summary': 'Added retirement info',
+            '_is_new_info': True,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    # After whitespace collapse, old paragraph comes first, then [journal:N|name], then new content.
+    assert '[journal:9431667|Session 1: The Beginning]' in proposed
+    # Old content should NOT start with a journal link.
+    assert not proposed.startswith('[journal')
+    # New content (retirement) should be present after the journal link.
+    assert 'retired' in proposed
 
 
 def test_propose_update_no_journal_link_when_not_new_info():
@@ -643,6 +686,7 @@ def test_propose_update_sanitize_journal_name_special_chars():
 
     journal = {
         'id': 789,
+        'entity_id': 9431667,
         'name': 'Session | Special ] Name',
         'date': '2024-01-01',
         'entry': 'Alice saved the day.',
@@ -666,5 +710,5 @@ def test_propose_update_sanitize_journal_name_special_chars():
         result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
 
     assert result is not None
-    # Pipe and bracket should be stripped from the link text
-    assert '[journal:789|Session  Special  Name] ' in result['proposed_entry']
+    # Pipe and bracket should be stripped from the link text; appended at end for single-paragraph output.
+    assert '[journal:9431667|Session  Special  Name]' in result['proposed_entry']

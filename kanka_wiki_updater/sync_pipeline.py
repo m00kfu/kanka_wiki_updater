@@ -253,9 +253,19 @@ def propose_update(entity_id, entity, journal, index):
     # Inject journal attribution link when LLM flags new information.
     _is_new_info = result.get('_is_new_info') is True
     if _is_new_info:
-        journal_id = journal['id']
+        journal_id = journal['entity_id']
         journal_name = (journal.get('name') or '').replace('|', '').replace(']', '')
-        proposed_text = f'[journal:{journal_id}|{journal_name}] {proposed_text}'
+        _journal_prefix = f'[journal:{journal_id}|{journal_name}]'
+        # Insert before the last paragraph break so old paragraphs stay clean.
+        _last_para = proposed_text.rfind('\n\n')
+        if _last_para > 0:
+            pre = proposed_text[:_last_para].rstrip()
+            post = proposed_text[_last_para + 2:].lstrip()
+            proposed_text = f'{pre}\n\n{_journal_prefix} {post}'
+        else:
+            # No paragraph breaks — append at end.
+            stripped = proposed_text.strip()
+            proposed_text = f'{stripped} {_journal_prefix}' if stripped else _journal_prefix
 
     previous_text = entity['entry']
 
