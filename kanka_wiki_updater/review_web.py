@@ -803,9 +803,7 @@ def create_app():
             current_relations=relation_summary(entity_info['relations'], idx),
             journal_name=journal_name_str,
             journal_date=(
-                first_journal.get('date')
-                if isinstance(first_journal, dict)
-                else getattr(first_journal, 'date', None)
+                first_journal.get('date') if isinstance(first_journal, dict) else getattr(first_journal, 'date', None)
             )
             or (
                 first_journal.get('created_at')
@@ -837,19 +835,15 @@ def create_app():
         _debug(f'[REGEN] entity_info.entry length: {len(entity_info["entry"])} chars')
         norm_llm = normalize_text(result.get('updated_entry', ''))
         norm_cur = normalize_text(entity_info['entry'])
-        _debug(
-            f'[REGEN] normalized LLM ({len(norm_llm)} chars, first 300)={norm_llm[:300]!r}'
-        )
-        _debug(
-            f'[REGEN] normalized current ({len(norm_cur)} chars, first 300)={norm_cur[:300]!r}'
-        )
+        _debug(f'[REGEN] normalized LLM ({len(norm_llm)} chars, first 300)={norm_llm[:300]!r}')
+        _debug(f'[REGEN] normalized current ({len(norm_cur)} chars, first 300)={norm_cur[:300]!r}')
         if norm_llm != norm_cur:
             common = 0
             min_len = min(len(norm_llm), len(norm_cur))
             while common < min_len and norm_llm[common] == norm_cur[common]:
                 common += 1
             _debug(
-                f'[REGEN] strings diverge at char {common}: LLM={norm_llm[max(common-20,0):common+40]!r} current={norm_cur[max(common-20,0):common+40]!r}'
+                f'[REGEN] strings diverge at char {common}: LLM={norm_llm[max(common - 20, 0) : common + 40]!r} current={norm_cur[max(common - 20, 0) : common + 40]!r}'
             )
         _debug(f'[REGEN] norm_equal={norm_llm == norm_cur}')
 
@@ -863,9 +857,35 @@ def create_app():
             ), 409
 
         raw_proposed = result.get('updated_entry', '') or entity_info['entry']
-        # Strip newlines — the LLM echoes \n from <br>-converted prompt text, and
-        # Kanka will render those as hard line breaks.  Collapse to single spaces.
-        queue[index]['proposed_entry'] = ' '.join(raw_proposed.split()) if raw_proposed else ''
+        _is_new_info = result.get('_is_new_info') is True
+
+        # Inject journal attribution link when LLM flags new information.
+        if _is_new_info and entity_id:
+            jn_clean = jn.replace('|', '').replace(']', '')
+            _journal_prefix = f'[journal:{entity_id}|{jn_clean}]'
+            # Try to insert before the last paragraph break so old paragraphs stay clean.
+            _last_para = raw_proposed.rfind('\n\n')
+            if _last_para > 0:
+                raw_proposed = (
+                    raw_proposed[:_last_para].rstrip()
+                    + '\n\n'
+                    + _journal_prefix
+                    + ' '
+                    + raw_proposed[_last_para + 2 :].lstrip()
+                )
+            else:
+                # No paragraph breaks — append at end.
+                stripped = raw_proposed.strip()
+                raw_proposed = f'{stripped} {_journal_prefix}' if stripped else _journal_prefix
+
+        # Normalize whitespace within paragraphs but preserve \n\n paragraph breaks.
+        # The LLM echoes \n from <br>-converted prompt text; collapse those to spaces
+        # while keeping double-newline boundaries intact so synopsis paragraphs are not lost.
+        if raw_proposed:
+            parts = raw_proposed.split('\n\n')
+            queue[index]['proposed_entry'] = '\n\n'.join(' '.join(p.split()) for p in parts if p.strip())
+        else:
+            queue[index]['proposed_entry'] = ''
         queue[index]['change_summary'] = result.get('change_summary', '')
         queue[index]['relation_changes'] = result.get('relation_changes', [])
         queue[index]['uncertain'] = result.get('uncertain', [])

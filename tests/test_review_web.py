@@ -893,6 +893,117 @@ class TestApiProposalRegenerate:
         assert data['proposal']['proposed_entry'] == '<p>New synopsis text.</p>'
         assert data['proposal'].get('truncated') is False
 
+    def test_regenerate_injects_journal_link_when_new_info(self, app_with_queue):
+        """Regeneration should inject [journal:entity_id|name] prefix when _is_new_info."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import os
+
+        import kanka_wiki_updater.config as config
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(
+            id=789, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
+        )
+
+        mock_entity = _types.SimpleNamespace(
+            id=101, entity_id='42', name='Kael Ironfist', local_id=101, entry='<p>Old synopsis.</p>', relations=[]
+        )
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_characters.return_value = [mock_entity]
+
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
+            ),
+            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+        ):
+            mock_chat.return_value = {
+                'updated_entry': '<p>New synopsis text.</p>',
+                'change_summary': 'Added new info.',
+                '_is_new_info': True,
+                'relation_changes': [],
+            }
+            resp = app_with_queue.post('/api/proposals/1/regenerate')
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+        # entity_id=42 from proposal, journal name 'Session 5' sanitized.
+        # Single-paragraph response gets appended at end (no paragraph break to insert before).
+        assert '[journal:42|Session 5]' in data['proposal']['proposed_entry']
+        assert data['proposal']['proposed_entry'].rstrip().endswith('[journal:42|Session 5]')
+
+    def test_regenerate_injects_journal_link_before_last_paragraph(self, app_with_queue):
+        """When LLM returns multiple paragraphs, journal link goes before the last one."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['_journal_id'] = 789
+        queue[1]['truncated'] = True
+        import os
+
+        import kanka_wiki_updater.config as config
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(
+            id=789, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
+        )
+
+        mock_entity = _types.SimpleNamespace(
+            id=101, entity_id='42', name='Kael Ironfist', local_id=101, entry='<p>Old synopsis.</p>', relations=[]
+        )
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_characters.return_value = [mock_entity]
+
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
+            ),
+            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+        ):
+            # LLM returns old content + new paragraph at end
+            mock_chat.return_value = {
+                'updated_entry': '<p>Old content here.</p>\n\nFollowing their adventures, [character:9419629|Warryn] retired.',
+                'change_summary': 'Added retirement info.',
+                '_is_new_info': True,
+                'relation_changes': [],
+            }
+            resp = app_with_queue.post('/api/proposals/1/regenerate')
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        proposed = data['proposal']['proposed_entry']
+        # After whitespace collapse, journal link should be at the end (before last para's text)
+        # The old paragraph comes first, then [journal:42|Session 5], then new content
+        assert '[journal:42|Session 5]' in proposed
+        # Old content should NOT start with a journal link — it's been pushed to the end
+        assert not proposed.startswith('[journal')
+        assert 'Warryn' in proposed
+
 
 class TestRegenerateApiErrors:
     """Graceful degradation when Kanka API calls fail during regeneration."""
