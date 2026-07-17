@@ -613,6 +613,201 @@ def test_propose_update_injects_journal_link_before_last_paragraph():
     assert 'retired' in proposed
 
 
+def test_propose_update_injects_journal_link_at_new_info_start():
+    """When new info is in paragraph 2 of 3 (not the last), journal link goes there."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session 2: The Middle',
+        'date': '2024-01-08',
+        'entry': 'Alice found a magic sword.',
+        'created_at': '2024-01-09T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': '<p>Alice was a brave adventurer.</p>\n\nShe explored the dark cave.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM keeps old para 1, adds new info in para 2, then has para 3 (old).
+        mock_chat.return_value = {
+            'updated_entry': '<p>Alice was a brave adventurer.</p>\n\nShe found the magic sword and wielded it bravely.\n\nShe explored the dark cave.',
+            'change_summary': 'Added sword acquisition',
+            '_is_new_info': True,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    # Journal link should be at the start of paragraph 2 (where new info starts),
+    # NOT at paragraph 3 (the old content).
+    assert '[journal:9431667|Session 2: The Middle]' in proposed
+    # Paragraph 1 should not have a journal link.
+    first_para = proposed.split('\n\n')[0]
+    assert 'brave adventurer' in first_para.lower() and '[journal:' not in first_para
+    # Journal paragraph should contain the new sword info, not the cave info.
+    # Split by \n\n: [old_para_1, [journal] She found..., She explored...]
+    paras = proposed.split('\n\n')
+    journal_para_idx = next(i for i, p in enumerate(paras) if '[journal:' in p)
+    assert 'sword' in paras[journal_para_idx].lower()
+
+
+def test_propose_update_multi_new_paragraph_indices_injects_at_each():
+    """When LLM returns multiple new_paragraph_indices, each marked para gets its own prefix."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session: Multi-Index',
+        'date': '2024-01-01',
+        'entry': 'Alice fought a dragon.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': '<p>Alice was a brave adventurer.</p>\n\nShe explored the dark cave.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM returns 3 paragraphs, indices [0, 2] — both have new info.
+        mock_chat.return_value = {
+            'updated_entry': '<p>Alice slew the dragon and was hailed a hero.</p>\n\nShe explored the dark cave.\n\nShe went on more adventures.',
+            'change_summary': 'Added dragon slaying',
+            '_is_new_info': True,
+            'new_paragraph_indices': [0, 2],
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    # Each marked paragraph gets its own prefix — two total.
+    count = proposed.count('[journal:')
+    assert count == 2, f'Expected 2 [journal: links but found {count} in:\n{proposed}'
+    paras = proposed.split('\n\n')
+    # Paragraph 0 (dragon slaying) and paragraph 2 (more adventures) have prefixes.
+    assert '[journal:9431667|Session: Multi-Index]' in paras[0]
+    assert 'dragon' in paras[0].lower()
+    assert '[journal:9431667|Session: Multi-Index]' in paras[2]
+    assert 'adventures' in paras[2].lower()
+
+
+def test_propose_update_consecutive_indices_only_first_tagged():
+    """When LLM flags consecutive paragraphs as new info, only the first gets a journal tag."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session: Warehouse',
+        'date': '2024-01-01',
+        'entry': 'New events at the warehouse.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'organisation',
+        'local_id': 5,
+        'name': 'The Guild',
+        'entry': 'Old synopsis text.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM returns 4 paragraphs; indices [0,1,2] are consecutive (new info), index 3 is separate.
+        mock_chat.return_value = {
+            'updated_entry': (
+                '<p>The Guild is a criminal organization.</p>\n\n'
+                'They control the underworld.\n\n'
+                'Their leader is feared by all.\n\n'
+                'New raids have expanded their territory.'
+            ),
+            'change_summary': 'Updated Guild info',
+            '_is_new_info': True,
+            'new_paragraph_indices': [0, 1, 2, 3],
+        }
+
+        result = propose_update(5, entity, journal, {5: {'name': 'The Guild'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    paras = proposed.split('\n\n')
+    # All four indices [0,1,2,3] are consecutive — only the first (index 0) gets tagged.
+    count = proposed.count('[journal:')
+    assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
+    # First paragraph of the consecutive block gets the tag.
+    assert '[journal:9431667|Session: Warehouse]' in paras[0]
+    # Paragraphs 1, 2, and 3 are untagged continuation of new content.
+    assert '[journal:' not in paras[1], f'Para 1 should be untagged: {paras[1]}'
+    assert '[journal:' not in paras[2], f'Para 2 should be untagged: {paras[2]}'
+    assert '[journal:' not in paras[3], f'Para 3 should be untagged: {paras[3]}'
+
+
+def test_propose_update_gap_in_indices_creates_two_tags():
+    """When LLM flags [0, 1, 3], indices 0/1 collapse to one tag and 3 gets its own."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session: Warehouse',
+        'date': '2024-01-01',
+        'entry': 'New events at the warehouse.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'organisation',
+        'local_id': 5,
+        'name': 'The Guild',
+        'entry': 'Old synopsis text.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # Indices [0,1] are consecutive (collapse to one tag), index 3 is separate.
+        mock_chat.return_value = {
+            'updated_entry': (
+                '<p>The Guild is a criminal organization.</p>\n\n'
+                'They control the underworld.\n\n'
+                'Their leader is feared by all.\n\n'
+                'New raids have expanded their territory.'
+            ),
+            'change_summary': 'Updated Guild info',
+            '_is_new_info': True,
+            'new_paragraph_indices': [0, 1, 3],
+        }
+
+        result = propose_update(5, entity, journal, {5: {'name': 'The Guild'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    paras = proposed.split('\n\n')
+    # Indices [0,1] collapse to one tag (at 0), index 3 gets its own — two total.
+    count = proposed.count('[journal:')
+    assert count == 2, f'Expected 2 [journal: links but found {count} in:\n{proposed}'
+    assert '[journal:' in paras[0]
+    assert '[journal:' not in paras[1], f'Para 1 should be untagged: {paras[1]}'
+    assert '[journal:' not in paras[2], f'Para 2 should be untagged: {paras[2]}'
+    assert '[journal:' in paras[3]
+
+
 def test_propose_update_no_journal_link_when_not_new_info():
     from unittest.mock import patch
 
@@ -712,3 +907,144 @@ def test_propose_update_sanitize_journal_name_special_chars():
     assert result is not None
     # Pipe and bracket should be stripped from the link text; appended at end for single-paragraph output.
     assert '[journal:9431667|Session  Special  Name]' in result['proposed_entry']
+
+
+def test_propose_update_strips_existing_journal_tags_before_inject():
+    """When LLM already includes [journal:N|...] tags in its output, they are stripped
+    before the code injects a fresh one. This prevents double-tagging when the LLM
+    echoes back journal links from the prompt."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session: Test',
+        'date': '2024-01-01',
+        'entry': 'Alice fought a dragon.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': '<p>Alice was a brave adventurer.</p>',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM echoes back journal tag in its output (common when prompt contains annotations)
+        mock_chat.return_value = {
+            'updated_entry': '[journal:12345|Old Session] Alice slew the dragon and was hailed a hero.\n\nShe explored the dark cave.',
+            'change_summary': 'Added dragon slaying',
+            '_is_new_info': True,
+            'new_paragraph_indices': [0],
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    # Should have exactly ONE journal link — the fresh one injected by code.
+    count = proposed.count('[journal:')
+    assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
+    paras = proposed.split('\n\n')
+    # The first paragraph should have the new journal prefix and the content without double tags.
+    assert '[journal:9431667|Session: Test]' in paras[0]
+    assert 'slayed' not in paras[0]  # original text, not modified
+    assert 'dragon' in paras[0].lower()
+
+
+def test_propose_update_preserves_existing_journal_tag_on_rephrased_content():
+    """When LLM echoes back old tagged content with an existing journal tag,
+    the existing tag should NOT be replaced with a new one from the current session."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session: New Adventure',
+        'date': '2024-01-01',
+        'entry': 'Alice explored the sewers and found a hidden treasure.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        # Old synopsis with an existing journal tag from a previous sync
+        'entry': '[journal:9431667|Old Session] Alice explored the underground tunnels beneath the city.\n\nShe is brave and courageous.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM echoes back old tagged content, keeping the existing journal tag.
+        # The LLM flags index 0 as new info but doesn't strip the existing tag.
+        mock_chat.return_value = {
+            'updated_entry': '[journal:9431667|Old Session] Alice explored the underground tunnels beneath the city.\n\nShe is brave and courageous.',
+            'change_summary': 'Added info',
+            '_is_new_info': True,
+            'new_paragraph_indices': [0],
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    paras = proposed.split('\n\n')
+    # Both paragraphs should be preserved exactly as the LLM echoed them back.
+    # Paragraph 0 has an old journal tag — it stays unchanged (not replaced).
+    assert '[journal:9431667|Old Session]' in paras[0]
+    count = proposed.count('[journal:')
+    assert count == 1, f'Expected exactly 1 [journal: link but found {count} in:\n{proposed}'
+
+
+def test_propose_update_preserves_old_journal_tag_on_fuzzy_matched_rephrase():
+    """When LLM rephrases old tagged content WITHOUT a journal tag and flags it as new info,
+    fuzzy matching against old tagged paragraphs should preserve the original tag."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync_pipeline import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session: New Adventure',
+        'date': '2024-01-01',
+        'entry': 'Alice found a hidden treasure in the sewers.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        # Old synopsis with an existing journal tag — second paragraph
+        'entry': 'Alice is a brave adventurer.\n\n[journal:9431667|Previous Session] Alice explored the underground tunnels beneath the city and found treasure.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        # LLM rephrases old tagged content (para 2) WITHOUT preserving the journal tag,
+        # but keeps the text nearly identical. Flags it as new info at index 1.
+        mock_chat.return_value = {
+            'updated_entry': 'Alice is a brave adventurer.\n\nShe explored the underground tunnels beneath the city and found treasure.',
+            'change_summary': 'Added info',
+            '_is_new_info': True,
+            # LLM says index 1 has new info — but it's semantically identical to old tagged para.
+            'new_paragraph_indices': [1],
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    proposed = result['proposed_entry']
+    # The second paragraph should preserve the OLD tag (9431667|Previous Session),
+    # NOT inject a new one with current session's info.
+    paras = proposed.split('\n\n')
+    assert '[journal:9431667|Previous Session]' in proposed, f'Expected preserved old tag in:\n{proposed}'
+    count = proposed.count('[journal:')
+    # Should have exactly 1 journal link (only paragraph 1 had one)
+    assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'

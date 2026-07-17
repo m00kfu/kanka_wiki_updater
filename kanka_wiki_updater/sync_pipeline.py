@@ -104,7 +104,14 @@ try:
     from . import config, state
     from .kanka_client import KankaClient
     from .llm_client import chat_json
-    from .mentions import fuzzy_name_matches, linked_entity_ids, normalize_text, strip_html
+    from .mentions import (
+        JOURNAL_LINK_RE,
+        fuzzy_name_matches,
+        linked_entity_ids,
+        normalize_text,
+        strip_html,
+        strip_journal_links,
+    )
     from .progress import ProgressTracker
     from .prompts import (
         NEW_ENTITY_SYSTEM_PROMPT,
@@ -116,7 +123,14 @@ except ImportError:
     from kanka_wiki_updater import config, state
     from kanka_wiki_updater.kanka_client import KankaClient
     from kanka_wiki_updater.llm_client import chat_json
-    from kanka_wiki_updater.mentions import fuzzy_name_matches, linked_entity_ids, normalize_text, strip_html
+    from kanka_wiki_updater.mentions import (
+        JOURNAL_LINK_RE,
+        fuzzy_name_matches,
+        linked_entity_ids,
+        normalize_text,
+        strip_html,
+        strip_journal_links,
+    )
     from kanka_wiki_updater.progress import ProgressTracker
     from kanka_wiki_updater.prompts import (
         NEW_ENTITY_SYSTEM_PROMPT,
@@ -222,7 +236,11 @@ def propose_update(entity_id, entity, journal, index):
     if not raw_text.strip():
         return None
 
-    session_text = _annotate_journals(raw_text, str(journal.get('id') or ''))
+    # Strip old journal links before annotating — prevents corruption when the
+    # old entry already has [journal:N|...] tags from previous sessions.
+    # Use a simple sub that preserves whitespace (strip_journal_links collapses it all).
+    clean_raw_text = JOURNAL_LINK_RE.sub('', raw_text) if raw_text else raw_text
+    session_text = _annotate_journals(clean_raw_text, str(journal.get('id') or ''))
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         name=entity['name'],
@@ -250,24 +268,153 @@ def propose_update(entity_id, entity, journal, index):
     proposed_text = re.sub(r' +', ' ', proposed_text)
     proposed_text = proposed_text.replace(_NBSP, '\n\n')
 
+    # Strip old journal links from the previous entry so paragraph comparison
+    # isn't affected by pre-existing [journal:N|...] tags.  Use a simple
+    # sub that preserves whitespace (strip_journal_links collapses it all).
+    _prev_stripped = JOURNAL_LINK_RE.sub('', entity['entry'] or '')
+    previous_text = _prev_stripped if _prev_stripped.strip() else entity['entry']
+
     # Inject journal attribution link when LLM flags new information.
+    # Hybrid approach: use LLM-provided new_paragraph_indices if available,
+    # otherwise fall back to diff-based detection against old paragraphs.
     _is_new_info = result.get('_is_new_info') is True
-    if _is_new_info:
+    if _is_new_info and entity_id:
         journal_id = journal['entity_id']
         journal_name = (journal.get('name') or '').replace('|', '').replace(']', '')
         _journal_prefix = f'[journal:{journal_id}|{journal_name}]'
-        # Insert before the last paragraph break so old paragraphs stay clean.
-        _last_para = proposed_text.rfind('\n\n')
-        if _last_para > 0:
-            pre = proposed_text[:_last_para].rstrip()
-            post = proposed_text[_last_para + 2:].lstrip()
-            proposed_text = f'{pre}\n\n{_journal_prefix} {post}'
-        else:
-            # No paragraph breaks — append at end.
-            stripped = proposed_text.strip()
-            proposed_text = f'{stripped} {_journal_prefix}' if stripped else _journal_prefix
 
-    previous_text = entity['entry']
+        proposed_paras = [p.strip() for p in proposed_text.split('\n\n') if p.strip()]
+        # Use the original entry so old paragraphs retain journal links for preservation.
+        # The fuzzy comparison strips links from both sides (line ~319), so this is safe.
+        old_paras_raw = entity.get('entry', '') or ''
+        old_paras = [strip_html(p) for p in old_paras_raw.split('\n\n') if p.strip()]
+
+        # Build set of valid journal IDs from the original entry (for distinguishing
+        # stale hallucinated tags from real old tags that should be preserved).
+        _JOURNAL_ID_RE = re.compile(r'\[journal:(\d+)')
+        _old_tag_ids: set[str] = set()
+        for _op in old_paras:
+            _m = _JOURNAL_ID_RE.search(_op)
+            if _m:
+                _old_tag_ids.add(_m.group(1))
+
+        # Determine insertion position(s): LLM indices first, then diff-based fallback.
+        llm_indices = result.get('new_paragraph_indices', None)
+        _llm_inserts: set[int] | None = None
+
+        if isinstance(llm_indices, list) and len(llm_indices) > 0:
+            # Use LLM-provided indices (validate bounds).
+            valid = [i for i in llm_indices if isinstance(i, int) and 0 <= i < len(proposed_paras)]
+            _llm_inserts = set(valid) if valid else None
+
+        # Guard: even when LLM provides indices, filter out paragraphs that
+        # already have journal tags. The LLM may rephrase old tagged content
+        # and still flag it as "new info" — we must not replace the existing
+        # tag with a new one. Also check if untagged paragraphs are just
+        # rephrasings of old tagged ones — preserve the original tag.
+        preserved_old_tags: dict[int, str] = {}  # index -> old journal link to preserve
+        if _llm_inserts:
+            filtered = set()
+            for i in _llm_inserts:
+                para_text = proposed_paras[i] if i < len(proposed_paras) else ''
+                _tag_match = JOURNAL_LINK_RE.search(para_text)
+                if _tag_match:
+                    # Check whether this tag ID is a valid old tag (rephrased content).
+                    _id_match = _JOURNAL_ID_RE.search(para_text)
+                    _tag_id = _id_match.group(1) if _id_match else ''
+                    if _tag_id in _old_tag_ids:
+                        # Re-phrased old tagged paragraph — preserve the existing tag.
+                        continue
+                    # Hallucinated/echoed stale tag from LLM — let it be replaced.
+                    filtered.add(i)
+                elif old_paras:
+                    # Check if this paragraph is just a rephrasing of an old
+                    # tagged paragraph — preserve the old tag instead of
+                    # injecting a new one.
+                    para_stripped = strip_journal_links(strip_html(para_text))
+                    for _j, old in enumerate(old_paras):
+                        if JOURNAL_LINK_RE.search(old):
+                            old_stripped = strip_journal_links(old)
+                            if SequenceMatcher(None, para_stripped, old_stripped).ratio() > 0.5:
+                                # Found a match with an old tagged paragraph — keep the old tag.
+                                preserved_old_tags[i] = JOURNAL_LINK_RE.search(old).group(0)
+                                filtered.add(i)
+                                break
+                    else:
+                        # No fuzzy match found — inject fresh journal prefix.
+                        filtered.add(i)
+            _llm_inserts = filtered  # keep empty set (all were already-tagged) vs None (LLM gave none)
+
+        _diff_insert_at: int | None = None
+        if _llm_inserts is None:
+            # Fallback: diff-based detection when LLM didn't provide indices.
+            # Compare positionally first (proposed[i] vs old[i]), then against any old paragraph.
+            for i, para in enumerate(proposed_paras):
+                para_stripped = strip_journal_links(strip_html(para))
+                if not para_stripped:
+                    continue
+                positional_match = False
+                if old_paras and i < len(old_paras):
+                    old_para_text = strip_journal_links(old_paras[i])
+                    positional_match = SequenceMatcher(None, para_stripped, old_para_text).ratio() > 0.5
+                if not positional_match:
+                    fuzzy_match = any(
+                        SequenceMatcher(None, para_stripped, strip_journal_links(old)).ratio() > 0.5
+                        for old in old_paras
+                    )
+                    if not fuzzy_match:
+                        _diff_insert_at = i
+                        break
+
+        def _inject_at(paras, idx, prefix=None):
+            if prefix is None:
+                prefix = _journal_prefix
+            post_para = strip_journal_links(strip_html(paras[idx]))
+            pre_paras = '\n\n'.join(paras[:idx])
+            pre_text = f'{pre_paras}\n\n' if pre_paras else ''
+            new_text = f'{pre_text}{prefix} {post_para}'
+            rest_idx = idx + 1
+            remaining = '\n\n'.join(paras[rest_idx:]) if rest_idx < len(paras) else ''
+            return f'{new_text}\n\n{remaining}'.rstrip() if remaining else new_text
+
+        # Collapse consecutive LLM indices so only the first paragraph in each
+        # contiguous run gets a journal tag — subsequent paragraphs are just
+        # continuation of that same new-content block and should stay untagged.
+        if _llm_inserts and len(_llm_inserts) > 1:
+            sorted_runs = sorted(_llm_inserts)
+            collapsed: set[int] = {sorted_runs[0]}
+            prev_idx = sorted_runs[0]
+            for idx in sorted_runs[1:]:
+                if idx > prev_idx + 1:
+                    collapsed.add(idx)
+                prev_idx = idx
+            _llm_inserts = collapsed
+
+        # Insert the journal link before each paragraph that has new info.
+        # Process indices in reverse order to avoid shifting earlier positions.
+        _insert_indices: list[int] = []
+        if _llm_inserts is not None and len(_llm_inserts) >= 1:
+            _insert_indices = sorted(_llm_inserts, reverse=True)
+        elif _diff_insert_at is not None:
+            _insert_indices = [_diff_insert_at]
+
+        _did_inject = False
+        for idx in _insert_indices:
+            if proposed_paras and idx < len(proposed_paras):
+                prefix = preserved_old_tags.get(idx)
+                proposed_text = _inject_at(proposed_paras, idx, prefix=prefix)
+                # Recompute paragraphs after insertion so subsequent indices
+                # (which are at higher positions due to reverse sort) stay valid.
+                proposed_paras = [p.strip() for p in proposed_text.split('\n\n') if p.strip()]
+                _did_inject = True
+
+        # Only fall back to appending journal prefix when LLM provided no indices
+        # AND diff-based detection also found nothing — means all text was already-tagged.
+        # When LLM DID provide indices but they were all filtered out (already-tagged),
+        # leave the text unchanged instead of injecting a new tag.
+        if not _did_inject and proposed_paras and _llm_inserts is None and _diff_insert_at is None:
+            stripped = proposed_text.strip()
+            proposed_text = f'{stripped} {_journal_prefix}'
 
     # Detect when the LLM output is significantly shorter than the input,
     # which often means information was lost (summarized/condensed instead
@@ -275,7 +422,11 @@ def propose_update(entity_id, entity, journal, index):
     _info_loss_threshold = 0.65  # flag if new text < 65% of old text length
     is_potentially_truncated = len(proposed_text) < _info_loss_threshold * len(previous_text)
 
-    no_text_change = normalize_text(proposed_text) == normalize_text(previous_text)
+    _proposed_journal_links = JOURNAL_LINK_RE.findall(proposed_text)
+    _previous_journal_links = JOURNAL_LINK_RE.findall(previous_text or '')
+    same_text = normalize_text(proposed_text) == normalize_text(previous_text)
+    same_tags = set(_proposed_journal_links) == set(_previous_journal_links)
+    no_text_change = same_text and same_tags
     if no_text_change:
         return None  # model decided nothing meaningfully changed
 

@@ -943,9 +943,8 @@ class TestApiProposalRegenerate:
         data = resp.get_json()
         assert data['ok'] is True
         # entity_id=42 from proposal, journal name 'Session 5' sanitized.
-        # Single-paragraph response gets appended at end (no paragraph break to insert before).
+        # Single-paragraph response with no matching old content: diff detects it as new and inserts before it.
         assert '[journal:42|Session 5]' in data['proposal']['proposed_entry']
-        assert data['proposal']['proposed_entry'].rstrip().endswith('[journal:42|Session 5]')
 
     def test_regenerate_injects_journal_link_before_last_paragraph(self, app_with_queue):
         """When LLM returns multiple paragraphs, journal link goes before the last one."""
@@ -997,11 +996,9 @@ class TestApiProposalRegenerate:
         assert resp.status_code == 200
         data = resp.get_json()
         proposed = data['proposal']['proposed_entry']
-        # After whitespace collapse, journal link should be at the end (before last para's text)
-        # The old paragraph comes first, then [journal:42|Session 5], then new content
+        # Diff-based detection: first paragraph was modified (doesn't match old), so journal link goes before it.
         assert '[journal:42|Session 5]' in proposed
-        # Old content should NOT start with a journal link — it's been pushed to the end
-        assert not proposed.startswith('[journal')
+        assert proposed.startswith('[journal')
         assert 'Warryn' in proposed
 
 

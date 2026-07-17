@@ -26,19 +26,31 @@ Rules:
    You MUST preserve all paragraph breaks from the existing synopsis and add new ones for each topic shift.
    Separate every paragraph with EXACTLY \\n\\n (backslash-backslash-n-backslash-backslash-n).
    NEVER collapse multiple paragraphs into a single block of text.
- 6. CHRONOLOGICAL PARAGRAPH SPLITTING (CRITICAL): Do NOT append new campaign events or recent
-   session developments onto the end of an existing paragraph containing general lore, backstory, 
-   or older history. 
-   - Static lore, historical descriptions, and permanent characteristics must live in their own 
-     paragraph(s).
-   - Live campaign events (such as what the adventurers did during a specific session, their 
-     recent arrivals, battles, discoveries, or rests) must be written in a brand-new, completely 
-     separate paragraph at the end of the synopsis, separated by a literal '\\n\\n'.
-7. RESOLVE CONFLICTS: If new notes contradict the current synopsis, do not silently resolve 
+  6. CHRONOLOGICAL PARAGRAPH SPLITTING (CRITICAL): Do NOT merge new session content into existing paragraphs.
+    When adding information from a new session note:
+    - Static lore, historical descriptions, and permanent characteristics must live in their own 
+      paragraph(s).
+    - Live campaign events (what the adventurers did during a specific session, recent arrivals, 
+      battles, discoveries, or rests) MUST go in a brand-new, completely separate paragraph at the end.
+    - NEVER prepend or append new session content into an existing paragraph — always create a fresh 
+      paragraph separated by '\\n\\n'. If old content needs to stay but new content is being added to it,
+      split them: keep the old text in its original paragraph and put the new content in a new one.
+ 7. SINGLE CITATION PER SOURCE (CRITICAL): When adding information from a single session note, prepend 
+    the [journal:N|...] tag ONLY at the very start of the FIRST paragraph that introduces new material. 
+    Do NOT add additional [journal:N|...] tags to subsequent paragraphs — even if they contain related 
+    content or continuations from the same source. If you are rewriting an existing journal-tagged 
+    paragraph, keep its original [journal:N] tag; do not replace it with a different one unless that 
+    paragraph is genuinely receiving new information from a different session note.
+8. RESOLVE CONFLICTS: If new notes contradict the current synopsis, do not silently resolve 
     it. Note the conflict in the "uncertain" array and make the smallest reasonable edit.
-8. ATTRIBUTION: When new facts, events, relationships, or status changes are added based on the session notes, set
-   _is_new_info to true in your JSON output. If you are only rephrasing, refining formatting, or restructuring existing
-   content without adding new facts, set _is_new_info to false.
+ 9. ATTRIBUTION: When new facts, events, relationships, or status changes are added based on the session notes, set
+     _is_new_info to true in your JSON output. If you are only rephrasing, refining formatting, or restructuring existing
+     content without adding new facts, set _is_new_info to false.
+  10. NEW PARAGRAPH INDICES: When _is_new_info is true and new information appears inside an existing paragraph
+     (you should have split it into two separate paragraphs per rule 6), include "new_paragraph_indices": [N]
+     where N is the 0-based index of that FIRST paragraph containing new info. Only include the first such index —
+     do NOT list every paragraph with new material. If old content was preserved and only one paragraph added at
+     the end, set this to [N] for that final paragraph's index. Omit if auto-inferred.
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 
@@ -48,8 +60,10 @@ JSON schema:
    "change_summary": "<string, 1-2 sentences describing what changed>",
    "_is_new_info": <boolean — true when new facts/events/relationships are added to the synopsis;
      false when only rephrasing or refining existing content>,
+   "new_paragraph_indices": [<int>, ...] OR null — optional array of 0-based paragraph indices that contain new info.
+     Omit or set to null if not specified. Only include when _is_new_info is true.
    "uncertain": ["<string>", "..."]
-}
+ }
 
 CRITICAL FORMATTING RULES:
 - Your updated_entry MUST contain \\n\\n (backslash-backslash-n-backslash-backslash-n) between every paragraph.

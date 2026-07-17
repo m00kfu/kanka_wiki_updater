@@ -102,21 +102,27 @@ def _extract_json(text, finish_reason=None):
                 f'repair ({e2}). Output was:\n{text[:500]}'
             ) from e2
 
-    if isinstance(result, dict):
-        truncated = False
-        trunc_msg = '[TRUNCATED: model hit token limit. Output may be incomplete -- review carefully.]'
+    if not isinstance(result, dict):
+        raise LLMError(
+            f'Model returned JSON of type {type(result).__name__} instead of a single object. '
+            f'This usually means the model wrapped its output in an array or produced unexpected structure. '
+            f'Raw parsed value: {result!r}\nFull model output was:\n{text[:1000]}'
+        )
 
-        if finish_reason == 'length' or _looks_truncated(result):
-            truncated = True
+    truncated = False
+    trunc_msg = '[TRUNCATED: model hit token limit. Output may be incomplete -- review carefully.]'
 
-        if truncated:
-            result['truncated'] = True
-            summary = result.get('change_summary', '') or ''
-            if trunc_msg not in summary:
-                result['change_summary'] = f'{summary} {trunc_msg}'.strip() if summary else trunc_msg
-            reason = result.get('reason', '') or ''
-            if trunc_msg not in reason:
-                result['reason'] = f'{reason} {trunc_msg}'.strip() if reason else trunc_msg
+    if finish_reason == 'length' or _looks_truncated(result):
+        truncated = True
+
+    if truncated:
+        result['truncated'] = True
+        summary = result.get('change_summary', '') or ''
+        if trunc_msg not in summary:
+            result['change_summary'] = f'{summary} {trunc_msg}'.strip() if summary else trunc_msg
+        reason = result.get('reason', '') or ''
+        if trunc_msg not in reason:
+            result['reason'] = f'{reason} {trunc_msg}'.strip() if reason else trunc_msg
 
     return result
 

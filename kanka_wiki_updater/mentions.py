@@ -20,6 +20,7 @@ MENTION_DISPLAY_RE = re.compile(
 LINK_SPAN_RE = re.compile(
     r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]'
 )
+JOURNAL_LINK_RE = re.compile(r'\[journal:\d+[^]]*\]')
 TAG_RE = re.compile(r'<[^>]+>')
 BLOCK_TAGS_RE = re.compile(r'<\s*(p|div)\b[^>]*>|</(?:p|div)\s*>', re.IGNORECASE)
 INLINE_BREAKS_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
@@ -37,6 +38,20 @@ def strip_html(raw):
     # Strip remaining HTML tags and unescape entities
     text = html.unescape(TAG_RE.sub(' ', text))
     return text.strip()
+
+
+def strip_journal_links(raw):
+    """Remove [journal:N|...] wiki links from text for comparison purposes.
+
+    The LLM sometimes echoes back journal attribution tags that appear in the
+    input prompt (from _annotate_journals). Stripping them ensures paragraph
+    comparisons reflect actual content similarity, not artifact presence/absence.
+    """
+    if not raw:
+        return ''
+    text = JOURNAL_LINK_RE.sub('', raw)
+    # Collapse any leading/trailing whitespace left by the removal
+    return ' '.join(text.split())
 
 
 def normalize_text(raw):
