@@ -1,6 +1,7 @@
 """Tests for entity resolution in session notes."""
 
 from kanka_wiki_updater.mentions import (
+    JOURNAL_LINK_RE,
     add_missing_entity_tags,
     auto_link_entry,
     find_unlinked_mentions,
@@ -8,7 +9,25 @@ from kanka_wiki_updater.mentions import (
     linked_entity_ids,
     normalize_text,
     strip_html,
+    strip_journal_links,
 )
+
+
+def test_strip_journal_links_bare_format():
+    assert strip_journal_links('[journal:179078]The adventurers arrived') == 'The adventurers arrived'
+
+
+def test_strip_journal_links_display_name_format():
+    assert (
+        strip_journal_links('[journal:9423110|Last time on Phandelver Z pt 1]Text here')
+        == 'Text here'
+    )
+
+
+def test_journal_link_re_matches_bare_and_fully_formatted():
+    assert JOURNAL_LINK_RE.search('[journal:179078]')
+    assert JOURNAL_LINK_RE.search('[journal:9423110|Last time on Phandelver Z pt 1]')
+    assert not JOURNAL_LINK_RE.search('some plain text without links')
 
 
 def test_strip_html_basic():

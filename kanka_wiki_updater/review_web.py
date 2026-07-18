@@ -580,7 +580,6 @@ def create_app():
     @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
     def regenerate_proposal(index):
         """Re-run a truncated update proposal through the LLM with higher token limits."""
-        print(f'[REGEN] START index={index}', file=sys.stderr, flush=True)
         try:
             queue = _load_queue()
         except Exception as e:
@@ -608,8 +607,6 @@ def create_app():
         if proposal.get('proposal_type') != 'update':
             return jsonify({'error': 'Only update proposals can be regenerated'}), 400
 
-        force_regenerate = request.args.get('force', '0').lower() in ('1', 'true')
-
         # Allow regeneration of truncated proposals, or force-regenerate via ?force=1.
         # Stale proposals without _journal_id are OK as long as source_journal is present.
         _debug('about to enter main try block')
@@ -625,8 +622,8 @@ def create_app():
                 }
             ), 400
 
-        # Need at least _journal_id or source_journal for journal lookup
-        if not journal_id and not proposal.get('source_journal'):
+        # Need at least _journal_id for journal lookup.
+        if not journal_id:
             return jsonify(
                 {
                     'ok': False,
@@ -636,364 +633,104 @@ def create_app():
                 }
             ), 400
 
-        try:
-            _debug('about to import modules')
-            from kanka_wiki_updater.llm_client import chat_json
-            from kanka_wiki_updater.mentions import (
-                JOURNAL_LINK_RE,
-                normalize_text,
-                strip_html,
-                strip_journal_links,
-            )
-            from kanka_wiki_updater.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
-            from kanka_wiki_updater.sync_pipeline import relation_summary
-        except ImportError:
-            _debug('ImportError:', tb_mod.format_exc())
-            return jsonify({'error': 'Import error — cannot regenerate'}), 500
+        # Delegate synopsis regeneration to the shared generator.
+        from kanka_wiki_updater.synopsis_generator import build_synopsis_proposal
 
         try:
-            _debug('about to create KankaClient')
             client = KankaClient()
-            _debug('KankaClient created OK')
         except Exception as e:
-            _debug(f'KankaClient creation failed: {e}')
             return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
 
+        # Fetch only the source journal for this proposal (not all journals).
         try:
-            # Fetch ALL session journals since last_sync so the LLM sees full context.
-            # When _journal_id is present, use that specific journal as primary (for header/diff).
-            from kanka_wiki_updater import state as sync_state
-
-            last_sync = sync_state.get_last_sync()
-            try:
-                all_recent_journals = client.get_journals(
-                    since=last_sync, journal_type=pkg_config.SESSION_JOURNAL_TYPE or None
-                )
-            except Exception as api_err:
-                return jsonify(
-                    {
-                        'ok': False,
-                        'error': f'Cannot fetch journals from Kanka: {api_err}',
-                    }
-                ), 400
-
-            if not all_recent_journals:
-                return jsonify({'ok': False, 'error': 'No session journals found since last sync.'}), 400
-
-            _debug(f'[REGEN] fetched {len(all_recent_journals)} session journal(s) since last_sync={last_sync!r}')
-
-            source_name = proposal.get('source_journal', '')
-
-            # Pick the primary journal for header/diff display.
-            def _jname(j):
-                return (j.get('name') if isinstance(j, dict) else getattr(j, 'name', '')) or ''
-
-            primary_journal = None
-            if journal_id:
-                # Use the specific journal by ID as primary (original behavior).
-                for j in all_recent_journals:
-                    jid = j.get('id') if isinstance(j, dict) else getattr(j, 'id', None)
-                    if jid == journal_id:
-                        primary_journal = j
-                        break
-            elif source_name:
-                # Fallback: try to match by name.
-                for j in all_recent_journals:
-                    if source_name.lower() in _jname(j).lower():
-                        primary_journal = j
-                        break
-
-            journal = primary_journal or all_recent_journals[0]
-
-            # Fetch fresh entity data (may have changed since original sync)
-            try:
-                kind_param = f'{proposal["entity_kind"]}s'
-                entity_raw = getattr(client, f'get_{kind_param}')()
-            except Exception as api_err:
-                return jsonify(
-                    {
-                        'ok': False,
-                        'error': f'Cannot contact Kanka to fetch entities: {api_err}',
-                    }
-                ), 400
-            entity_data = next(
-                (
-                    e
-                    for e in entity_raw
-                    if (isinstance(e, dict) and e.get('id') == proposal['entity_local_id'])
-                    or getattr(e, 'id', None) == proposal['entity_local_id']
-                ),
-                None,
-            )
+            src_journals = client.get_journals(journal_ids=[journal_id]) or []
         except Exception as api_err:
-            _debug('regenerate error:', tb_mod.format_exc())
             return jsonify(
                 {
                     'ok': False,
-                    'error': f'Unexpected error during regeneration: {api_err}',
+                    'error': f'Cannot fetch journal from Kanka: {api_err}',
                 }
-            ), 500
+            ), 400
 
-        if _DEBUG:
-            _debug(
-                'journal found:', journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', None)
+        # Helper to safely get attrs from dict or SimpleNamespace.
+        def _safe_get(obj, key, default=None):
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        src_journal = (
+            next(
+                (j for j in src_journals if _safe_get(j, 'id') == journal_id),
+                None,
             )
-            _debug('entity_data:', entity_data)
-
-        # Build session_text from the single source journal for this proposal.
-        _raw_entry = (
-            (journal.get('entry') or '') if isinstance(journal, dict) else (getattr(journal, 'entry', '') or '')
-        )
-        jn = (journal.get('name') if isinstance(journal, dict) else getattr(journal, 'name', '')) or 'Untitled'
-        session_text = f'{jn}:\n{strip_html(_raw_entry)}'.strip()
-        _debug(
-            f'[REGEN] primary journal: {(journal.get("name") if isinstance(journal, dict) else getattr(journal, "name", "?"))!r}'
-        )
-        _debug(f'[REGEN] session_text length: {len(session_text)} chars')
-        _debug(f'[REGEN] session_text (first 500): {session_text[:500]!r}')
-        if not session_text.strip():
-            return jsonify({'ok': False, 'error': 'All journal entries are empty.'}), 400
-
-        # Build entity index for relation resolution
-        idx = build_entity_index(client)
-        entity_info = {
-            'kind': proposal['entity_kind'],
-            'local_id': proposal['entity_local_id'],
-            'name': proposal['entity_name'],
-            'entry': (entity_data.get('entry') or '')
-            if isinstance(entity_data, dict)
-            else (getattr(entity_data, 'entry', '') or ''),
-            'relations': [],
-        }
-        rels = (
-            (entity_data.get('relations') or [])
-            if isinstance(entity_data, dict)
-            else (getattr(entity_data, 'relations', []) or [])
-        )
-        for r in rels:
-            entity_info['relations'].append(
-                r
-                if isinstance(r, dict)
-                else {
-                    'target_id': getattr(r, 'target_id', None),
-                    'owner_id': getattr(r, 'owner_id', None),
-                    'relation': getattr(r, 'relation', ''),
-                    'attitude': getattr(r, 'attitude', None) if hasattr(r, 'attitude') else None,
-                }
-            )
-
-        # Build journal name/date summary for the prompt header.
-        if len(all_recent_journals) > 1:
-            j_names = [
-                j.get('name') if isinstance(j, dict) else getattr(j, 'name', '') or '' for j in all_recent_journals
-            ]
-            journal_name_str = f'{len(j_names)} session notes ({", ".join(n for n in j_names if n)[:200]}…)'
-        else:
-            journal_name_str = (
-                all_recent_journals[0].get('name')
-                if isinstance(all_recent_journals[0], dict)
-                else getattr(all_recent_journals[0], 'name', '')
-            ) or 'Session note'
-
-        # Extract the first journal ID for the prompt.
-        first_journal = all_recent_journals[0]
-        journal_id = (
-            first_journal.get('id') if isinstance(first_journal, dict) else getattr(first_journal, 'id', None)
-        ) or ''
-
-        user_prompt = USER_PROMPT_TEMPLATE.format(
-            name=entity_info['name'],
-            entity_kind=entity_info['kind'],
-            current_entry=strip_html(entity_info['entry']) or '(no synopsis yet)',
-            current_relations=relation_summary(entity_info['relations'], idx),
-            journal_name=journal_name_str,
-            journal_date=(
-                first_journal.get('date') if isinstance(first_journal, dict) else getattr(first_journal, 'date', None)
-            )
-            or (
-                first_journal.get('created_at')
-                if isinstance(first_journal, dict)
-                else getattr(first_journal, 'created_at', '')
-            )
-            or '',
-            journal_id=journal_id,
-            session_text=session_text,
+            or {}
         )
 
-        # Use 2x max_tokens for regeneration to give the model more room
-        regen_max = (
-            (pkg_config.LLM_MAX_TOKENS * 2)
-            if pkg_config.LLM_PROVIDER != 'gemini'
-            else (pkg_config.GEMINI_MAX_TOKENS * 2)
-        )
+        if not src_journal:
+            return jsonify({'ok': False, 'error': 'Source journal not found.'}), 404
+
+        # Fetch fresh entity data (may have changed since original sync).
         try:
-            result = chat_json(SYSTEM_PROMPT, user_prompt, max_tokens=regen_max)
-        except Exception as e:
-            return jsonify({'ok': False, 'error': f'LLM error during regeneration: {e}'}), 500
-
-        _debug(f'[REGEN] LLM result keys={list(result.keys())}')
-        _debug(f'[REGEN] LLM updated_entry (first 200)={result.get("updated_entry", "")[:200]!r}')
-        _debug(
-            f'[REGEN] current entry (first 200)={(entity_data.get("entry") if isinstance(entity_data, dict) else getattr(entity_data, "entry", ""))[:200]!r}'
-        )
-        _debug(f'[REGEN] session_text length: {len(session_text)} chars')
-        _debug(f'[REGEN] entity_info.entry length: {len(entity_info["entry"])} chars')
-        norm_llm = normalize_text(result.get('updated_entry', ''))
-        norm_cur = normalize_text(entity_info['entry'])
-        _debug(f'[REGEN] normalized LLM ({len(norm_llm)} chars, first 300)={norm_llm[:300]!r}')
-        _debug(f'[REGEN] normalized current ({len(norm_cur)} chars, first 300)={norm_cur[:300]!r}')
-        if norm_llm != norm_cur:
-            common = 0
-            min_len = min(len(norm_llm), len(norm_cur))
-            while common < min_len and norm_llm[common] == norm_cur[common]:
-                common += 1
-            _debug(
-                f'[REGEN] strings diverge at char {common}: LLM={norm_llm[max(common - 20, 0) : common + 40]!r} current={norm_cur[max(common - 20, 0) : common + 40]!r}'
-            )
-        _debug(f'[REGEN] norm_equal={norm_llm == norm_cur}')
-
-        no_text_change = norm_llm == norm_cur
-        if no_text_change and not result.get('relation_changes') and not force_regenerate:
-            _debug(f'[REGEN] change_summary={result.get("change_summary")!r}')
-            _debug(f'[REGEN] relation_changes={result.get("relation_changes")!r}')
-            _debug(f'[REGEN] uncertain={result.get("uncertain")!r}')
+            kind_param = f'{proposal["entity_kind"]}s'
+            entity_raw = getattr(client, f'get_{kind_param}')()
+        except Exception as api_err:
             return jsonify(
-                {'ok': False, 'error': 'Regenerated output is identical to current synopsis — nothing changed.'}
+                {
+                    'ok': False,
+                    'error': f'Cannot contact Kanka to fetch entities: {api_err}',
+                }
+            ), 400
+
+        entity_data = next(
+            (e for e in entity_raw if _safe_get(e, 'id') == proposal['entity_local_id']),
+            None,
+        )
+        if not entity_data:
+            return jsonify({'ok': False, 'error': 'Entity not found.'}), 404
+
+        # Build the entity dict expected by build_synopsis_proposal.
+        entity = {
+            'name': proposal['entity_name'],
+            'kind': proposal['entity_kind'],
+            'entry': _safe_get(entity_data, 'entry') or '',
+            'local_id': proposal['entity_local_id'],
+        }
+
+        # Use 2x max_tokens for regeneration.
+        import kanka_wiki_updater.config as pkg_config
+
+        regen_max = (
+            pkg_config.LLM_MAX_TOKENS * 2 if pkg_config.LLM_PROVIDER != 'gemini' else pkg_config.GEMINI_MAX_TOKENS * 2
+        )
+
+        # Build entity index for relation resolution.
+        idx = build_entity_index(client)
+
+        result_proposal = build_synopsis_proposal(int(entity_id), entity, src_journal, idx, max_tokens=regen_max)
+
+        force_regenerate = request.args.get('force', '0').lower() in ('1', 'true')
+
+        if result_proposal is None and not force_regenerate:
+            return jsonify(
+                {
+                    'ok': False,
+                    'error': 'LLM returned no meaningful change (identical to current).',
+                }
             ), 409
 
-        raw_proposed = result.get('updated_entry', '') or entity_info['entry']
-        _is_new_info = result.get('_is_new_info') is True
+        # When forcing regeneration with identical output, build a minimal proposal.
+        if result_proposal is None:
+            result_proposal = {
+                'proposed_entry': queue[index].get('proposed_entry', entity.get('entry') or ''),
+                'change_summary': '(forced regeneration - no meaningful change)',
+            }
 
-        # Inject journal attribution link when LLM flags new information.
-        # Hybrid approach: use LLM-provided new_paragraph_indices if available,
-        # otherwise fall back to diff-based detection against old paragraphs.
-        if _is_new_info and entity_id:
-            jn_clean = jn.replace('|', '').replace(']', '')
-            _journal_prefix = f'[journal:{entity_id}|{jn_clean}]'
-
-            proposed_paras = [p.strip() for p in raw_proposed.split('\n\n') if p.strip()]
-            old_text = entity_info.get('entry', '') or ''
-            old_paras = [strip_html(p) for p in old_text.split('\n\n') if p.strip()]
-
-            # When there are no old paragraphs (e.g. new entity), append at end.
-            if not old_paras:
-                stripped = raw_proposed.strip()
-                raw_proposed = f'{stripped} {_journal_prefix}' if stripped else _journal_prefix
-            else:
-                # Determine insertion position(s): LLM indices first, then diff-based fallback.
-                llm_indices = result.get('new_paragraph_indices', None)
-                _llm_inserts: set[int] | None = None
-
-                if isinstance(llm_indices, list) and len(llm_indices) > 0:
-                    valid = [i for i in llm_indices if isinstance(i, int) and 0 <= i < len(proposed_paras)]
-                    _llm_inserts = set(valid) if valid else None
-
-                # Guard: even when LLM provides indices, filter out paragraphs that
-                # already have journal tags. The LLM may rephrase old tagged content
-                # and still flag it as "new info" — we must not replace the existing
-                # tag with a new one. Also check if untagged paragraphs are just
-                # rephrasings of old tagged ones — preserve the original tag.
-                if _llm_inserts:
-                    filtered = set()
-                    preserved_old_tags = {}  # index -> old journal link to preserve
-                    for i in _llm_inserts:
-                        para_text = proposed_paras[i] if i < len(proposed_paras) else ''
-                        already_tagged = bool(JOURNAL_LINK_RE.search(para_text))
-                        if already_tagged:
-                            # Already has a journal tag — leave it as-is, no injection needed.
-                            continue
-                        elif old_paras:
-                            # Check if this paragraph is just a rephrasing of an old
-                            # tagged paragraph — preserve the old tag instead of
-                            # injecting a new one.
-                            para_stripped = strip_journal_links(strip_html(para_text))
-                            for _j, old in enumerate(old_paras):
-                                if JOURNAL_LINK_RE.search(old):
-                                    old_stripped = strip_journal_links(old)
-                                    if difflib.SequenceMatcher(None, para_stripped, old_stripped).ratio() > 0.5:
-                                        preserved_old_tags[i] = JOURNAL_LINK_RE.search(old).group(0)
-                                        filtered.add(i)
-                                        break
-                            else:
-                                # No fuzzy match found — inject fresh journal prefix.
-                                filtered.add(i)
-                    _llm_inserts = filtered if filtered else None
-
-                # Collapse consecutive LLM indices so only the first paragraph
-                # in each contiguous run gets a journal tag.
-                if _llm_inserts and len(_llm_inserts) > 1:
-                    sorted_runs = sorted(_llm_inserts)
-                    collapsed: set[int] = {sorted_runs[0]}
-                    prev_idx = sorted_runs[0]
-                    for idx in sorted_runs[1:]:
-                        if idx > prev_idx + 1:
-                            collapsed.add(idx)
-                        prev_idx = idx
-                    _llm_inserts = collapsed
-
-                _diff_insert_at: int | None = None
-                if _llm_inserts is None:
-                    # Fallback: diff-based detection when LLM didn't provide indices.
-                    for i, para in enumerate(proposed_paras):
-                        para_stripped = strip_journal_links(strip_html(para))
-                        if not para_stripped:
-                            continue
-                        positional_match = False
-                        if old_paras and i < len(old_paras):
-                            positional_match = (
-                                difflib.SequenceMatcher(None, para_stripped, strip_journal_links(old_paras[i])).ratio()
-                                > 0.5
-                            )
-                        if not positional_match:
-                            fuzzy_match = any(
-                                difflib.SequenceMatcher(None, para_stripped, strip_journal_links(old)).ratio() > 0.5
-                                for old in old_paras
-                            )
-
-                            if not fuzzy_match:
-                                _diff_insert_at = i
-                                break
-
-                # Insert the journal link before each LLM-identified paragraph (or first diff-mismatch).
-                if proposed_paras:
-                    if _llm_inserts is not None:
-                        result_paras = []
-                        for i, para in enumerate(proposed_paras):
-                            if i in _llm_inserts:
-                                cleaned_para = strip_journal_links(para)
-                                prefix = preserved_old_tags.get(i, _journal_prefix)
-                                result_paras.append(f'{prefix} {cleaned_para}')
-                            else:
-                                result_paras.append(para)
-                        raw_proposed = '\n\n'.join(result_paras)
-                    elif _diff_insert_at is not None and _diff_insert_at < len(proposed_paras):
-                        pre_paras = '\n\n'.join(proposed_paras[:_diff_insert_at])
-                        post_para = strip_journal_links(proposed_paras[_diff_insert_at])
-                        pre_text = f'{pre_paras}\n\n' if pre_paras else ''
-                        new_text = f'{pre_text}{_journal_prefix} {post_para}'
-                        remaining = (
-                            '\n\n'.join(proposed_paras[_diff_insert_at + 1 :])
-                            if _diff_insert_at + 1 < len(proposed_paras)
-                            else ''
-                        )
-                        raw_proposed = f'{new_text}\n\n{remaining}'.rstrip() if remaining else new_text
-                    elif proposed_paras:
-                        # Fallback: append at end of last paragraph.
-                        stripped = raw_proposed.strip()
-                        raw_proposed = f'{stripped} {_journal_prefix}'
-
-        # Normalize whitespace within paragraphs but preserve \n\n paragraph breaks.
-        # The LLM echoes \n from <br>-converted prompt text; collapse those to spaces
-        # while keeping double-newline boundaries intact so synopsis paragraphs are not lost.
-        if raw_proposed:
-            parts = raw_proposed.split('\n\n')
-            queue[index]['proposed_entry'] = '\n\n'.join(' '.join(p.split()) for p in parts if p.strip())
-        else:
-            queue[index]['proposed_entry'] = ''
-        queue[index]['change_summary'] = result.get('change_summary', '')
-        queue[index]['relation_changes'] = result.get('relation_changes', [])
-        queue[index]['uncertain'] = result.get('uncertain', [])
-        queue[index]['truncated'] = False
+        # Merge the new proposal into the existing queue entry.
+        queue[index]['proposed_entry'] = result_proposal['proposed_entry']
+        queue[index]['change_summary'] = result_proposal.get('change_summary', '')
+        queue[index]['relation_changes'] = []
+        queue[index]['uncertain'] = result_proposal.get('uncertain', [])
+        queue[index]['truncated'] = result_proposal.get('truncated', False)
 
         _save_queue(queue)
         return jsonify(

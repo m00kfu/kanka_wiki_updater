@@ -440,7 +440,7 @@ def test_propose_update_truncated_flag():
     }
     entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = {
             'updated_entry': 'New synopsis.',
             'change_summary': '',
@@ -467,7 +467,7 @@ def test_propose_update_not_truncated():
     }
     entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = {
             'updated_entry': 'New synopsis.',
             'change_summary': '',
@@ -522,7 +522,7 @@ def test_propose_update_stores_journal_id():
     }
     entity = {'kind': 'character', 'local_id': 1, 'name': 'Alice', 'entry': 'Old synopsis.', 'relations': []}
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = {
             'updated_entry': 'New synopsis.',
             'change_summary': '',
@@ -558,7 +558,7 @@ def test_propose_update_injects_journal_link_when_new_info():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = {
             'updated_entry': 'New synopsis about Alice.',
             'change_summary': 'Added new info',
@@ -569,7 +569,7 @@ def test_propose_update_injects_journal_link_when_new_info():
 
     assert result is not None
     # Single paragraph — appended at end after whitespace collapse.
-    assert '[journal:9431667|Session 1: The Beginning]' in result['proposed_entry']
+    assert '[journal:789|Session 1: The Beginning]' in result['proposed_entry']
 
 
 def test_propose_update_injects_journal_link_before_last_paragraph():
@@ -593,7 +593,7 @@ def test_propose_update_injects_journal_link_before_last_paragraph():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM returns old content + new paragraph at end (per prompt instructions).
         mock_chat.return_value = {
             'updated_entry': '<p>Old content about Alice.</p>\n\nFollowing her adventures, Alice retired.',
@@ -606,7 +606,7 @@ def test_propose_update_injects_journal_link_before_last_paragraph():
     assert result is not None
     proposed = result['proposed_entry']
     # After whitespace collapse, old paragraph comes first, then [journal:N|name], then new content.
-    assert '[journal:9431667|Session 1: The Beginning]' in proposed
+    assert '[journal:789|Session 1: The Beginning]' in proposed
     # Old content should NOT start with a journal link.
     assert not proposed.startswith('[journal')
     # New content (retirement) should be present after the journal link.
@@ -635,7 +635,7 @@ def test_propose_update_injects_journal_link_at_new_info_start():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM keeps old para 1, adds new info in para 2, then has para 3 (old).
         mock_chat.return_value = {
             'updated_entry': '<p>Alice was a brave adventurer.</p>\n\nShe found the magic sword and wielded it bravely.\n\nShe explored the dark cave.',
@@ -649,7 +649,7 @@ def test_propose_update_injects_journal_link_at_new_info_start():
     proposed = result['proposed_entry']
     # Journal link should be at the start of paragraph 2 (where new info starts),
     # NOT at paragraph 3 (the old content).
-    assert '[journal:9431667|Session 2: The Middle]' in proposed
+    assert '[journal:789|Session 2: The Middle]' in proposed
     # Paragraph 1 should not have a journal link.
     first_para = proposed.split('\n\n')[0]
     assert 'brave adventurer' in first_para.lower() and '[journal:' not in first_para
@@ -682,7 +682,7 @@ def test_propose_update_multi_new_paragraph_indices_injects_at_each():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM returns 3 paragraphs, indices [0, 2] — both have new info.
         mock_chat.return_value = {
             'updated_entry': '<p>Alice slew the dragon and was hailed a hero.</p>\n\nShe explored the dark cave.\n\nShe went on more adventures.',
@@ -700,9 +700,9 @@ def test_propose_update_multi_new_paragraph_indices_injects_at_each():
     assert count == 2, f'Expected 2 [journal: links but found {count} in:\n{proposed}'
     paras = proposed.split('\n\n')
     # Paragraph 0 (dragon slaying) and paragraph 2 (more adventures) have prefixes.
-    assert '[journal:9431667|Session: Multi-Index]' in paras[0]
+    assert '[journal:789|Session: Multi-Index]' in paras[0]
     assert 'dragon' in paras[0].lower()
-    assert '[journal:9431667|Session: Multi-Index]' in paras[2]
+    assert '[journal:789|Session: Multi-Index]' in paras[2]
     assert 'adventures' in paras[2].lower()
 
 
@@ -728,7 +728,7 @@ def test_propose_update_consecutive_indices_only_first_tagged():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM returns 4 paragraphs; indices [0,1,2] are consecutive (new info), index 3 is separate.
         mock_chat.return_value = {
             'updated_entry': (
@@ -751,7 +751,7 @@ def test_propose_update_consecutive_indices_only_first_tagged():
     count = proposed.count('[journal:')
     assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
     # First paragraph of the consecutive block gets the tag.
-    assert '[journal:9431667|Session: Warehouse]' in paras[0]
+    assert '[journal:789|Session: Warehouse]' in paras[0]
     # Paragraphs 1, 2, and 3 are untagged continuation of new content.
     assert '[journal:' not in paras[1], f'Para 1 should be untagged: {paras[1]}'
     assert '[journal:' not in paras[2], f'Para 2 should be untagged: {paras[2]}'
@@ -780,7 +780,7 @@ def test_propose_update_gap_in_indices_creates_two_tags():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # Indices [0,1] are consecutive (collapse to one tag), index 3 is separate.
         mock_chat.return_value = {
             'updated_entry': (
@@ -828,7 +828,7 @@ def test_propose_update_no_journal_link_when_not_new_info():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = {
             'updated_entry': 'New synopsis about Alice.',
             'change_summary': 'Rephrased',
@@ -861,7 +861,7 @@ def test_propose_update_no_journal_link_when_missing_field():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM output without _is_new_info field (backward compat)
         mock_chat.return_value = {
             'updated_entry': 'New synopsis about Alice.',
@@ -895,7 +895,7 @@ def test_propose_update_sanitize_journal_name_special_chars():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = {
             'updated_entry': 'New synopsis about Alice.',
             'change_summary': 'Added info',
@@ -906,7 +906,7 @@ def test_propose_update_sanitize_journal_name_special_chars():
 
     assert result is not None
     # Pipe and bracket should be stripped from the link text; appended at end for single-paragraph output.
-    assert '[journal:9431667|Session  Special  Name]' in result['proposed_entry']
+    assert '[journal:789|Session  Special  Name]' in result['proposed_entry']
 
 
 def test_propose_update_strips_existing_journal_tags_before_inject():
@@ -933,7 +933,7 @@ def test_propose_update_strips_existing_journal_tags_before_inject():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM echoes back journal tag in its output (common when prompt contains annotations)
         mock_chat.return_value = {
             'updated_entry': '[journal:12345|Old Session] Alice slew the dragon and was hailed a hero.\n\nShe explored the dark cave.',
@@ -951,7 +951,7 @@ def test_propose_update_strips_existing_journal_tags_before_inject():
     assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
     paras = proposed.split('\n\n')
     # The first paragraph should have the new journal prefix and the content without double tags.
-    assert '[journal:9431667|Session: Test]' in paras[0]
+    assert '[journal:789|Session: Test]' in paras[0]
     assert 'slayed' not in paras[0]  # original text, not modified
     assert 'dragon' in paras[0].lower()
 
@@ -980,7 +980,7 @@ def test_propose_update_preserves_existing_journal_tag_on_rephrased_content():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM echoes back old tagged content, keeping the existing journal tag.
         # The LLM flags index 0 as new info but doesn't strip the existing tag.
         mock_chat.return_value = {
@@ -1026,7 +1026,7 @@ def test_propose_update_preserves_old_journal_tag_on_fuzzy_matched_rephrase():
         'relations': [],
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
         # LLM rephrases old tagged content (para 2) WITHOUT preserving the journal tag,
         # but keeps the text nearly identical. Flags it as new info at index 1.
         mock_chat.return_value = {

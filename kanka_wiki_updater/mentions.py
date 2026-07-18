@@ -20,7 +20,7 @@ MENTION_DISPLAY_RE = re.compile(
 LINK_SPAN_RE = re.compile(
     r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):\d+(?:\|[^\]]*)?\]'
 )
-JOURNAL_LINK_RE = re.compile(r'\[journal:\d+[^]]*\]')
+JOURNAL_LINK_RE = re.compile(r'\[journal:\d+(?:\|[^\]]*)?\]')
 TAG_RE = re.compile(r'<[^>]+>')
 BLOCK_TAGS_RE = re.compile(r'<\s*(p|div)\b[^>]*>|</(?:p|div)\s*>', re.IGNORECASE)
 INLINE_BREAKS_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
@@ -139,13 +139,11 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
                 for m in re.finditer(exact_pattern, text_lower):
                     match_text = m.group()
                     # Get everything after this match and extract the following words
-                    remainder = text_lower[m.end():]
+                    remainder = text_lower[m.end() :]
                     remaining_words = remainder.split()
-                    following_words = [w.strip('.,!?;:\'"') for w in remaining_words[:len(word_parts) + 2]]
+                    following_words = [w.strip('.,!?;:\'"') for w in remaining_words[: len(word_parts) + 2]]
 
-                    if not _extends_into_known_name(
-                        [match_text, *following_words], all_names_lower
-                    ):
+                    if not _extends_into_known_name([match_text, *following_words], all_names_lower):
                         all_inside_compounds = False
                         break
 

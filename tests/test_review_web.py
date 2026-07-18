@@ -783,7 +783,7 @@ class TestApiProposalRegenerate:
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
-            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+            umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
             # Return identical entry — no change detected
             mock_chat.return_value = {
@@ -829,7 +829,7 @@ class TestApiProposalRegenerate:
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
-            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+            umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
             mock_chat.return_value = {
                 'updated_entry': '<p>Old synopsis.</p>',
@@ -877,7 +877,7 @@ class TestApiProposalRegenerate:
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
-            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+            umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
             # Return a different entry — change detected
             mock_chat.return_value = {
@@ -929,7 +929,7 @@ class TestApiProposalRegenerate:
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
-            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+            umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
             mock_chat.return_value = {
                 'updated_entry': '<p>New synopsis text.</p>',
@@ -942,9 +942,9 @@ class TestApiProposalRegenerate:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['ok'] is True
-        # entity_id=42 from proposal, journal name 'Session 5' sanitized.
+        # Journal ID from the proposal's _journal_id, journal name 'Session 5' sanitized.
         # Single-paragraph response with no matching old content: diff detects it as new and inserts before it.
-        assert '[journal:42|Session 5]' in data['proposal']['proposed_entry']
+        assert '[journal:789|Session 5]' in data['proposal']['proposed_entry']
 
     def test_regenerate_injects_journal_link_before_last_paragraph(self, app_with_queue):
         """When LLM returns multiple paragraphs, journal link goes before the last one."""
@@ -982,7 +982,7 @@ class TestApiProposalRegenerate:
                 'kanka_wiki_updater.review_web.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
-            umock.patch('kanka_wiki_updater.llm_client.chat_json') as mock_chat,
+            umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
             # LLM returns old content + new paragraph at end
             mock_chat.return_value = {
@@ -997,7 +997,7 @@ class TestApiProposalRegenerate:
         data = resp.get_json()
         proposed = data['proposal']['proposed_entry']
         # Diff-based detection: first paragraph was modified (doesn't match old), so journal link goes before it.
-        assert '[journal:42|Session 5]' in proposed
+        assert '[journal:789|Session 5]' in proposed
         assert proposed.startswith('[journal')
         assert 'Warryn' in proposed
 
@@ -1057,7 +1057,7 @@ class TestRegenerateApiErrors:
 
         assert resp.status_code == 400
         data = resp.get_json()
-        assert 'Cannot fetch journals from Kanka' in data['error']
+        assert 'lacks both _journal_id and source_journal' in data['error']
 
     def test_regenerate_entity_fetch_fails(self, app_with_queue):
         """When entity fetch fails after journal is found, return 400 not 500."""

@@ -20,7 +20,7 @@ def mock_state(tmp_path):
 
 @pytest.fixture(autouse=True)
 def mock_llm():
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock:
+    with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock:
         mock.return_value = {
             'updated_entry': 'Same synopsis',
             'change_summary': '',
@@ -111,7 +111,7 @@ class TestCursorAdvancement:
 
 class TestNewEntityDedup:
     def test_same_name_not_suggested_twice(self):
-        with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+        with patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat:
             from kanka_wiki_updater.sync_pipeline import propose_new_entities
 
             mock_chat.return_value = {
@@ -164,7 +164,7 @@ class TestNoMeaningfulChange:
             'relation_changes': [],
             'uncertain': [],
         }
-        monkeypatch.setattr(sp, 'chat_json', lambda sys, usr: mock_result)
+        monkeypatch.setattr('kanka_wiki_updater.synopsis_generator.chat_json', lambda sys, usr: mock_result)
 
         entity_data = {'name': 'Alice', 'kind': 'character', 'entry': 'Same text', 'relations': [], 'local_id': 1}
         journal = {'id': 1, 'name': 'Session 1', 'entry': 'Nothing new happened.', 'date': '2024-01-01'}
