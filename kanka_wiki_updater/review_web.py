@@ -641,9 +641,9 @@ def create_app():
         except Exception as e:
             return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
 
-        # Fetch only the source journal for this proposal (not all journals).
+        # Fetch the source journal directly via the single-journal endpoint.
         try:
-            src_journals = client.get_journals(journal_ids=[journal_id]) or []
+            src_journal = client.get_journal(journal_id)
         except Exception as api_err:
             return jsonify(
                 {
@@ -652,22 +652,14 @@ def create_app():
                 }
             ), 400
 
+        if not src_journal:
+            return jsonify({'ok': False, 'error': 'Source journal not found.'}), 404
+
         # Helper to safely get attrs from dict or SimpleNamespace.
         def _safe_get(obj, key, default=None):
             if isinstance(obj, dict):
                 return obj.get(key, default)
             return getattr(obj, key, default)
-
-        src_journal = (
-            next(
-                (j for j in src_journals if _safe_get(j, 'id') == journal_id),
-                None,
-            )
-            or {}
-        )
-
-        if not src_journal:
-            return jsonify({'ok': False, 'error': 'Source journal not found.'}), 404
 
         # Fetch fresh entity data (may have changed since original sync).
         try:
@@ -693,7 +685,8 @@ def create_app():
             'name': proposal['entity_name'],
             'kind': proposal['entity_kind'],
             'entry': _safe_get(entity_data, 'entry') or '',
-            'local_id': proposal['entity_local_id'],
+            'local_id': proposal['entity_local_id'],  # internal DB ID for API calls
+            'entity_id': _safe_get(entity_data, 'entity_id'),  # public wiki page number for [journal:N] tags
         }
 
         # Use 2x max_tokens for regeneration.
@@ -709,6 +702,15 @@ def create_app():
         result_proposal = build_synopsis_proposal(int(entity_id), entity, src_journal, idx, max_tokens=regen_max)
 
         force_regenerate = request.args.get('force', '0').lower() in ('1', 'true')
+
+        # LLM connection/call error — show the real message instead of masking as "no change".
+        if isinstance(result_proposal, dict) and result_proposal.get('_llm_error'):
+            return jsonify(
+                {
+                    'ok': False,
+                    'error': f'LLM call failed: {result_proposal["_llm_error"]}',
+                }
+            ), 500
 
         if result_proposal is None and not force_regenerate:
             return jsonify(

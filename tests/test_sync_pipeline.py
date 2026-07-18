@@ -569,7 +569,8 @@ def test_propose_update_injects_journal_link_when_new_info():
 
     assert result is not None
     # Single paragraph — appended at end after whitespace collapse.
-    assert '[journal:789|Session 1: The Beginning]' in result['proposed_entry']
+    # _src_journal_id now uses the source session's entity_id (public wiki page number), not the entity being updated.
+    assert '[journal:9431667|Session 1: The Beginning]' in result['proposed_entry']
 
 
 def test_propose_update_injects_journal_link_before_last_paragraph():
@@ -606,7 +607,7 @@ def test_propose_update_injects_journal_link_before_last_paragraph():
     assert result is not None
     proposed = result['proposed_entry']
     # After whitespace collapse, old paragraph comes first, then [journal:N|name], then new content.
-    assert '[journal:789|Session 1: The Beginning]' in proposed
+    assert '[journal:9431667|Session 1: The Beginning]' in proposed
     # Old content should NOT start with a journal link.
     assert not proposed.startswith('[journal')
     # New content (retirement) should be present after the journal link.
@@ -649,7 +650,7 @@ def test_propose_update_injects_journal_link_at_new_info_start():
     proposed = result['proposed_entry']
     # Journal link should be at the start of paragraph 2 (where new info starts),
     # NOT at paragraph 3 (the old content).
-    assert '[journal:789|Session 2: The Middle]' in proposed
+    assert '[journal:9431667|Session 2: The Middle]' in proposed
     # Paragraph 1 should not have a journal link.
     first_para = proposed.split('\n\n')[0]
     assert 'brave adventurer' in first_para.lower() and '[journal:' not in first_para
@@ -700,9 +701,9 @@ def test_propose_update_multi_new_paragraph_indices_injects_at_each():
     assert count == 2, f'Expected 2 [journal: links but found {count} in:\n{proposed}'
     paras = proposed.split('\n\n')
     # Paragraph 0 (dragon slaying) and paragraph 2 (more adventures) have prefixes.
-    assert '[journal:789|Session: Multi-Index]' in paras[0]
+    assert '[journal:9431667|Session: Multi-Index]' in paras[0]
     assert 'dragon' in paras[0].lower()
-    assert '[journal:789|Session: Multi-Index]' in paras[2]
+    assert '[journal:9431667|Session: Multi-Index]' in paras[2]
     assert 'adventures' in paras[2].lower()
 
 
@@ -751,7 +752,7 @@ def test_propose_update_consecutive_indices_only_first_tagged():
     count = proposed.count('[journal:')
     assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
     # First paragraph of the consecutive block gets the tag.
-    assert '[journal:789|Session: Warehouse]' in paras[0]
+    assert '[journal:9431667|Session: Warehouse]' in paras[0]
     # Paragraphs 1, 2, and 3 are untagged continuation of new content.
     assert '[journal:' not in paras[1], f'Para 1 should be untagged: {paras[1]}'
     assert '[journal:' not in paras[2], f'Para 2 should be untagged: {paras[2]}'
@@ -906,7 +907,7 @@ def test_propose_update_sanitize_journal_name_special_chars():
 
     assert result is not None
     # Pipe and bracket should be stripped from the link text; appended at end for single-paragraph output.
-    assert '[journal:789|Session  Special  Name]' in result['proposed_entry']
+    assert '[journal:9431667|Session  Special  Name]' in result['proposed_entry']
 
 
 def test_propose_update_strips_existing_journal_tags_before_inject():
@@ -951,7 +952,7 @@ def test_propose_update_strips_existing_journal_tags_before_inject():
     assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
     paras = proposed.split('\n\n')
     # The first paragraph should have the new journal prefix and the content without double tags.
-    assert '[journal:789|Session: Test]' in paras[0]
+    assert '[journal:9431667|Session: Test]' in paras[0]
     assert 'slayed' not in paras[0]  # original text, not modified
     assert 'dragon' in paras[0].lower()
 

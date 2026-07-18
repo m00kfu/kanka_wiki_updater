@@ -100,16 +100,32 @@ class KankaClient:
 
     # -- Journals (session notes) ---------------------------------------
 
-    def get_journals(self, since=None, journal_type=None, journal_ids=None):
+    def get_journals(self, since=None, journal_type=None):
         params = {}
         if since:
             params['last_sync'] = since
         if journal_type:
             params['type'] = journal_type
-        if journal_ids:
-            params['filter[id]'] = journal_ids
         resp = self._request('GET', 'journals', params=params)
         return resp.get('data') or []
+
+    def get_journal(self, journal_id):
+        """Fetch a single journal by its ID.
+
+        Uses the Kanka ``GET 1.0/journals/{id}`` endpoint directly,
+        which is more reliable than filtering the list endpoint.
+        Returns ``None`` when the journal does not exist or an error occurs.
+        """
+        try:
+            resp = self._request('GET', f'journals/{journal_id}')
+        except KankaError:
+            return None
+        data = resp.get('data') if isinstance(resp, dict) else {}
+        # The single-journal endpoint returns the journal object directly,
+        # not wrapped in a list.
+        if isinstance(data, list):
+            return data[0] if data else None
+        return data or None
 
     # -- Characters / Locations ------------------------------------------
 

@@ -256,7 +256,7 @@ def main(limit=None):
                 entity = index[entity_id]
                 proposal = propose_update(entity_id, entity, journal, index)
                 tracker.mark_done(f'LLM for {entity["name"]}...')
-                if proposal:
+                if isinstance(proposal, dict) and 'proposal_type' in proposal:
                     state.append_to_queue([proposal])
                     total_proposals += 1
 

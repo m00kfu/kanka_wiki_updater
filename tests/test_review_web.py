@@ -740,9 +740,9 @@ class TestApiProposalRegenerate:
 
         from unittest import mock as umock
 
-        # Mock get_journals to return empty list (no fallback match possible without _journal_id)
+        # get_journal returns None when the journal doesn't exist
         mock_client = umock.MagicMock()
-        mock_client.get_journals.return_value = []
+        mock_client.get_journal.return_value = None
 
         with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             resp = app_with_queue.post('/api/proposals/1/regenerate')
@@ -774,7 +774,7 @@ class TestApiProposalRegenerate:
 
         mock_client = umock.MagicMock()
         mock_client.get_relations.return_value = []
-        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_journal.return_value = mock_journal
         mock_client.get_characters.return_value = [mock_entity]
 
         with (
@@ -820,7 +820,7 @@ class TestApiProposalRegenerate:
 
         mock_client = umock.MagicMock()
         mock_client.get_relations.return_value = []
-        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_journal.return_value = mock_journal
         mock_client.get_characters.return_value = [mock_entity]
 
         with (
@@ -868,7 +868,7 @@ class TestApiProposalRegenerate:
 
         mock_client = umock.MagicMock()
         mock_client.get_relations.return_value = []
-        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_journal.return_value = mock_journal
         mock_client.get_characters.return_value = [mock_entity]
 
         with (
@@ -911,7 +911,7 @@ class TestApiProposalRegenerate:
             json.dump(queue, f, indent=2)
 
         mock_journal = _types.SimpleNamespace(
-            id=789, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
+            id=789, entity_id=123456, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
         )
 
         mock_entity = _types.SimpleNamespace(
@@ -920,7 +920,7 @@ class TestApiProposalRegenerate:
 
         mock_client = umock.MagicMock()
         mock_client.get_relations.return_value = []
-        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_journal.return_value = mock_journal
         mock_client.get_characters.return_value = [mock_entity]
 
         with (
@@ -942,9 +942,8 @@ class TestApiProposalRegenerate:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['ok'] is True
-        # Journal ID from the proposal's _journal_id, journal name 'Session 5' sanitized.
-        # Single-paragraph response with no matching old content: diff detects it as new and inserts before it.
-        assert '[journal:789|Session 5]' in data['proposal']['proposed_entry']
+        # Journal link uses the source session's entity_id (public wiki page), not entity's id.
+        assert '[journal:123456|Session 5]' in data['proposal']['proposed_entry']
 
     def test_regenerate_injects_journal_link_before_last_paragraph(self, app_with_queue):
         """When LLM returns multiple paragraphs, journal link goes before the last one."""
@@ -964,7 +963,7 @@ class TestApiProposalRegenerate:
             json.dump(queue, f, indent=2)
 
         mock_journal = _types.SimpleNamespace(
-            id=789, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
+            id=789, entity_id=123456, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
         )
 
         mock_entity = _types.SimpleNamespace(
@@ -973,7 +972,7 @@ class TestApiProposalRegenerate:
 
         mock_client = umock.MagicMock()
         mock_client.get_relations.return_value = []
-        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_journal.return_value = mock_journal
         mock_client.get_characters.return_value = [mock_entity]
 
         with (
@@ -997,9 +996,62 @@ class TestApiProposalRegenerate:
         data = resp.get_json()
         proposed = data['proposal']['proposed_entry']
         # Diff-based detection: first paragraph was modified (doesn't match old), so journal link goes before it.
-        assert '[journal:789|Session 5]' in proposed
+        assert '[journal:123456|Session 5]' in proposed
         assert proposed.startswith('[journal')
         assert 'Warryn' in proposed
+
+    def test_regenerate_llm_error_returns_500(self, app_with_queue):
+        """When chat_json raises (LLM connection failure), show 500 not 409."""
+        import types as _types
+        from unittest import mock as umock
+
+        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
+        queue = rw_module._load_queue()
+        queue[1]['truncated'] = True
+
+        # _is_new_info=True forces a re-fetch of journals so the old-path is exercised.
+        queue[1]['_journal_id'] = 789
+        import os
+
+        import kanka_wiki_updater.config as config
+
+        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        with open(queue_file, 'w') as f:
+            json.dump(queue, f, indent=2)
+
+        mock_journal = _types.SimpleNamespace(
+            id=789, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
+        )
+        mock_entity = _types.SimpleNamespace(
+            id=queue[1]['entity_local_id'],
+            entity_id=str(queue[1]['entity_local_id']),
+            name=queue[1]['entity_name'],
+            local_id=queue[1]['entity_local_id'],
+            entry='<p>Kael is a warrior.</p>',
+            relations=[],
+        )
+
+        mock_client = umock.MagicMock()
+        mock_client.get_journal.return_value = mock_journal
+        mock_client.get_characters.return_value = [mock_entity]
+
+        with (
+            umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
+            umock.patch(
+                'kanka_wiki_updater.review_web.build_entity_index',
+                side_effect=lambda c: {queue[1]['entity_local_id']: {'name': queue[1]['entity_name']}},
+            ),
+            umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
+        ):
+            # Simulate LLM connection failure — raises an exception.
+            import requests
+
+            mock_chat.side_effect = requests.exceptions.ConnectionError('Connection refused')
+            resp = app_with_queue.post('/api/proposals/1/regenerate')
+
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert 'LLM call failed' in data['error']
 
 
 class TestRegenerateApiErrors:
@@ -1022,7 +1074,7 @@ class TestRegenerateApiErrors:
             json.dump(queue, f, indent=2)
 
         mock_client = umock.MagicMock()
-        mock_client.get_journals.side_effect = Exception('Connection refused')
+        mock_client.get_journal.side_effect = Exception('Connection refused')
 
         with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             resp = app_with_queue.post('/api/proposals/1/regenerate?force=1')
@@ -1050,7 +1102,8 @@ class TestRegenerateApiErrors:
             json.dump(queue, f, indent=2)
 
         mock_client = umock.MagicMock()
-        mock_client.get_journals.side_effect = Exception('Connection refused')
+        # No _journal_id — returns 400 early before any API call
+        mock_client.get_journal.return_value = None
 
         with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):
             resp = app_with_queue.post('/api/proposals/1/regenerate?force=1')
@@ -1079,7 +1132,7 @@ class TestRegenerateApiErrors:
         mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
 
         mock_client = umock.MagicMock()
-        mock_client.get_journals.return_value = [mock_journal]
+        mock_client.get_journal.return_value = mock_journal
         mock_client.get_characters.side_effect = Exception('Not found')
 
         with umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client):

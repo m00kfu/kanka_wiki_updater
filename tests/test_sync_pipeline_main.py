@@ -164,7 +164,7 @@ class TestNoMeaningfulChange:
             'relation_changes': [],
             'uncertain': [],
         }
-        monkeypatch.setattr('kanka_wiki_updater.synopsis_generator.chat_json', lambda sys, usr: mock_result)
+        monkeypatch.setattr('kanka_wiki_updater.synopsis_generator.chat_json', lambda sys, usr, **kwargs: mock_result)
 
         entity_data = {'name': 'Alice', 'kind': 'character', 'entry': 'Same text', 'relations': [], 'local_id': 1}
         journal = {'id': 1, 'name': 'Session 1', 'entry': 'Nothing new happened.', 'date': '2024-01-01'}

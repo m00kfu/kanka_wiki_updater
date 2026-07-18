@@ -113,7 +113,8 @@ def build_entity_index(client):
             name = (row.get('name') or '<UNKNOWN>').strip()
             index[row['entity_id']] = {
                 'kind': kind,
-                'local_id': row['id'],
+                'local_id': row['id'],  # internal DB ID for API calls
+                'entity_id': row['entity_id'],  # public wiki page number for [journal:N] tags
                 'name': name,
                 'entry': entry_text,
                 'relations': list(rels),
@@ -382,11 +383,11 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
         result = chat_json(SYSTEM_PROMPT, user_prompt, max_tokens=max_tokens)
     except LLMError as e:
         print(f'  ! LLM error for {entity["name"]}: {e}', file=sys.stderr)
-        return None
+        return {'_llm_error': str(e)}
     except Exception as e:
         # Catch broadly — a bad response from the model, network hiccup, etc.
         print(f'  ! Error calling LLM for {entity["name"]}: {e}', file=sys.stderr)
-        return None
+        return {'_llm_error': str(e)}
 
     raw_proposed = result.get('updated_entry', '') or entity['entry']
     # Strip [journal:N] attribution links from LLM output — they were injected
@@ -406,7 +407,9 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
 
     # Inject journal attribution links when LLM flags new information.
     result['_journal_name'] = (journal.get('name') or '').replace('|', '').replace(']', '')
-    result['_src_journal_id'] = str(journal.get('id') or entity_id)
+    # Use the public-facing wiki page number for [journal:N] tags.
+    _journal_id = journal.get('entity_id') or journal.get('id')
+    result['_src_journal_id'] = str(_journal_id)
     proposed_text, _did_inject = _inject_journal_links(entity_id, result, raw_proposed, entity['entry'])
 
     no_text_change = normalize_text(proposed_text) == normalize_text(previous_text)
