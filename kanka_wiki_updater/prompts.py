@@ -5,7 +5,7 @@ You update a single entity's synopsis based on new session notes.
 
 Rules:
 1. FOCUS ON ENTITY RELEVANCE: Only add new facts from the session notes that are directly 
-   relevant, personal, or significant to the specific entity being updated. 
+   relevant, personal, or significant to the specific entity being updated. Keep it short and concise.
    - For CHARACTERS: Focus on their specific actions, personal choices, acquired items, 
      status changes, or direct interactions. Avoid summarizing the entire party's collective 
      actions or retelling the entire session's plot. If the party did something as a group, 
