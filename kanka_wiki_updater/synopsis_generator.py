@@ -160,7 +160,10 @@ def _build_prompts(entity_id, entity, journal, index):
     # Strip old journal links before annotating — prevents corruption when the
     # old entry already has [journal:N|...] tags from previous sessions.
     clean_raw_text = JOURNAL_LINK_RE.sub('', raw_text) if raw_text else raw_text
-    session_text = _annotate_journals(clean_raw_text, str(journal.get('id') or ''))
+    # Use the public-facing wiki page number (entity_id) for [journal:N] tags
+    # so citations point to the source journal's shareable URL, not the internal DB ID.
+    _journal_ref = str(journal.get('entity_id') or journal.get('id') or '')
+    session_text = _annotate_journals(clean_raw_text, _journal_ref)
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         name=entity['name'],
@@ -168,7 +171,6 @@ def _build_prompts(entity_id, entity, journal, index):
         current_entry=strip_html(entity['entry']) or '(no synopsis yet)',
         journal_name=journal.get('name') or 'Session note',
         journal_date=journal.get('date') or journal.get('created_at', '') or '',
-        journal_id=str(journal.get('id') or ''),
         session_text=session_text,
     )
     return session_text, user_prompt
