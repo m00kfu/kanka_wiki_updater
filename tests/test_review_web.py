@@ -931,8 +931,9 @@ class TestApiProposalRegenerate:
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
+            # LLM includes journal tag directly in its output (Rule 7).
             mock_chat.return_value = {
-                'updated_entry': '<p>New synopsis text.</p>',
+                'updated_entry': '[journal:123456|Session 5] <p>New synopsis text.</p>',
                 'change_summary': 'Added new info.',
                 '_is_new_info': True,
                 'relation_changes': [],
@@ -942,7 +943,7 @@ class TestApiProposalRegenerate:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['ok'] is True
-        # Journal link uses the source session's entity_id (public wiki page), not entity's id.
+        # Journal tag from LLM output passes through as-is.
         assert '[journal:123456|Session 5]' in data['proposal']['proposed_entry']
 
     def test_regenerate_injects_journal_link_before_last_paragraph(self, app_with_queue):
@@ -983,9 +984,9 @@ class TestApiProposalRegenerate:
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
         ):
-            # LLM returns old content + new paragraph at end
+            # LLM returns old content + new paragraph at end with journal tag.
             mock_chat.return_value = {
-                'updated_entry': '<p>Old content here.</p>\n\nFollowing their adventures, [character:9419629|Warryn] retired.',
+                'updated_entry': '<p>Old content here.</p>\n\n[journal:123456|Session 5] Following their adventures, [character:9419629|Warryn] retired.',
                 'change_summary': 'Added retirement info.',
                 '_is_new_info': True,
                 'relation_changes': [],
@@ -995,9 +996,10 @@ class TestApiProposalRegenerate:
         assert resp.status_code == 200
         data = resp.get_json()
         proposed = data['proposal']['proposed_entry']
-        # Diff-based detection: first paragraph was modified (doesn't match old), so journal link goes before it.
+        # Journal tag from LLM output passes through as-is.
         assert '[journal:123456|Session 5]' in proposed
-        assert proposed.startswith('[journal')
+        # Old content should NOT start with a journal link.
+        assert not proposed.startswith('[journal')
         assert 'Warryn' in proposed
 
     def test_regenerate_llm_error_returns_500(self, app_with_queue):
