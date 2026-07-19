@@ -1290,10 +1290,9 @@ function stripHtml(html) {
 }
 
 function renderJournalLinks(text) {
-  // Convert [journal:N] patterns to clickable links in synopsis text
-  if (!campaignId || !text) return escapeJsHtml(text);
-  var escaped = escapeJsHtml(text);
-  return escaped.replace(/\\[journal:(\\d+)\\]/g, '<a href="https://app.kanka.io/campaigns/' + campaignId + '/journal/$1" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;">' + '[journal:$1]' + '</a>');
+  // [journal:N] tags are rendered as plain text — Kanka handles rendering
+  // them on its own side. Do not convert to clickable links here.
+  return escapeJsHtml(text);
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────

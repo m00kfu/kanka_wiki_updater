@@ -1049,3 +1049,66 @@ def test_propose_update_preserves_old_journal_tag_on_fuzzy_matched_rephrase():
     count = proposed.count('[journal:')
     # Should have exactly 1 journal link (old tag preserved, no new one injected)
     assert count == 1, f'Expected 1 [journal: link but found {count} in:\n{proposed}'
+
+
+
+def test_build_prompts_display_name_fallback_on_long_entry():
+    """When journal['name'] is excessively long (looks like entry content),
+    fall back to 'Session <ref>' for the display name."""
+    from kanka_wiki_updater.synopsis_generator import _build_prompts
+
+    journal = {
+        "id": 789,
+        "entity_id": 9466673,
+        # Simulates a Kanka journal where the name field accidentally contains
+        # entry body text (e.g. >120 chars).
+        "name": "While the rest of the party traveled east of [location:9419635|Phandalin] toward [location:9419630|Peacely], Gladio remained away to assist with his family's farming.",
+        "date": "2024-01-01",
+        "entry": "Gladio helped on the farm.",
+    }
+    entity = {
+        "kind": "character",
+        "local_id": 1,
+        "name": "Gladio",
+        "entry": "Old synopsis.",
+    }
+
+    session_text, user_prompt = _build_prompts(1, entity, journal, {})
+
+    assert session_text is not None
+    # The display name should be the fallback, NOT the long entry text.
+    assert "[journal:9466673|Session 9466673]" in user_prompt
+
+
+def test_build_prompts_display_name_fallback_on_empty_name():
+    """When journal['name'] is empty or whitespace, fall back to session ref."""
+    from kanka_wiki_updater.synopsis_generator import _build_prompts
+
+    for bad_name in ["", "   ", "\t\n"]:
+        journal = {
+            "id": 789,
+            "entity_id": 12345,
+            "name": bad_name,
+            "entry": "Test content.",
+        }
+        entity = {"kind": "character", "local_id": 1, "name": "Bob", "entry": ""}
+
+        session_text, user_prompt = _build_prompts(1, entity, journal, {})
+        assert session_text is not None
+        assert "[journal:12345|Session 12345]" in user_prompt
+
+
+def test_build_prompts_display_name_passes_short_valid_name():
+    """Short, non-empty journal names pass through unchanged."""
+    from kanka_wiki_updater.synopsis_generator import _build_prompts
+
+    journal = {
+        "id": 789,
+        "entity_id": 12345,
+        "name": "Week 3 Recap",
+        "entry": "Test content.",
+    }
+    entity = {"kind": "character", "local_id": 1, "name": "Bob", "entry": ""}
+
+    session_text, user_prompt = _build_prompts(1, entity, journal, {})
+    assert "[journal:12345|Week 3 Recap]" in user_prompt

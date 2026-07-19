@@ -49,7 +49,7 @@ from kanka_wiki_updater.prompts import (
 # ---------------------------------------------------------------------------
 
 _JOURNAL_REF_OPEN = '[journal:'
-_JOURNAL_REF_CLOSE = '/journal]'
+_JOURNAL_REF_CLOSE_RE = re.compile(r'\[/journal\]\s*$')
 
 
 def _build_journal_url(journal_id):
@@ -57,15 +57,28 @@ def _build_journal_url(journal_id):
     return f'https://app.kanka.io/campaigns/{config.KANKA_CAMPAIGN_ID}/journal/{journal_id}'
 
 
-def _annotate_journals(text, journal_id):
-    """Insert [journal:N] markers at paragraph boundaries so the LLM can
+def _annotate_journals(text, journal_id, display_name=None):
+    """Insert [journal:N|Name] markers at paragraph boundaries so the LLM can
     attribute facts back to their source session note.
 
     Each content block in *text* gets wrapped with opening/closing tags so
     rule-4 of the prompt preserves them verbatim in the LLM output.
+
+    Parameters
+    ----------
+    text : str
+        The journal entry text (HTML already stripped, old journal links removed).
+    journal_id : str or int
+        The Kanka entity_id for the [journal:N] tag.
+    display_name : str, optional
+        Human-readable session name.  When present tags are written as
+        ``[journal:N|Name]`` so the LLM sees and echoes back the full format,
+        which means existing synopses keep their citation tags across regenerations.
     """
     if not journal_id or not text:
         return text
+    name_part = f'|{display_name}' if display_name else ''
+    tag_open = f'{_JOURNAL_REF_OPEN}{journal_id}{name_part}]'
     parts = re.split(r'(\n+)', text)
     result = []
     first_block = True
@@ -76,14 +89,17 @@ def _annotate_journals(text, journal_id):
             continue
         is_list_item = bool(re.match(r'^\s*[-*\u2022]|\d+\.\s', part))
         if first_block and not is_list_item:
-            result.append(f'{_JOURNAL_REF_OPEN}{journal_id}]{part}')
+            result.append(f'{tag_open}{part}')
             first_block = False
         elif not is_list_item:
-            result.append(f'{_JOURNAL_REF_CLOSE}\n{_JOURNAL_REF_OPEN}{journal_id}]')
+            # Close the previous block, open a new one — this gives each
+            # paragraph its own [journal:N|Name]…[/journal] wrapper so the
+            # LLM can visually distinguish which paragraphs carry new info.
+            result.append(f'[/journal]\n{tag_open}')
             result.append(part)
         else:
             result.append(part)
-    return ''.join(result) + _JOURNAL_REF_CLOSE
+    return ''.join(result) + '[/journal]'
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +179,15 @@ def _build_prompts(entity_id, entity, journal, index):
     # Use the public-facing wiki page number (entity_id) for [journal:N] tags
     # so citations point to the source journal's shareable URL, not the internal DB ID.
     _journal_ref = str(journal.get('entity_id') or journal.get('id') or '')
-    session_text = _annotate_journals(clean_raw_text, _journal_ref)
+    raw_name = journal.get('name') or ''
+    # Kanka can return empty strings, whitespace-only values, or (rarely)
+    # large chunks of the entry body as "name".  Fall back to a short session
+    # reference when the name looks suspicious.
+    if not raw_name.strip() or len(raw_name) > 120:
+        display_name = f'Session {_journal_ref}'
+    else:
+        display_name = raw_name
+    session_text = _annotate_journals(clean_raw_text, _journal_ref, display_name=display_name)
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         name=entity['name'],
@@ -174,6 +198,44 @@ def _build_prompts(entity_id, entity, journal, index):
         session_text=session_text,
     )
     return session_text, user_prompt
+
+
+# Matches [journal:N|Name] at the start of a paragraph.  Name may contain
+# nested Kanka references like [location:...|...] so we can't use [^]]*.
+# Instead, find the opening marker then scan for the balanced closing ].
+def _parse_journal_tag_open(s):
+    """If *s* starts with ``[journal:N|Name]``, return ``(id, full_match)``,
+    else ``(None, None)``.  Handles nested brackets inside *Name*.
+    """
+    if not s.startswith('[journal:'):
+        return None, None
+    # skip past '[journal:'
+    rest = s[len('[journal:'):]  # e.g. '123|Some text [loc:...|...] more'
+    # find the pipe separating ID from name
+    idx = rest.find('|')
+    if idx < 0:
+        # bare [journal:N] with no name — still valid
+        journal_id = rest.rstrip(']')
+        if not journal_id.isdigit():
+            return None, None
+        full_match = '[journal:' + journal_id + ']'
+        return journal_id, full_match
+    journal_id = rest[:idx]
+    if not journal_id.isdigit():
+        return None, None
+    after_pipe = rest[idx + 1:]  # e.g. 'Name [loc:...|...] more'
+    # find the matching closing ] by counting nested brackets
+    depth = 0
+    for i, ch in enumerate(after_pipe):
+        if ch == '[':
+            depth += 1
+        elif ch == ']':
+            if depth == 0:
+                full_match = '[journal:' + rest[:idx] + '|' + after_pipe[:i] + ']'
+                return journal_id, full_match
+            else:
+                depth -= 1
+    return None, None
 
 
 def _normalize_proposed(raw_proposed):
@@ -193,6 +255,48 @@ def _normalize_proposed(raw_proposed):
     # Normalize whitespace within paragraphs but preserve \\n\\n paragraph breaks.
     parts = proposed_text.split('\n\n')
     return '\n\n'.join(' '.join(p.split()) for p in parts if p.strip())
+
+
+def _deduplicate_journal_tags(text):
+    """Collapse duplicate [journal:N|...] tags in the LLM output.
+
+    The prompt annotates *every* paragraph with [journal:N|Name]…[/journal],
+    so the LLM often echoes back multiple identical tags across paragraphs.
+    This walks through contiguous blocks of tagged paragraphs and keeps only
+    the first tag per block.  Old untagged content between blocks resets the
+    context, so a later re-appearance of the same session ID (e.g., new info
+    mixed into old content) is preserved.
+
+    Existing synopses may already contain [journal:N|OldName] from previous
+    sessions; those are preserved because they appear in their own block.
+    """
+    if not text:
+        return text
+
+    paragraphs = text.split('\n\n')
+    # Maps a block's starting index to the journal ID of its first tag.
+    block_journal_id: int | None = None
+    result = []
+
+    for para in paragraphs:
+        stripped = para.lstrip()
+        journal_id, full_tag = _parse_journal_tag_open(stripped)
+        if journal_id is not None:
+            # journal_id and full_tag already set by _parse_journal_tag_open
+            rest = stripped[len(full_tag):]
+            prefix = para[: len(para) - len(stripped)]  # leading whitespace
+            if block_journal_id == journal_id:
+                # Duplicate tag within the same contiguous tagged block.
+                clean = _JOURNAL_REF_CLOSE_RE.sub('', rest).rstrip()
+                result.append(f'{prefix}{clean}')
+            else:
+                block_journal_id = journal_id
+                result.append(para)
+        else:
+            block_journal_id = None  # untagged / closing paragraph resets the block
+            result.append(para)
+
+    return '\n\n'.join(result)
 
 
 
@@ -245,6 +349,7 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
     # The LLM handles all [journal:N|...] tag insertion and preservation via
     # its system-prompt rules (prompts.py Rule 7). Pass through as-is.
     proposed_text = _normalize_proposed(raw_proposed)
+    proposed_text = _deduplicate_journal_tags(proposed_text)
 
     # Detect when the LLM output is significantly shorter than the input,
     # which often means information was lost (summarized/condensed instead
