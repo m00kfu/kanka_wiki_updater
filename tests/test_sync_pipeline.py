@@ -571,7 +571,7 @@ def test_propose_update_injects_journal_link_when_new_info():
 
     assert result is not None
     # Journal tag from LLM output passes through as-is.
-    assert '[journal:9431667|Session 1: The Beginning]' in result['proposed_entry']
+    assert '[journal:9431667|<i>Session 1: The Beginning</i>]' in result['proposed_entry']
 
 
 def test_propose_update_injects_journal_link_before_last_paragraph():
@@ -609,7 +609,7 @@ def test_propose_update_injects_journal_link_before_last_paragraph():
     assert result is not None
     proposed = result['proposed_entry']
     # Journal tag from LLM output passes through as-is.
-    assert '[journal:9431667|Session 1: The Beginning]' in proposed
+    assert '[journal:9431667|<i>Session 1: The Beginning</i>]' in proposed
     # Old content should NOT start with a journal link.
     assert not proposed.startswith('[journal')
     # New content (retirement) should be present after the journal link.
@@ -651,7 +651,7 @@ def test_propose_update_injects_journal_link_at_new_info_start():
     assert result is not None
     proposed = result['proposed_entry']
     # Journal link from LLM output passes through as-is.
-    assert '[journal:9431667|Session 2: The Middle]' in proposed
+    assert "[journal:9431667|<i>Session 2: The Middle</i>]" in proposed
     # Paragraph 1 should not have a journal link.
     first_para = proposed.split('\n\n')[0]
     assert 'brave adventurer' in first_para.lower() and '[journal:' not in first_para
@@ -700,9 +700,9 @@ def test_propose_update_multi_new_paragraph_indices_injects_at_each():
     assert count == 2, f'Expected 2 [journal: links but found {count} in:\n{proposed}'
     paras = proposed.split('\n\n')
     # Paragraph 0 (dragon slaying) and paragraph 2 (more adventures) have tags.
-    assert '[journal:9431667|Session: Multi-Index]' in paras[0]
+    assert '[journal:9431667|<i>Session: Multi-Index</i>]' in paras[0]
     assert 'dragon' in paras[0].lower()
-    assert '[journal:9431667|Session: Multi-Index]' in paras[2]
+    assert '[journal:9431667|<i>Session: Multi-Index</i>]' in paras[2]
     assert 'adventures' in paras[2].lower()
 
 
@@ -1077,7 +1077,7 @@ def test_build_prompts_display_name_fallback_on_long_entry():
 
     assert session_text is not None
     # The display name should be the fallback, NOT the long entry text.
-    assert "[journal:9466673|Session 9466673]" in user_prompt
+    assert "[journal:9466673|<i>Session 9466673</i>]" in user_prompt
 
 
 def test_build_prompts_display_name_fallback_on_empty_name():
@@ -1095,7 +1095,7 @@ def test_build_prompts_display_name_fallback_on_empty_name():
 
         session_text, user_prompt = _build_prompts(1, entity, journal, {})
         assert session_text is not None
-        assert "[journal:12345|Session 12345]" in user_prompt
+        assert "[journal:12345|<i>Session 12345</i>]" in user_prompt
 
 
 def test_build_prompts_display_name_passes_short_valid_name():
@@ -1111,4 +1111,4 @@ def test_build_prompts_display_name_passes_short_valid_name():
     entity = {"kind": "character", "local_id": 1, "name": "Bob", "entry": ""}
 
     session_text, user_prompt = _build_prompts(1, entity, journal, {})
-    assert "[journal:12345|Week 3 Recap]" in user_prompt
+    assert "[journal:12345|<i>Week 3 Recap</i>]" in user_prompt

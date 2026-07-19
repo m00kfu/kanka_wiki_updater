@@ -17,9 +17,10 @@ Rules:
    because the new notes don't mention it. Your updated entry must contain ALL facts, events, 
    and nuances from the current synopsis (minus anything explicitly contradicted). If the current 
    synopsis has multiple paragraphs, keep them intact—do not collapse them.
-3. STRICT LINK PRESERVATION: NEVER remove, simplify, or alter any [entity:N], [character:N], 
-   or [location:N] mention links (e.g., "[location:42|Waterdeep]"). Copy them character-for-character, 
-   even if rewriting the surrounding text. This overrides any formatting cleanup.
+3. STRICT LINK PRESERVATION: NEVER remove, simplify, or alter any [entity:N], [character:N],
+   [location:N] mention links (e.g., "[location:42|Waterdeep]") OR [journal:N|...] citation tags.
+   Copy them character-for-character, including any HTML formatting inside the display name
+   (e.g. <i> tags). This overrides any formatting cleanup.
 4. NO INVENTIONS: Only add facts stated or strongly implied in the new notes. Never invent 
    backstory, items, abilities, or relationships.
 5. READABILITY & FORMATTING: Organize the synopsis into distinct, well-separated paragraphs.
@@ -41,6 +42,9 @@ Rules:
     content or continuations from the same source. If you are rewriting an existing journal-tagged 
     paragraph, keep its original [journal:N] tag; do not replace it with a different one unless that 
     paragraph is genuinely receiving new information from a different session note.
+    IMPORTANT: When creating or preserving any [journal:N|...] citation tags, NEVER remove or alter
+    the <i> and </i> HTML tags around the display name (e.g. keep [journal:123|<i>Session Name</i>]),
+    even though Kanka uses BBCode-style markup — these <i> tags are part of our format.
 8. RESOLVE CONFLICTS: If new notes contradict the current synopsis, do not silently resolve 
     it. Note the conflict in the "uncertain" array and make the smallest reasonable edit.
  9. ATTRIBUTION: When new facts, events, relationships, or status changes are added based on the session notes, set

@@ -944,7 +944,7 @@ class TestApiProposalRegenerate:
         data = resp.get_json()
         assert data['ok'] is True
         # Journal tag from LLM output passes through as-is.
-        assert '[journal:123456|Session 5]' in data['proposal']['proposed_entry']
+        assert "[journal:123456|<i>Session 5</i>]" in data['proposal']['proposed_entry']
 
     def test_regenerate_injects_journal_link_before_last_paragraph(self, app_with_queue):
         """When LLM returns multiple paragraphs, journal link goes before the last one."""
@@ -997,7 +997,7 @@ class TestApiProposalRegenerate:
         data = resp.get_json()
         proposed = data['proposal']['proposed_entry']
         # Journal tag from LLM output passes through as-is.
-        assert '[journal:123456|Session 5]' in proposed
+        assert "[journal:123456|<i>Session 5</i>]" in proposed
         # Old content should NOT start with a journal link.
         assert not proposed.startswith('[journal')
         assert 'Warryn' in proposed

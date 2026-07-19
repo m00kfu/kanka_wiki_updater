@@ -77,7 +77,8 @@ def _annotate_journals(text, journal_id, display_name=None):
     """
     if not journal_id or not text:
         return text
-    name_part = f'|{display_name}' if display_name else ''
+    # Wrap the name in HTML <i> tags so it renders as *italic* in Kanka.
+    name_part = f'|<i>{display_name}</i>' if display_name else ''
     tag_open = f'{_JOURNAL_REF_OPEN}{journal_id}{name_part}]'
     parts = re.split(r'(\n+)', text)
     result = []
@@ -159,7 +160,7 @@ def relation_summary(relations, index):
 # ---------------------------------------------------------------------------
 
 
-def _build_prompts(entity_id, entity, journal, index):
+def _build_prompts(entity_id, entity, journal, index, display_name_map=None):
     """Build annotated session text and formatted user prompt for the LLM.
 
     Returns ``(session_text, user_prompt)`` or ``(None, None)`` if the journal
@@ -188,6 +189,11 @@ def _build_prompts(entity_id, entity, journal, index):
     else:
         display_name = raw_name
     session_text = _annotate_journals(clean_raw_text, _journal_ref, display_name=display_name)
+
+    # Build a map so post-processing can re-inject <i> tags if the LLM
+    # strips them from its response.
+    if display_name_map is not None:
+        display_name_map[_journal_ref] = display_name
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         name=entity['name'],
@@ -255,6 +261,83 @@ def _normalize_proposed(raw_proposed):
     # Normalize whitespace within paragraphs but preserve \\n\\n paragraph breaks.
     parts = proposed_text.split('\n\n')
     return '\n\n'.join(' '.join(p.split()) for p in parts if p.strip())
+
+
+def _inject_journal_italics(text, display_name_map):
+    """Ensure [journal:N|Name] tags use <i> markup around the display name.
+
+    The prompt wraps names in ``<i>Name</i>``, but the LLM may strip those
+    HTML tags when echoing back. This walks through paragraphs and injects
+    ``<i>``/``</i>`` into any journal tag whose ID is in *display_name_map*
+    and which currently lacks them.
+
+    Existing synopses with [journal:N|OldName] from previous sessions that
+    don't have <i> tags are left alone (their IDs won't be in the map).
+    """
+    if not text or not display_name_map:
+        return text
+
+    paragraphs = text.split('\n\n')
+    result = []
+    for para in paragraphs:
+        stripped = para.lstrip()
+        prefix_spaces = para[: len(para) - len(stripped)]  # leading whitespace
+        if not stripped.startswith('[journal:'):
+            result.append(para)
+            continue
+        # Use the same balanced-bracket logic as _parse_journal_tag_open
+        rest = stripped[len('[journal:'):]
+        pipe_idx = rest.find('|')
+        if pipe_idx < 0:
+            # bare [journal:N] — no name to italicize
+            result.append(para)
+            continue
+        journal_id = rest[:pipe_idx]
+        after_pipe = rest[pipe_idx + 1:]
+        # Find the matching closing ] by counting nested brackets
+        depth = 0
+        close_idx = -1
+        for i, ch in enumerate(after_pipe):
+            if ch == '[':
+                depth += 1
+            elif ch == ']':
+                if depth == 0:
+                    close_idx = i
+                    break
+                else:
+                    depth -= 1
+        if close_idx < 0:
+            result.append(para)
+            continue
+        name = after_pipe[:close_idx].strip()
+        full_tag_open = '[journal:' + rest[:pipe_idx + len(after_pipe[:close_idx]) + 1]
+        # Check if already has <i> tags around the name
+        expected_with_i = f'<i>{name}</i>'
+        if expected_with_i in stripped:
+            result.append(para)  # already formatted
+            continue
+        # Look up canonical display name for this journal ID
+        jid_str = journal_id.strip()
+        if jid_str not in display_name_map or display_name_map[jid_str] != name:
+            result.append(para)  # different session — leave as-is
+            continue
+        # Inject <i> tags: rebuild tag as [journal:N|<i>Name</i>]
+        # The closing ] is at position close_idx within after_pipe,
+        # which corresponds to position (len('[journal:') + pipe_idx
+        # + 1 + close_idx) in stripped.
+        bracket_end = len('[journal:') + pipe_idx + 1 + close_idx
+        new_para = (
+            prefix_spaces
+            + '[journal:'
+            + rest[:pipe_idx]
+            + '|<i>'
+            + name
+            + '</i>]'
+            + stripped[bracket_end + 1:]
+        )
+        result.append(new_para)
+
+    return '\n\n'.join(result)
 
 
 def _deduplicate_journal_tags(text):
@@ -327,7 +410,10 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
         A proposal dict ready to be queued in ``pending_changes.json``, or
         ``None`` when no meaningful change was detected.
     """
-    _session_text, user_prompt = _build_prompts(entity_id, entity, journal, index)
+    display_name_map: dict[str, str] = {}
+    _session_text, user_prompt = _build_prompts(
+        entity_id, entity, journal, index, display_name_map=display_name_map,
+    )
     if user_prompt is None:
         return None
 
@@ -350,6 +436,8 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
     # its system-prompt rules (prompts.py Rule 7). Pass through as-is.
     proposed_text = _normalize_proposed(raw_proposed)
     proposed_text = _deduplicate_journal_tags(proposed_text)
+    # Insurance: re-inject <i> tags if the LLM stripped them from its response.
+    proposed_text = _inject_journal_italics(proposed_text, display_name_map)
 
     # Detect when the LLM output is significantly shorter than the input,
     # which often means information was lost (summarized/condensed instead
