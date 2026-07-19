@@ -1,3 +1,5 @@
+> **NOT IMPLEMENTED** — This plan was written but never executed. The project instead added an OpenCode Zen provider (`llm_providers.py::opencode_chat`) which serves the same purpose (cloud-hosted local-model inference via OpenAI-compatible API). To add a llama.cpp provider today, adapt `lmstudio_chat()` to point at `{LLAMACPP_BASE_URL}/chat/completions` instead.
+
 # Plan: Add llama.cpp as an LLM provider
 
 ## Overview

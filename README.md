@@ -65,6 +65,10 @@ changed and ask for confirmation before undoing all of it. It only goes back
 one run, and won't redo something already reverted — see the docstring at
 the top of `revert.py` for the exact rules and limitations.
 
+The web review UI includes a **regenerate** button on truncated or uncertain
+proposals that re-runs them through the LLM with double the token budget,
+giving the model a second chance to produce a complete response.
+
 ## Notes & things worth tuning
 
 - **Session notes location**: this assumes session notes are Kanka
@@ -78,11 +82,11 @@ the top of `revert.py` for the exact rules and limitations.
   intentionally conservative; tune `threshold` there if it's over- or
   under-matching.
 - **LLM provider**: defaults to LM Studio (local OpenAI-compatible server).
-  Set `LMSTUDIO_MODEL` for LM Studio, or set `LLM_PROVIDER=gemini` plus
-  `GEMINI_API_KEY` + `GEMINI_MODEL` in `.env` to use Google Gemini instead.
+  Set `LMSTUDIO_MODEL` for LM Studio, set `LLM_PROVIDER=gemini` plus
+  `GEMINI_API_KEY` + `GEMINI_MODEL` in `.env` to use Google Gemini, or set
+  `LLM_PROVIDER=opencode` plus `OPENCODE_API_KEY` (+ optional `OPENCODE_MODEL`) for OpenCode Zen.
   Provider logic lives in `llm_providers.py`. If you see JSON parsing failures, try a model that's
-  better at structured output, or lower `temperature` further in
-  `llm_client.py`.
+  better at structured output, or lower `temperature`. The web UI also supports regenerating truncated proposals (click the regenerate button to re-run through the LLM with 2× token budget).
 - **Relation IDs**: Kanka's documented example response for listing
   relations doesn't explicitly show an `id` field per relation (only
   owner/target/label/attitude). If `update`/`delete` relation actions

@@ -44,12 +44,21 @@ In-memory tracker with Unicode progress bar using `\r` carriage return for in-pl
 
 ### 5. LLM Integration — `llm_client.py`, `llm_providers.py`
 - **`llm_client.py`** re-exports `chat_json(prompt)` as a convenience entry point
-- **`llm_providers.py`** provides provider implementations: `lmstudio_chat()` for LM Studio's OpenAI-compatible server, `gemini_chat()` for Google Gemini. The dispatcher `chat_json()` routes based on the `LLM_PROVIDER` env var. Parses JSON output with `json_repair` fallback.
+- **`llm_providers.py`** provides provider implementations: `lmstudio_chat()` for LM Studio's OpenAI-compatible server, `gemini_chat()` for Google Gemini, and `opencode_chat()` for OpenCode Zen. The dispatcher `chat_json()` routes based on the `LLM_PROVIDER` env var (choices: `"lmstudio"`, `"gemini"`, `"opencode"`). Parses JSON output with `json_repair` fallback.
 
-### 6. Prompt Templates — `prompts.py`
+### 6. Synopsis Generation — `synopsis_generator.py`
+Shared LLM-driven synopsis generation used by both sync_pipeline and review_web:
+- **`build_synopsis_proposal()`** — core function: builds prompts, calls the LLM, parses response, normalises paragraphs, deduplicates journal tags, injects `<i>` italics into citation tags
+- **`propose_update()`** — thin wrapper for sync_pipeline compatibility
+- **`build_entity_index()`** — one-pass index of all characters/locations/organizations/creatures keyed by entity_id (shared with review_web)
+- **`relation_summary()`** — human-readable relation summary for LLM prompts
+- **`_annotate_journals()`** / **`_normalize_proposed()`** / **`_deduplicate_journal_tags()`** / **`_inject_journal_italics()`** — internal helpers
+- **`_is_known_entity()`** — filters false-positive new-entity suggestions (accent-insensitive, substring/fuzzy matching)
+
+### 7. Prompt Templates — `prompts.py`
 System and user prompt templates for synopsis updates and new-entity detection. Strict JSON schema enforcement: no markdown fences, escaped quotes/backslashes. Preserves `[entity:N]` wiki link tokens character-for-character.
 
-### 7. Sync Pipeline — `sync_pipeline.py` (main orchestrator)
+### 8. Sync Pipeline — `sync_pipeline.py` (main orchestrator)
 The central data flow module. Orchestrates the full fetch→analyze→propose cycle:
 
 1. **`build_entity_index()`** — gathers all known characters/locations + their current synopses and relations into an in-memory index
@@ -62,7 +71,7 @@ The central data flow module. Orchestrates the full fetch→analyze→propose cy
 
 Idempotent: tracks processed journal IDs in `data/processed_journals.json`. Uses `ProgressTracker` for per-journal progress display.
 
-### 8. CLI Review — `review.py`
+### 9. CLI Review — `review.py`
 Interactive terminal review tool (`python -m kanka_wiki_updater.review`):
 - Shows new-entity suggestions first, then synopsis/relation diffs
 - Options: **yes** (apply all), **no** (reject), approve-synopsis-only
@@ -70,20 +79,21 @@ Interactive terminal review tool (`python -m kanka_wiki_updater.review`):
 - Flags dropped mention links and unlinked plain-text mentions as warnings
 - Writes applied changes to an audit log with run_id and revert flag
 
-### 9. Web Review — `review_web.py`
+### 10. Web Review — `review_web.py`
 Flask web UI at `http://127.0.0.1:5555`:
-- **Review tab** — browse, filter, edit proposals inline; manage relations via modals
-- **Sync tab** — run sync pipeline from browser with SSE output streaming
+- **Review tab** — browse, filter, edit proposals inline; manage relations via modals; regenerate truncated proposals (re-runs through LLM with 2× token budget)
+- **Sync tab** — run sync pipeline from browser with SSE output streaming and cancel support
 - Reads/writes `data/pending_changes.json`
+- Entity name editing and type selector in the web UI
 
-### 10. Revert — `revert.py`
+### 11. Revert — `revert.py`
 One-step undo of the most recent unreverted review batch:
 - Reverses relation changes (create→delete, update→restore previous, delete→recreate) in reverse order
 - Then reverts synopsis edits to their pre-batch state
 - New-entity deletions happen last
 - Only works on batches with structured revert logs
 
-### 11. State Management — `state.py`
+### 12. State Management — `state.py`
 Plain JSON files under `data/`:
 - **Sync cursor** (`get_last_sync()`) — tracks the last successfully processed journal position
 - **Pending queue** (`load_queue()` / `save_queue()` / `append_to_queue()`) — manages `pending_changes.json`
@@ -105,7 +115,7 @@ sync_pipeline.py:main
           └── fuzzy_name_matches(text, index)  → mentions.py (plain-text fallback)
         propose_update(entity_id, journal, entity_index)
           ├── chat_json(system_prompt + user_prompt)  → llm_providers.py:chat_json()
-          │     ├── lmstudio_chat() or gemini_chat()   → LM Studio / Gemini API
+          │     ├── lmstudio_chat() or gemini_chat() or opencode_chat()   → LM Studio / Gemini / OpenCode
           │     └── _extract_json(raw_response)        → json_repair fallback
           └── apply_relation_changes_locally(draft)    → memory index update
         propose_new_entities(...)               → new character/location suggestions
@@ -117,7 +127,7 @@ sync_pipeline.py:main
 ```
 review.py:main
   ├── load_queue()                              → state.py (read pending_changes.json)
-  ├── build_entity_index()                      ← sync_pipeline.py (for relation targets)
+  ├── build_entity_index()                      ← synopsis_generator.py (for relation targets)
   └── for each proposal:
         review_new_entity_proposal(proposal)     → new entities first
           ├── strip_html(proposed_text)          → mentions.py
@@ -135,12 +145,17 @@ review.py:main
 ```
 review_web.py:main (Flask app :5555)
   ├── GET /              → review tab (browse/filter proposals)
-  ├── POST /approve      → approve all pending changes
-  ├── POST /reject       → reject all pending changes
-  ├── PUT /proposal/:id  → inline edit proposal text
-  ├── Relation modals    → create/update/delete relations via API
-  ├── resolve_name_to_id(name, index) ← sync_pipeline:build_entity_index()
-  └── GET /sync/stream   → SSE output streaming of sync_pipeline.py:main()
+  ├── GET /api/proposals          → get pending queue with filters
+  ├── POST /api/proposals/:id/status  → approve all / reject / synopsis-only
+  ├── PUT /api/proposals/:id/edit   → inline edit proposal text
+  ├── POST /api/proposals/:id/relation → create/update/delete relation
+  ├── POST /api/proposals/:id/sync      → sync single proposal to Kanka
+  ├── POST /api/proposals/:id/regenerate→ re-run truncated proposal via LLM (2× tokens)
+  ├── GET /api/sync/run         → start sync pipeline job
+  ├── GET /api/sync/output?job_id=  → SSE streaming of sync output
+  ├── POST /api/sync/cancel       → cancel running sync
+  ├── resolve_name_to_id(name, index) ← synopsis_generator:build_entity_index()
+  └── build_synopsis_proposal()   ← shared synopsis generation for regenerate
 ```
 
 ### Flow D: Revert
@@ -166,12 +181,13 @@ progress.py        ← stdlib only
 mentions.py        ← stdlib only (regex, html.parser)
 prompts.py         ← stdlib only (string constants)
 
-llm_providers.py   ← config.py, requests, stdlib
-llm_client.py      ← llm_providers.py  (re-exports chat_json)
+llm_providers.py   ← config.py, requests, stdlib (lmstudio_chat, gemini_chat, opencode_chat)
+llm_client.py      ← llm_providers.py  (re-exports chat_json, LLMError)
+synopsis_generator.py ← mentions.py, prompts.py, llm_client.py, config
 
-sync_pipeline.py   ← mentions.py, llm_client.py, kanka_client.py, progress.py, prompts.py
-review.py          ← sync_pipeline.py, mentions.py, kanka_client.py
-review_web.py      ← sync_pipeline.py, mentions.py, kanka_client.py, flask
+sync_pipeline.py   ← mentions.py, synopsis_generator.py, kanka_client.py, progress.py, state
+review.py          ← sync_pipeline.py, mentions.py, kanka_client.py, colors, state
+review_web.py      ← synopsis_generator.py, mentions.py, kanka_client.py, flask
 revert.py          ← kanka_client.py
 
 state.py           ← stdlib only (json, pathlib)
@@ -185,7 +201,7 @@ graph TB
         KANKA[Kanka API v1<br/>characters, locations,<br/>relations, journals]
         LMSTUDIO[LM Studio Server<br/>OpenAI-compatible /v1/chat/completions]
         GEMINI[Google Gemini API]
-    end
+        OPCODE[OpenCode Zen API<br/>opencode.ai/zen/v1]    end
 
     subgraph Config["Configuration Layer"]
         CONFIG[config.py<br/>.env loader<br/>KANKA_TOKEN, KANKA_CAMPAIGN_ID,<br/>LMSTUDIO_MODEL, rate limits]
@@ -206,8 +222,12 @@ graph TB
     end
 
     subgraph LLM["LLM Integration"]
-        LLMPROVIDERS[llm_providers.py<br/>lmstudio_chat(), gemini_chat()<br/>chat_json() dispatcher]
-        LLMCLIENT[llm_client.py<br/>re-exports chat_json()]
+        LLMPROVIDERS[llm_providers.py<br/>lmstudio_chat(), gemini_chat(),<br/>opencode_chat()<br/>chat_json() dispatcher]
+        LLMCLIENT[llm_client.py<br/>re-exports chat_json, LLMError]
+    end
+
+    subgraph SynopsisGen["Synopsis Generation"]
+        SYNOPSIS[synopsis_generator.py<br/>build_synopsis_proposal(),<br/>propose_update(), build_entity_index()<br/>relation_summary(), _annotate_journals()]
     end
 
     subgraph Pipeline["Sync Pipeline"]
@@ -241,6 +261,7 @@ graph TB
     SYNCPipeline --> NEWENT
     SYNCPipeline --> PROGRESS
     SYNCPipeline --> CLIENT
+    SYNCPipeline --> SYNOPSIS
     LLMCLIENT -.->|calls| LLMPROVIDERS
 
     BINDEX --> CLIENT
@@ -248,12 +269,15 @@ graph TB
     PROPOSE --> LLMCLIENT
     PROPOSE --> PROMPTS
     NEWENT --> CLIENT
+    SYNOPSIS --> LLMCLIENT
+    SYNOPSIS --> PROMPTS
+    SYNOPSIS --> MENTIONS
 
     %% Review dependencies
-    CLIReview --> SYNCPipeline
+    CLIReview --> SYNOPSIS
     CLIReview --> CLIENT
     CLIReview --> MENTIONS
-    WEBReview --> SYNCPipeline
+    WEBReview --> SYNOPSIS
     WEBReview --> CLIENT
     WEBReview --> MENTIONS
     CLIReview -.->|approve→write| PENDING
@@ -287,6 +311,7 @@ graph TB
     class CLIReview,WEBReview review
     class PENDING,PROCESSED,APPLIED,SYNC_CURSOR data
     class LLMPROVIDERS,LLMCLIENT llm
+    class SYNOPSIS synopsis
 ```
 
 ## Data Flow Summary

@@ -6,7 +6,7 @@
 pip install -r requirements.txt        # once: requests, python-dotenv, json_repair, colorama, ruff, pytest, flask
 python -m kanka_wiki_updater.sync_pipeline [--limit N]   # fetch new session journals → LLM proposals (no writes to Kanka)
 python -m kanka_wiki_updater.review                           # human review of pending proposals; approved changes go live immediately
-python -m kanka_wiki_updater.review_web                       # web-based review UI at http://127.0.0.1:5555
+python -m kanka_wiki_updater.review_web                       # web-based review UI at http://127.0.0.1:5555 (includes LLM regeneration)
 python -m kanka_wiki_updater.revert                           # undo the most recent unreverted review batch
 ```
 
@@ -44,11 +44,12 @@ Tests go in `tests/` alongside the source. Pure functions (mentions, state) are 
 | `mentions.py` | Entity resolution: parses `[entity:N]` wiki links + fuzzy name-match fallback for plain-text mentions in session notes. |
 | `progress.py` | In-memory progress tracker with Unicode progress bar; uses `\r` carriage return for in-place terminal updates (disabled on Windows). |
 | `llm_client.py` | Sends prompts to LM Studio's OpenAI-compatible `/v1/chat/completions`. Parses JSON output with `json_repair` fallback. |
-| `llm_providers.py` | Provider implementations for LM Studio and Google Gemini. HTTP logic lives here; `llm_client.py` re-exports `chat_json()`. |
+| `llm_providers.py` | Provider implementations for LM Studio, Google Gemini, and OpenCode Zen. HTTP logic lives here; `llm_client.py` re-exports `chat_json()`. |
 | `prompts.py` | System/user prompt templates for synopsis updates and new-entity detection (strict JSON schema). |
+| `synopsis_generator.py` | Shared LLM-driven synopsis generation: prompt construction, response parsing, paragraph normalisation, journal-tag deduplication/italics injection. Used by both sync_pipeline and review_web. Exports `build_synopsis_proposal()`, `propose_update()`, `build_entity_index()`, `relation_summary()`. |
 | `sync_pipeline.py` | **Main orchestrator:** builds entity index → fetches journals since last sync → identifies mentioned entities → calls LLM per entity → queues proposals to `data/pending_changes.json`. Idempotent: tracks processed journal IDs so interrupted runs don't duplicate work. |
 | `review.py` | Interactive CLI: new-entity suggestions first, then synopsis/relation diffs. Options: yes (apply all), no (reject), approve-synopsis-only (skip relations). Auto-links known entity names in proposed text before showing diff. Flags dropped mention links and unlinked plain-text mentions as warnings. |
-| `review_web.py` | Flask web UI at http://127.0.0.1:5555 with tabbed interface — Review tab (browse, filter, edit proposals inline, manage relations via modals) and Sync tab (run sync pipeline from browser with SSE output streaming). Reads/writes `data/pending_changes.json`. |
+| `review_web.py` | Flask web UI at http://127.0.0.1:5555 with tabbed interface — Review tab (browse, filter, edit proposals inline, manage relations via modals, regenerate truncated proposals via LLM) and Sync tab (run sync pipeline from browser with SSE output streaming). Reads/writes `data/pending_changes.json`. |
 | `revert.py` | Undoes the most recent unreverted review batch in reverse order: relation changes + synopsis edits first, then new-entity deletions last. Only one-step undo; older batches without structured logs can't be reverted automatically. |
 | `state.py` | Plain JSON state files under `data/`: sync cursor, pending queue, applied-log (with run_id and revert flag), processed journal IDs. |
 
@@ -61,7 +62,8 @@ Tests go in `tests/` alongside the source. Pure functions (mentions, state) are 
 - **Relation ID quirks:** Kanka's API doesn't always return an `id` per relation in list responses. If create/update/delete relations misbehave, print a raw relation object and adjust the code accordingly (see README notes).
 - **Rate limits:** default 1 request every 2.1 s (`KANKA_REQUEST_INTERVAL`). Subscribers can lower this; upgraders get ~90/min.
 - **Revert limitations:** reverted batches leave journals marked as "processed" — re-running `sync_pipeline` won't regenerate those proposals unless you remove the journal IDs from `data/processed_journals.json`. Only the most recent unreverted batch is undoable; pre-revert-tool runs lack sufficient detail.
-- **Gemini provider:** set `LLM_PROVIDER=gemini` plus `GEMINI_API_KEY` and `GEMINI_MODEL` in `.env` to use Google Gemini instead of LM Studio. Defaults to `lmstudio`.
+- **Gemini provider:** set `LLM_PROVIDER=gemini` plus `GEMINI_API_KEY` and `GEMINI_MODEL` in `.env` to use Google Gemini instead of LM Studio.
+- **OpenCode Zen provider:** set `LLM_PROVIDER=opencode` plus `OPENCODE_API_KEY` and optionally `OPENCODE_MODEL` in `.env`. Uses OpenCode's OpenAI-compatible API at `https://opencode.ai/zen/v1/chat/completions`.
 
 ## External references
 
@@ -69,13 +71,13 @@ Tests go in `tests/` alongside the source. Pure functions (mentions, state) are 
 
 ## Prompt engineering notes
 
-- The LLM system prompt enforces strict JSON output (no markdown fences, escaped quotes/backslashes). If parsing fails frequently: switch to a model with better structured-output capability or lower `temperature` in `llm_client.py`.
-- For reasoning/"thinking" models: increase `LLM_MAX_TOKENS` and `LLM_TIMEOUT_SECONDS` — hidden chain-of-thought consumes tokens and time. This applies to both LM Studio and Gemini providers.
+- The LLM system prompt enforces strict JSON output (no markdown fences, escaped quotes/backslashes). If parsing fails frequently: switch to a model with better structured-output capability or lower `temperature`. For OpenCode provider, use the same format as LM Studio; just set `LLM_PROVIDER=opencode` and provide `OPENCODE_API_KEY`.
+- For reasoning/"thinking" models: increase `LLM_MAX_TOKENS` and `LLM_TIMEOUT_SECONDS` — hidden chain-of-thought consumes tokens and time. This applies to all providers.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **kanka_wiki_updater** (1190 symbols, 1927 relationships, 25 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **kanka_wiki_updater** (1195 symbols, 1935 relationships, 26 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
