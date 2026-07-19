@@ -41,3 +41,5 @@ _inspect_pending.py
 
 # Superpowers tooling
 .superpowers/
+# Node.js dependencies
+node_modules/
