@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanka Wiki Review</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Kanka Wiki Review</h1>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div class="edit-mode-banner" id="editBanner">
+    <span>Edit mode — modify the text above, then save or cancel.</span>
+    <button class="btn btn-primary" onclick="saveEdit()" style="padding:4px 12px;font-size:12px;">Save</button>
+    <button class="btn btn-secondary" onclick="cancelEdit()" style="padding:4px 12px;font-size:12px;">Cancel</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="syncIndicator" style="display:none;background:#0d1f3a;border-bottom:1px solid var(--cyan);padding:6px 24px;font-size:12px;color:var(--cyan);align-items:center;gap:8px;">
+    <span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span>
+    <span id="syncIndicatorText">Sync running...</span>
+  </div>
+  <div class="main">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content" id="content"></div>
+  </div>
+  <div class="action-bar" id="actionBar">
+    <button class="btn btn-primary" onclick="approveAll()">Approve All</button>
+    <button class="btn btn-secondary" onclick="approveSynopsisOnly()">Synopsis Only</button>
+    <button class="btn" onclick="regenerateProposal()" style="display:none;background:#1f6feb;color:white;border-color:#1f6feb" id="regenerateBtn">Regenerate</button>
+    <button class="btn btn-danger" onclick="rejectCurrent()">Reject</button>
+    <div style="flex:1"></div>
+    <span style="font-size:12px;color:var(--text-dim)">[n]ext [p]rev [e]dit [esc]cancel [a]pprove [s]ynopsis [g]enerate [r]eject [q]uit</span>
+  </div>
+  <div class="shortcuts">
+    <kbd>n</kbd> next &nbsp; <kbd>p</kbd> prev<br>
+    <kbd>e</kbd> edit &nbsp; <kbd>esc</kbd> cancel<br>
+    <kbd>a</kbd> approve all &nbsp; <kbd>s</kbd> synopsis only &nbsp; <kbd>g</kbd> regenerate<br>
+    <kbd>r</kbd> reject &nbsp; <kbd>q</kbd> quit (close tab)
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Loading...</div>
+    <div class="loading-detail" id="loadingDetail"></div>
+  </div>
+</div>
+
+<script>
+  const proposals = {{ PROPOSALS | tojson }};
+  const campaignId = {{ KANKA_CAMPAIGN_ID | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
