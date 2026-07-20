@@ -43,3 +43,4 @@ _inspect_pending.py
 .superpowers/
 # Node.js dependencies
 node_modules/
+.compound-engineering/*.local.yaml
