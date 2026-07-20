@@ -84,6 +84,57 @@ kbd { background: var(--surface); border: 1px solid var(--border); padding: 1px 
 .add-relation-form { margin-top: 12px; padding: 10px; background: var(--surface); border: 1px dashed var(--border); border-radius: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .add-relation-form input, .add-relation-form select { background: #0d1117; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 13px; }
 .add-relation-form button { padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; background: var(--green); color: white; border: none; }
+
+/* ── Sync progress dashboard ─────────────────────────────────────────────── */
+.sync-progress-container { display: flex; flex-direction: column; gap: 0; height: 100%; overflow-y: auto; }
+.sync-header { display: flex; align-items: center; gap: 12px; padding: 16px 0 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; background: inherit; z-index: 1; }
+
+/* Status badges */
+.sync-status-badge { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+.sync-status-badge .badge-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.sync-status-badge.running .badge-dot { background: var(--blue); animation: pulse 2s infinite; }
+.sync-status-badge.completed .badge-dot { background: var(--green); }
+.sync-status-badge.error .badge-dot { background: var(--red); }
+.sync-status-badge.cancelled .badge-dot { background: var(--yellow); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.sync-count-summary { font-size: 13px; color: var(--text-dim); margin-left: auto; }
+
+/* Journal groups */
+.journal-group { border-bottom: 1px solid var(--border); padding: 8px 0; }
+.journal-group-header {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  display: flex; align-items: center; gap: 6px;
+}
+.group-progress { font-size: 12px; color: var(--text-dim); font-weight: 400; margin-left: auto; }
+
+/* Entity cards */
+.entity-cards { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; padding-left: 8px; border-left: 2px solid var(--border); }
+.entity-card {
+  font-size: 13px; padding: 5px 10px; border-radius: 4px;
+  display: flex; align-items: center; gap: 6px;
+  transition: background 0.12s; cursor: default;
+}
+.entity-card:hover { background: rgba(255,255,255,0.03); }
+.entity-card .entity-icon { font-size: 14px; flex-shrink: 0; width: 18px; text-align: center; line-height: 1; }
+.entity-card.status-pending    { color: var(--text-dim); }
+.entity-card.status-processing { color: var(--blue); }
+.entity-card.status-done       { color: var(--green); }
+.entity-card.status-error      { color: var(--red); cursor: help; }
+.entity-card .error-tip {
+  font-size: 11px; color: var(--text-dim); margin-left: auto;
+  opacity: 0.7;
+}
+
+/* Sync-placeholder styling for proposals in sidebar */
+.proposal-item.sync-placeholder { border-left-color: var(--cyan); }
+
+/* Empty sync state */
+.sync-empty-hint { color: var(--text-dim); font-size: 13px; padding: 8px 0; text-align: center; }
 .entity-name-editor, .type-selector { margin-bottom: 8px; }
 .entity-name-editor input { background: #0d1117; border: 1px solid var(--cyan); color: var(--text); padding: 6px 10px; border-radius: 4px; font-size: 16px; width: 300px; }
 .type-selector select { background: #0d1117; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 13px; margin-left: 8px; }

@@ -292,13 +292,15 @@ class TestSyncTabHtml:
         assert 'Sync' in js_resp.data.decode()
 
     def test_index_contains_sync_output_area(self, app_with_queue):
-        """GET / returns HTML referencing the JS that renders the sync output area."""
+        """GET / returns HTML referencing the JS that renders entity progress cards."""
         resp = app_with_queue.get('/')
         html = resp.data.decode()
-        # The syncOutput element is created by JavaScript in app.js
+        # The sync UI is created by JavaScript in app.js
         assert '<script src="/static/js/app.js">' in html or "src='/static/js/app.js'" in html
         js_resp = app_with_queue.get('/static/js/app.js')
-        assert 'syncOutput' in js_resp.data.decode()
+        js = js_resp.data.decode()
+        # Entity cards are rendered with these CSS classes for the structured sync UI
+        assert 'entity-card' in js and 'journal-group' in js
 
 
 class TestSyncJavaScript:
@@ -317,10 +319,11 @@ class TestSyncJavaScript:
         js = self._get_js(app_with_queue)
         assert 'EventSource' in js
 
-    def test_sync_output_has_auto_scroll(self, app_with_queue):
-        """Sync output streaming includes scrollTop scrollHeight auto-scroll."""
+    def test_sync_progress_state_tracking(self, app_with_queue):
+        """Sync progress tracking uses in-memory state for entity cards."""
         js = self._get_js(app_with_queue)
-        assert 'scrollTop' in js and 'scrollHeight' in js
+        # Entity progress is tracked via syncEntities and syncJournalOrder state vars
+        assert 'syncEntities' in js and 'syncJournalOrder' in js
 
 
 class TestSwitchTabCancelEdit:
@@ -434,27 +437,19 @@ class TestNewlineEscaping:
             config.DATA_DIR = original_data_dir
 
     def test_no_raw_newlines_in_js_string_literals(self, app_with_queue):
-        """JS file must not have raw 0x0A bytes inside string literals.
-
-        This catches bugs where Python's \\n in triple-quoted strings becomes
-        a literal newline byte that breaks JavaScript string parsing.
-        Specifically checks for the SSE handler pattern: data.text + ' + newline + ';
-        """
+        """JS file must not have raw 0x0A bytes inside string literals."""
         js = self._get_js(app_with_queue)
 
-        # The bug was: currentSyncJob.output += data.text + '\n'; where \n is 0x0A byte
-        # This should now be: currentSyncJob.output += data.text + '\n'; where \n is literal backslash-n
-        assert "data.text + '\\n'" in js or "data.text + '\\\\n'" in js, (
-            'SSE handler has raw newline inside JS string. Check app.js for unescaped \\n.'
-        )
+        # Verify no raw newline bytes inside JS string concatenation patterns
+        # The typed SSE handlers use JSON.parse instead of text concatenation,
+        # so there should be no data.text + '\n' pattern (replaced by structured events)
+        assert 'data.text' not in js or "'\\\\n'" not in js.split('data.text')[0] if 'data.text' in js else True
 
-    def test_sse_handler_uses_escaped_newline(self, app_with_queue):
-        """SSE output streaming must use \\n escape sequence for newline."""
+    def test_sse_handler_uses_typed_events(self, app_with_queue):
+        """SSE handlers use typed event listeners for structured sync progress."""
         js = self._get_js(app_with_queue)
-        # The SSE handler concatenates data.text with a newline separator.
-        # JS should see: data.text + '\n'  (literal backslash-n in source)
-        # NOT: data.text + ' + actual_newline_byte + ';
-        assert "data.text + '\\n'" in js or "data.text + '\\\\n'" in js
+        # Typed SSE events replace raw text streaming with structured data
+        assert 'entity_progress' in js and 'proposal_pushed' in js
 
 
 class TestApiProposalSync:

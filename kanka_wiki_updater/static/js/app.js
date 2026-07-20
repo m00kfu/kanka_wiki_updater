@@ -2,8 +2,12 @@ let selectedIndex = null;
 let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
 let editingOriginal = ''; // original text when entering edit mode (for escape-to-cancel)
-let currentSyncJob = null; // {job_id, status, output}
+let currentSyncJob = null; // {job_id, status}
 let syncEventSource = null; // EventSource reference for proper cleanup
+
+// ── Sync progress state (live entity tracking) ─────────────────────────────
+let syncEntities = {};   // key: "journal_name::entity_name" → {name, journal_name, status, error_message}
+let syncJournalOrder = []; // ordered array of journal names for rendering group order
 
 function getPending() { return proposals.filter(p => p.status === 'pending'); }
 
@@ -50,7 +54,8 @@ function renderSidebar() {
     var statusBadge = '';
     if (filtered[f].status === 'applied') { statusBadge = '<span style="color:var(--green)">&#10003;</span>'; }
     else if (filtered[f].status === 'rejected') { statusBadge = '<span style="color:var(--red)">&#10007;</span>'; }
-    html += '<div class="proposal-item' + isActive + '" onclick="selectProposal(' + origIdx + ')">' +
+    var placeholderClass = (filtered[f]._sync_placeholder) ? ' sync-placeholder' : '';
+    html += '<div class="proposal-item' + isActive + placeholderClass + '" onclick="selectProposal(' + origIdx + ')">' +
       '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + escapeJsHtml(filtered[f].entity_name) + statusBadge + '</div>' +
       '<div class="meta">' + escapeJsHtml(filtered[f].source_journal) + '</div></div>';
   }
@@ -203,23 +208,129 @@ function renderContent() {
 function renderSyncContent(content) {
   if (currentTab !== 'sync') return;
   var jobStatus = currentSyncJob ? currentSyncJob.status : 'idle';
-  var statusColor = {'running':'var(--blue)','completed':'var(--green)','error':'var(--red)','idle':'var(--text-dim)'}[jobStatus] || 'var(--text-dim)';
-  
-  content.innerHTML = '<div class="empty-state">' +
-    '<h3>Run Sync Pipeline</h3>' +
-    '<div class="sync-container">' +
-      '<div style="margin:16px 0;">' +
-        '<button class="btn btn-primary" id="runSyncBtn" onclick="runSync()">' + (currentSyncJob ? 'Cancel' : 'Run Sync') + '</button>' +
-        '<span style="margin-left:12px;color:' + statusColor + ';font-weight:600;font-size:14px">&#9679; ' + jobStatus.toUpperCase() + '</span>' +
+
+  // Build sync header with status badge and controls
+  var btnText = (jobStatus === 'running' || !currentSyncJob) ? 'Run Sync' : 'Restart Sync';
+  if (jobStatus === 'cancelled') btnText = 'Re-run Sync';
+
+  var html = '<div class="sync-progress-container">' +
+    '<div class="sync-header">' +
+      '<span class="sync-status-badge ' + jobStatus + '">' +
+        '<span class="badge-dot"></span> ' + (jobStatus || 'idle').toUpperCase() +
+      '</span>' +
+      '<span class="sync-count-summary" id="syncCountSummary"></span>' +
+      '<button class="btn btn-primary" onclick="runSync()">' + btnText + '</button>' +
+    '</div>';
+
+  if (jobStatus === 'idle') {
+    html += '<div style="padding:40px 20px;text-align:center;color:var(--text-dim);font-size:13px;">' +
+      '<p>Run the sync pipeline to scan journal entries and extract entity updates.</p>' +
+      '<p style="margin-top:8px;font-size:12px;">Entities will appear here in real-time as they are processed.</p></div>';
+    content.innerHTML = html;
+    return;
+  }
+
+  // Render journal groups with entity cards
+  var order = syncJournalOrder || [];
+
+  // If no explicit order yet, fall back to insertion order from syncEntities
+  if (order.length === 0) {
+    for (var k in syncEntities) {
+      if (k.indexOf('::') !== -1 && !syncEntities[k]._meta) {
+        var jn = syncEntities[k].journal_name;
+        if (jn && order.indexOf(jn) === -1) order.push(jn);
+      }
+    }
+  }
+
+  for (var g = 0; g < order.length; g++) {
+    var journalName = order[g];
+    // Collect entities for this journal
+    var entities = [];
+    for (var k in syncEntities) {
+      if (!syncEntities[k]._meta && syncEntities[k].journal_name === journalName) {
+        entities.push(syncEntities[k]);
+      }
+    }
+
+    var doneCount = 0;
+    for (var e2 = 0; e2 < entities.length; e2++) {
+      if (entities[e2].status === 'done') doneCount++;
+    }
+
+    html += '<div class="journal-group">' +
+      '<div class="journal-group-header">' +
+        '&#x1f4d6; ' + escapeJsHtml(journalName) +
+        '<span class="group-progress">(' + entities.length + ' entity' + (entities.length !== 1 ? 'ies' : '') + ', ' + doneCount + '/' + entities.length + ' done)</span>' +
       '</div>' +
-      '<pre id="syncOutput" class="sync-output">' +
-        (currentSyncJob && currentSyncJob.output ? escapeJsHtml(currentSyncJob.output) : 'No sync run in progress.') +
-      '</pre>' +
-    '</div>' +
-  '</div>';
+      '<div class="entity-cards">';
+
+    for (var e = 0; e < entities.length; e++) {
+      var ent = entities[e];
+      var icon = {'pending':'&#9675;', 'processing':'&#8635;', 'done':'&#10003;', 'error':'&#10007;'}[ent.status] || '&#9675;';
+      html += '<div class="entity-card status-' + ent.status + '" title=' +
+        (ent.error_message ? escapeJs(ent.error_message) : (ent.status === 'processing' ? 'Processing...' : '')) + '>' +
+        '<span class="entity-icon">' + icon + '</span>' +
+        escapeJsHtml(ent.name);
+      if (ent.error_message) {
+        html += '<span class="error-tip">Error</span>';
+      }
+      html += '</div>';
+    }
+
+    html += '</div></div>'; // close entity-cards, journal-group
+  }
+
+  // If there are no entities yet but sync is running, show a loading hint
+  if (order.length === 0) {
+    html += '<div class="sync-empty-hint">Waiting for first entities...</div>';
+  }
+
+  html += '</div>'; // close sync-progress-container
+
+  content.innerHTML = html;
+
+  // Update count summary
+  var totalCount = 0, totalDone = 0;
+  for (var k in syncEntities) {
+    if (!syncEntities[k]._meta && syncEntities[k].journal_name) {
+      totalCount++;
+      if (syncEntities[k].status === 'done') totalDone++;
+    }
+  }
+  var summaryEl = document.getElementById('syncCountSummary');
+  if (summaryEl) {
+    summaryEl.textContent = totalCount + ' entities' + (totalDone > 0 ? ', ' + totalDone + ' done' : '');
+  }
 }
 
-function selectProposal(i) {
+async function selectProposal(i) {
+  // Resolve sync-placeholder proposals by fetching full data from server
+  if (proposals[i] && proposals[i]._sync_placeholder) {
+    showLoading('Resolving proposal...', 'Fetching full data for: ' + proposals[i].entity_name);
+    
+    var result = await apiCall('/api/proposals', 'GET');
+    hideLoading();
+    if (!result) return;
+
+    // Find the resolved proposal in the server response
+    for (var j = 0; j < result.length; j++) {
+      if (result[j].entity_name === proposals[i].entity_name &&
+          !result[j]._sync_placeholder) {
+        proposals[i] = result[j];
+        renderSidebar();
+        selectedIndex = i;
+        if (editingField) cancelEdit();
+        renderContent();
+        showToast('Proposal loaded', 'success');
+        return;
+      }
+    }
+
+    // If not found yet, the sync may still be running — just show it as placeholder
+    hideLoading();
+  }
+
   selectedIndex = i;
   if (editingField) cancelEdit();
   renderSidebar();
@@ -544,65 +655,127 @@ document.addEventListener('keydown', function(e) {
   cancelEdit();
 });
 
-// ── Sync pipeline runner ───────────────────────────────────────────────────
+// ── Sync pipeline runner (typed SSE dispatch) ──────────────────────────────
+
+function _addJournalGroup(journalName) {
+  if (!syncEntities['__journal_order__']) { syncEntities['__journal_order__'] = []; }
+  var order = syncEntities['__journal_order__'];
+  if (order.indexOf(journalName) === -1) {
+    order.push(journalName);
+    syncJournalOrder = order.slice(); // snapshot
+  }
+}
+
+function _renderSyncContent() {
+  renderSyncContent(document.getElementById('content'));
+}
 
 async function runSync() {
-  if (currentSyncJob) {
-    // Cancel: close EventSource and notify server to stop subprocess
+  if (currentSyncJob && currentSyncJob.status === 'running') {
+    // Cancel: close EventSource and notify server to stop ingest thread
     if (syncEventSource) {
       syncEventSource.close();
       syncEventSource = null;
     }
     var jobId = currentSyncJob.job_id;
-    currentSyncJob = null;
-    renderContent();
-    // Notify server to terminate the running process
     apiCall('/api/sync/cancel?job_id=' + encodeURIComponent(jobId), 'POST')
       .catch(function() { /* best-effort */ });
+    // Optimistically mark as cancelled in UI
+    currentSyncJob.status = 'cancelled';
+    _renderSyncContent();
     return;
   }
+
+  // Clear previous sync state
+  syncEntities = {};
+  syncJournalOrder = [];
 
   var result = await apiCall('/api/sync/run', 'POST');
   if (!result || !result.job_id) return;
 
-  currentSyncJob = { job_id: result.job_id, status: 'running', output: '', outputLines: 0 };
+  currentSyncJob = { job_id: result.job_id, status: 'running' };
   renderContent();
 
-  // Connect to SSE stream
+  // Connect to SSE stream with typed event listeners
   syncEventSource = new EventSource('/api/sync/output?job_id=' + result.job_id);
 
-  syncEventSource.addEventListener('message', function(e) {
-    var data = JSON.parse(e.data);
-    if (data.type === 'output') {
-      currentSyncJob.output += data.text + '\\n';
-      currentSyncJob.outputLines++;
-      updateSyncIndicator();
-      var pre = document.getElementById('syncOutput');
-      if (pre) {
-        pre.textContent = currentSyncJob.output;
-        pre.scrollTop = pre.scrollHeight;
+  // Entity progress events — entity cards update in real-time
+  syncEventSource.addEventListener('entity_progress', function(e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+    if (!data.name || !data.journal_name) return;
+
+    // Track journal group order (first-seen)
+    _addJournalGroup(data.journal_name);
+
+    // Update entity state
+    var key = data.journal_name + '::' + data.name;
+    syncEntities[key] = {
+      name: data.name,
+      journal_name: data.journal_name,
+      status: data.status || 'processing',
+      error_message: data.error_message || null,
+    };
+
+    _renderSyncContent();
+  });
+
+  // Live proposal insertion — proposals appear in "New" tab as they're queued
+  syncEventSource.addEventListener('proposal_pushed', function(e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+    if (!data.name || !data.type) return;
+
+    // Create a minimal placeholder proposal for sidebar display
+    var placeholder = {
+      entity_name: data.name,
+      source_journal: 'Syncing...',
+      proposal_type: data.type === 'new_entity' ? 'new_entity' : 'update',
+      entity_kind: data.kind || '',
+      status: 'pending',
+      _sync_placeholder: true, // marks this as a live-insert placeholder
+    };
+
+    // Avoid duplicate placeholders for the same entity+journal combo
+    var found = false;
+    for (var i = 0; i < proposals.length; i++) {
+      if (proposals[i].entity_name === data.name &&
+          proposals[i]._sync_placeholder &&
+          proposals[i].source_journal === 'Syncing...') {
+        // Update existing placeholder
+        proposals[i] = Object.assign(proposals[i], placeholder);
+        found = true;
+        break;
       }
+    }
+    if (!found) {
+      proposals.push(placeholder);
+    }
+
+    updateStats();
+    renderSidebar();
+  });
+
+  // Status change events — sync header badge updates
+  syncEventSource.addEventListener('status_change', function(e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+    if (data.status) {
+      currentSyncJob.status = data.status;
+      _renderSyncContent();
     }
   });
 
-  syncEventSource.addEventListener('status', function(e) {
-    var data = JSON.parse(e.data);
-    currentSyncJob.status = data.status;
-    renderContent();
-    updateSyncIndicator();
-  });
-
+  // Stream end — finalize sync job and refresh full proposal data
   syncEventSource.addEventListener('end', function() {
     syncEventSource.close();
     syncEventSource = null;
-    currentSyncJob = null;
-    renderContent();
-    updateSyncIndicator();
-    // Refresh proposals after sync completes
+    if (currentSyncJob) currentSyncJob.status = 'completed';
+    _renderSyncContent();
+    // Refresh proposals from server to fill in full data
     loadProposals();
   });
 }
-
 function loadProposals() {
   fetch('/api/proposals')
     .then(function(r){ return r.json(); })
@@ -643,8 +816,13 @@ function updateSyncIndicator() {
   if (!indicator) return;
   if (currentSyncJob && currentSyncJob.status === 'running') {
     var statusText = 'Sync: Running';
-    if (currentSyncJob.outputLines > 0) {
-      statusText += ' — ' + currentSyncJob.outputLines + ' lines';
+    // Count entities in sync state for the header bar
+    var entityCount = 0;
+    for (var k in syncEntities) {
+      if (!syncEntities[k]._meta && syncEntities[k].journal_name) entityCount++;
+    }
+    if (entityCount > 0) {
+      statusText += ' — ' + entityCount + ' entities';
     }
     document.getElementById('syncIndicatorText').textContent = statusText;
     indicator.style.display = 'flex';
