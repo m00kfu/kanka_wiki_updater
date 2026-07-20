@@ -522,12 +522,23 @@ def create_app():
         def on_entity_started(entity_name, journal_name):
             key = (journal_name, entity_name)
             with _sync_lock:
-                progress[key] = {
-                    'name': entity_name,
-                    'journal_name': journal_name,
-                    'status': 'processing',
-                }
+                entry = progress.get(key, {})
+                entry['status'] = 'processing'
+                progress[key] = entry
             emitter.entity_progress('processing', name=entity_name, journal_name=journal_name)
+
+        def on_journal_entities_discovered(journal_name, entity_names):
+            """Fire when all entities for a journal are discovered (before LLM)."
+            Registers them as 'pending' so the UI shows the full list upfront."""
+            for name in entity_names:
+                key = (journal_name, name)
+                with _sync_lock:
+                    progress[key] = {
+                        'name': name,
+                        'journal_name': journal_name,
+                        'status': 'pending',
+                    }
+                emitter.entity_progress('pending', name=name, journal_name=journal_name)
 
         def on_llm_result(entity_name, journal_name, ok, data):
             key = (journal_name, entity_name)
@@ -584,14 +595,21 @@ def create_app():
             'new_entity_suggestion': on_new_entity_suggestion,
             'journal_completed': on_journal_completed,
             'sync_started': on_sync_started,
+            'journal_entities_discovered': on_journal_entities_discovered,
         }
 
         # -- Background thread -----------------------------------------------
         def _ingest_thread():
             try:
+                from . import config as pkg_config
                 from .ingest_journal import run_ingest as ingest_run
                 client = KankaClient()
-                ingest_run(client=client, callbacks=callbacks, cancelled_event=_sync_cancelled)
+                ingest_run(
+                    client=client,
+                    callbacks=callbacks,
+                    limit=pkg_config.JOURNAL_BATCH_LIMIT,
+                    cancelled_event=_sync_cancelled,
+                )
                 with _sync_lock:
                     if job_id in _sync_jobs and _sync_jobs[job_id]['status'] != 'cancelled':
                         _sync_jobs[job_id]['status'] = 'completed'

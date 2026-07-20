@@ -93,6 +93,7 @@ def _default_callbacks():
         'journal_completed': lambda journal_name, entities_processed, suggestions_count: None,
         'sync_started': lambda total_journals, total_entities_estimate: None,
         'sync_completed': lambda total_proposals, total_new_entities: None,
+        'journal_entities_discovered': lambda journal_name, entity_names: None,
     }
 
 
@@ -304,8 +305,20 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
 
         journal_entity_count = 0
 
+        # --- Discover entities for this journal (fast, no LLM) ---------------
+        entity_names_for_journal = []
+        for eid in mentioned:
+            entity_names_for_journal.append(index[eid]['name'])
+        for candidate in new_candidates:
+            entity_names_for_journal.append(candidate['entity_name'])
+
         if total_units > 0:
             print(f'      {journal.get("name")}')
+
+            # Emit full list of entities upfront so the UI can display them all.
+            cbs['journal_entities_discovered'](
+                journal.get('name', ''), entity_names_for_journal,
+            )
 
             # Process each mentioned entity
             for eid in mentioned:

@@ -20,7 +20,7 @@ import pytest
 
 
 class TestDefaultCallbacks:
-    """Verify all 7 event type keys exist and are callable no-ops."""
+    """Verify all 8 event type keys exist and are callable no-ops."""
 
     def test_all_event_keys_present(self):
         from kanka_wiki_updater.ingest_journal import _default_callbacks
@@ -34,6 +34,7 @@ class TestDefaultCallbacks:
             'journal_completed',
             'sync_started',
             'sync_completed',
+            'journal_entities_discovered',
         }
         assert set(cbs.keys()) == expected_keys
 
