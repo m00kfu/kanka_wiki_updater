@@ -1,8 +1,15 @@
 """Tests for review_web.py — Flask app factory, API routes, data handling."""
 
 import json
+from unittest import mock as umock
 
 import pytest
+
+# Reusable helper: load queue from temp file (avoids importing _load_queue which was extracted)
+def _load_queue_from_file():
+    """Load the current queue using queue_manager (business logic extraction)."""
+    from kanka_wiki_updater.queue_manager import load_queue as _lmq
+    return _lmq()
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -139,7 +146,7 @@ class TestApiProposalStatus:
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             mock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
@@ -194,7 +201,7 @@ class TestApiProposalStatus:
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             mock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
@@ -205,10 +212,8 @@ class TestApiProposalStatus:
                 '/api/proposals/1/status',
                 json={'status': 'approved_all'},
             )
-        import kanka_wiki_updater.review_web as rw
-
-        # Reload from disk using review_web's dynamic path resolution
-        queue = rw._load_queue()
+        # review_web\'s _load_queue was extracted to queue_manager
+        queue = _load_queue_from_file()
         assert queue[1]['status'] == 'applied'
 
 
@@ -348,92 +353,114 @@ class TestApiSyncOutput:
 
 class TestSyncTabHtml:
     def test_index_contains_sync_tab_button(self, app_with_queue):
-        """GET / returns HTML containing Sync tab button."""
+        """GET / returns HTML referencing the JS that renders the Sync tab button."""
         resp = app_with_queue.get('/')
         assert resp.status_code == 200
         html = resp.data.decode()
-        assert '>Sync<' in html or 'Sync</button>' in html
+        # The sync tab button is rendered by JavaScript in app.js
+        assert '<script src="/static/js/app.js">' in html or "src='/static/js/app.js'" in html
+        # Also verify the JS file contains the Sync tab rendering logic
+        js_resp = app_with_queue.get('/static/js/app.js')
+        assert 'Sync' in js_resp.data.decode()
 
     def test_index_contains_sync_output_area(self, app_with_queue):
-        """GET / returns HTML containing sync output pre element."""
+        """GET / returns HTML referencing the JS that renders the sync output area."""
         resp = app_with_queue.get('/')
         html = resp.data.decode()
-        assert 'syncOutput' in html
+        # The syncOutput element is created by JavaScript in app.js
+        assert '<script src="/static/js/app.js">' in html or "src='/static/js/app.js'" in html
+        js_resp = app_with_queue.get('/static/js/app.js')
+        assert 'syncOutput' in js_resp.data.decode()
 
 
 class TestSyncJavaScript:
+    def _get_js(self, app_with_queue):
+        """Helper to fetch the external JS file content."""
+        resp = app_with_queue.get('/static/js/app.js')
+        return resp.data.decode()
+
     def test_index_contains_run_sync_function(self, app_with_queue):
-        """GET / returns HTML containing runSync function."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        assert 'function runSync' in html or 'runSync()' in html
+        """GET / returns HTML referencing JS that contains runSync function."""
+        js = self._get_js(app_with_queue)
+        assert 'function runSync' in js or 'runSync()' in js
 
     def test_index_contains_event_source_connection(self, app_with_queue):
-        """GET / returns HTML containing EventSource connection to sync output."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        assert 'EventSource' in html
+        """JS file contains EventSource connection to sync output."""
+        js = self._get_js(app_with_queue)
+        assert 'EventSource' in js
 
     def test_sync_output_has_auto_scroll(self, app_with_queue):
         """Sync output streaming includes scrollTop scrollHeight auto-scroll."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        assert 'scrollTop' in html and 'scrollHeight' in html
+        js = self._get_js(app_with_queue)
+        assert 'scrollTop' in js and 'scrollHeight' in js
 
 
 class TestSwitchTabCancelEdit:
+    def _get_js(self, app_with_queue):
+        """Helper to fetch the external JS file content."""
+        resp = app_with_queue.get('/static/js/app.js')
+        return resp.data.decode()
+
     def test_switch_tab_calls_cancel_edit(self, app_with_queue):
         """switchTab() calls cancelEdit() to prevent stale editor state."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        assert 'if (editingField) cancelEdit()' in html or 'cancelEdit();' in html
+        js = self._get_js(app_with_queue)
+        assert 'if (editingField) cancelEdit()' in js or 'cancelEdit();' in js
 
     def test_switch_tab_resets_selected_index(self, app_with_queue):
         """switchTab() resets selectedIndex to null."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        assert 'selectedIndex = null' in html
+        js = self._get_js(app_with_queue)
+        assert 'selectedIndex = null' in js
 
 
 class TestNewlineEscaping:
+    def _get_js(self, app_with_queue):
+        """Helper to fetch the external JS file content."""
+        resp = app_with_queue.get('/static/js/app.js')
+        return resp.data.decode()
+
     def test_strip_html_replaces_newlines_for_js_context(self, app_with_queue):
         """Text with newlines is replaced before JS string concatenation."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
+        js = self._get_js(app_with_queue)
         # stripHtml returns text with \n; these must be replaced for safe JS strings
-        assert ".replace(/\\n/g, ' ')" in html or 'escapeJs(' in html
+        assert ".replace(/\\n/g, ' ')" in js or 'escapeJs(' in js
 
     def test_escape_js_function_exists(self, app_with_queue):
-        """HTML contains escapeJs function for JS string literal safety."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        assert 'function escapeJs' in html
+        """JS file contains escapeJs function for JS string literal safety."""
+        js = self._get_js(app_with_queue)
+        assert 'function escapeJs' in js
 
     def test_escape_js_html_uses_br_for_newlines(self, app_with_queue):
         """escapeJsHtml converts newlines to <br>, using JS escape sequences."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
+        js = self._get_js(app_with_queue)
         # The function should use escaped \r and \n in regex literals (not raw control bytes)
-        assert '.replace(/\\r/g, ' in html  # CR check - escaped text sequence
+        assert '.replace(/\\r/g, ' in js  # CR check - escaped text sequence
 
     def test_escape_js_html_escapes_backslashes(self, app_with_queue):
         """escapeJsHtml doubles backslashes for JS string safety."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
+        js = self._get_js(app_with_queue)
         # Must have a backslash-escaping step before newline replacement
-        assert '.replace(/\\\\/g' in html
+        assert '.replace(/\\\\/g' in js
 
     def test_rendered_html_has_no_raw_newlines_in_js(self, app_with_queue):
-        """Rendered HTML must not contain raw 0x0A bytes inside escapeJsHtml function."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
-        # Find the script tag content and verify no unescaped newlines appear
-        start = html.find('<script>') + len('<script>')
-        end = html.find('</script>')
-        js_content = html[start:end]
-        func_start = js_content.find('function escapeJsHtml')
-        func_end = js_content.find('}', func_start) + 1
-        func_body = js_content[func_start:func_end]
+        """JS file must not contain raw 0x0A bytes inside escapeJsHtml function."""
+        js = self._get_js(app_with_queue)
+        func_start = js.find('function escapeJsHtml')
+        assert func_start >= 0, 'escapeJsHtml function not found in app.js'
+        # Find the end of the function (next function or end of relevant block)
+        brace_count = 0
+        i = js.find('{', func_start)
+        if i == -1:
+            return  # Can't find function body, skip check
+        for j in range(i, len(js)):
+            if js[j] == '{':
+                brace_count += 1
+            elif js[j] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    func_body = js[i:j+1]
+                    break
+        else:
+            func_body = js[i:]
         # The function should use escaped \n and \r text sequences, not raw control bytes
         assert '\n' not in func_body.replace('\\n', '').replace('\r\n', '') or '<br>' in func_body
 
@@ -471,41 +498,35 @@ class TestNewlineEscaping:
             assert resp.status_code == 200
             html = resp.data.decode()
 
-            # The rendered HTML must not contain raw newline bytes inside the JS context
-            start = html.find('<script>') + len('<script>')
-            end = html.find('</script>')
-            js_content = html[start:end]
-
-            # Check that escapeJsHtml function exists and uses <br> replacement
-            assert 'function escapeJsHtml' in js_content
-            assert '<br>' in js_content
+            # Check that escapeJsHtml function exists in the external JS file and uses <br> replacement
+            js_resp = client.get('/static/js/app.js')
+            assert 'function escapeJsHtml' in js_resp.data.decode()
+            assert '<br>' in js_resp.data.decode()
         finally:
             config.DATA_DIR = original_data_dir
 
     def test_no_raw_newlines_in_js_string_literals(self, app_with_queue):
-        """Rendered JS must not have raw 0x0A bytes inside string literals.
+        """JS file must not have raw 0x0A bytes inside string literals.
 
         This catches bugs where Python's \\n in triple-quoted strings becomes
         a literal newline byte that breaks JavaScript string parsing.
         Specifically checks for the SSE handler pattern: data.text + ' + newline + ';
         """
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
+        js = self._get_js(app_with_queue)
 
         # The bug was: currentSyncJob.output += data.text + '\n'; where \n is 0x0A byte
         # This should now be: currentSyncJob.output += data.text + '\n'; where \n is literal backslash-n
-        assert "data.text + '\\n'" in html or "data.text + '\\\\n'" in html, (
-            'SSE handler has raw newline inside JS string. Check review_web.py for unescaped \\n.'
+        assert "data.text + '\\n'" in js or "data.text + '\\\\n'" in js, (
+            'SSE handler has raw newline inside JS string. Check app.js for unescaped \\n.'
         )
 
     def test_sse_handler_uses_escaped_newline(self, app_with_queue):
         """SSE output streaming must use \\n escape sequence for newline."""
-        resp = app_with_queue.get('/')
-        html = resp.data.decode()
+        js = self._get_js(app_with_queue)
         # The SSE handler concatenates data.text with a newline separator.
         # JS should see: data.text + '\n'  (literal backslash-n in source)
         # NOT: data.text + ' + actual_newline_byte + ';
-        assert "data.text + '\\n'" in html or "data.text + '\\\\n'" in html
+        assert "data.text + '\\n'" in js or "data.text + '\\\\n'" in js
 
 
 class TestApiProposalSync:
@@ -522,7 +543,7 @@ class TestApiProposalSync:
 
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
-            mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}),
+            mock.patch('kanka_wiki_updater.sync_engine.build_entity_index', return_value={}),
         ):
             resp = app_with_queue.post('/api/proposals/0/sync')
             assert resp.status_code == 200
@@ -540,7 +561,7 @@ class TestApiProposalSync:
 
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
-            mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}),
+            mock.patch('kanka_wiki_updater.sync_engine.build_entity_index', return_value={}),
         ):
             data = app_with_queue.post('/api/proposals/0/sync').get_json()
             assert data['ok'] is True
@@ -556,7 +577,7 @@ class TestApiProposalSync:
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             mock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
@@ -599,7 +620,7 @@ class TestStatusWithSync:
 
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
-            mock.patch('kanka_wiki_updater.review_web.build_entity_index', return_value={}),
+            mock.patch('kanka_wiki_updater.sync_engine.build_entity_index', return_value={}),
         ):
             resp = app_with_queue.post(
                 '/api/proposals/0/status',
@@ -653,7 +674,7 @@ class TestStatusWithSync:
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             mock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
@@ -677,7 +698,7 @@ class TestStatusWithSync:
         with (
             mock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             mock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {
                     42: {'name': 'Kael Ironfist'},
                     99: {'name': 'Vexara the Veiled'},
@@ -717,15 +738,14 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
         ):
             app_with_queue.post('/api/proposals/1/status', json={'status': 'rejected'})
 
-        import kanka_wiki_updater.review_web as rw
-
-        queue = rw._load_queue()
+        # review_web's _load_queue was extracted to queue_manager
+        queue = _load_queue_from_file()
         # Add truncated flag and _journal_id, then remove _journal_id to test missing field
         queue[1]['truncated'] = True
         queue[1]['_journal_id'] = 789
@@ -754,8 +774,7 @@ class TestApiProposalRegenerate:
         from unittest import mock as umock
 
         # Set up queue with _journal_id and truncated flag
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os
@@ -780,7 +799,7 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
@@ -800,8 +819,7 @@ class TestApiProposalRegenerate:
         import types as _types
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os
@@ -826,7 +844,7 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
@@ -848,8 +866,7 @@ class TestApiProposalRegenerate:
         from unittest import mock as umock
 
         # Set up queue with _journal_id and truncated flag
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os
@@ -874,7 +891,7 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
@@ -898,8 +915,7 @@ class TestApiProposalRegenerate:
         import types as _types
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os
@@ -926,7 +942,7 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
@@ -951,8 +967,7 @@ class TestApiProposalRegenerate:
         import types as _types
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os
@@ -979,7 +994,7 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {42: {'name': 'Kael Ironfist'}},
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
@@ -1007,8 +1022,7 @@ class TestApiProposalRegenerate:
         import types as _types
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['truncated'] = True
 
         # _is_new_info=True forces a re-fetch of journals so the old-path is exercised.
@@ -1040,7 +1054,7 @@ class TestApiProposalRegenerate:
         with (
             umock.patch('kanka_wiki_updater.review_web.KankaClient', return_value=mock_client),
             umock.patch(
-                'kanka_wiki_updater.review_web.build_entity_index',
+                'kanka_wiki_updater.sync_engine.build_entity_index',
                 side_effect=lambda c: {queue[1]['entity_local_id']: {'name': queue[1]['entity_name']}},
             ),
             umock.patch('kanka_wiki_updater.synopsis_generator.chat_json') as mock_chat,
@@ -1063,8 +1077,7 @@ class TestRegenerateApiErrors:
         """When _journal_id exists but journal fetch fails, return 400 not 500."""
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os
@@ -1089,8 +1102,7 @@ class TestRegenerateApiErrors:
         """When _journal_id is missing and fallback journal search fails, return 400."""
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         # No _journal_id — triggers fallback path
         if '_journal_id' in queue[1]:
             del queue[1]['_journal_id']
@@ -1119,8 +1131,7 @@ class TestRegenerateApiErrors:
         import types as _types
         from unittest import mock as umock
 
-        rw_module = __import__('kanka_wiki_updater.review_web', fromlist=['_load_queue'])
-        queue = rw_module._load_queue()
+        queue = _load_queue_from_file()
         queue[1]['_journal_id'] = 789
         queue[1]['truncated'] = True
         import os

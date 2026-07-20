@@ -8,16 +8,13 @@ data/pending_changes.json — the same file used by review.py. Both can coexist
 without conflict; they just need to agree on the JSON schema.
 """
 
-import contextlib
-import difflib
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
-import traceback as tb_mod
-from collections import defaultdict, deque  # noqa: F401 (defaultdict needed for Task 2 SSE streaming)
+from collections import deque
 from pathlib import Path
 
 _DEBUG = bool(os.environ.get('KANKA_DEBUG'))
@@ -38,39 +35,27 @@ try:
 except ImportError:
     from kanka_wiki_updater import config as pkg_config
 
-# Import KankaClient at module level so tests can mock it
+# Backend modules — thin routes call these for all business logic
+try:
+    from . import queue_manager, sync_engine
+    from .sync_pipeline import build_entity_index
+except ImportError:
+    from kanka_wiki_updater import queue_manager, sync_engine
+    from kanka_wiki_updater.sync_pipeline import build_entity_index
+
+# KankaClient imported at module level so tests can mock it directly.
+# (sync_engine also imports it, but mocking review_web is more convenient.)
 try:
     from .kanka_client import KankaClient
 except ImportError:
     from kanka_wiki_updater.kanka_client import KankaClient
 
-try:
-    from .sync_pipeline import build_entity_index
-except ImportError:
-    from kanka_wiki_updater.sync_pipeline import build_entity_index
 _sync_lock = threading.Lock()
 
-
-def _rel_target(rel):
-    """Extract the target_id from a Relation model or dict."""
-    return getattr(rel, 'target_id', None) or (rel.get('target_id') if isinstance(rel, dict) else None)
-
-
-def _rel_owner(rel):
-    """Extract the owner_id from a Relation model or dict."""
-    return getattr(rel, 'owner_id', None) or (rel.get('owner_id') if isinstance(rel, dict) else None)
-
-
-def _rel_id(rel):
-    """Extract the id from a Relation model or dict."""
-    return getattr(rel, 'id', None) or (rel.get('id') if isinstance(rel, dict) else None)
-
-
+# Web-specific job tracking state (SSE streaming) — NOT moved to backend modules
 _sync_jobs = {}
 _job_counter = [0]
 _sync_cancel_lock = threading.Lock()  # protects _sync_jobs mutations
-_entity_index_cache = {}  # cached (index, name_to_id) for current review batch
-_name_to_id_override = {}  # newly-created entities during this batch
 
 
 def _next_job_id():
@@ -85,16 +70,12 @@ def create_app():
 
     @app.route('/')
     def index():
-        try:
-            from . import config as pkg_config
-        except ImportError:
-            from kanka_wiki_updater import config as pkg_config
-        queue = _load_queue()
+        queue = queue_manager.load_queue()
         return render_template('index.html', PROPOSALS=queue, KANKA_CAMPAIGN_ID=pkg_config.KANKA_CAMPAIGN_ID)
 
     @app.route('/api/proposals')
     def get_proposals():
-        queue = _load_queue()
+        queue = queue_manager.load_queue()
         status_filter = request.args.get('status')
         type_filter = request.args.get('type')
 
@@ -107,7 +88,7 @@ def create_app():
 
     @app.route('/api/proposals/<int:index>/status', methods=['POST'])
     def update_status(index):
-        queue = _load_queue()
+        queue = queue_manager.load_queue()
         if index >= len(queue):
             return jsonify({'error': 'Proposal not found'}), 404
 
@@ -120,8 +101,10 @@ def create_app():
         sync_result = None
         if status_value in ('approved_all', 'approved_synopsis_only'):
             with _sync_lock:
-                sync_result = _sync_proposal_to_kanka(index)
-            queue = _load_queue()  # Reload after potential modifications
+                client = KankaClient()
+                sync_result = sync_engine.apply_proposal(client, queue[index], {})
+            # Reload after potential modifications (created_local_id etc.)
+            queue = queue_manager.load_queue()
             proposal = queue[index]
             if not sync_result['ok']:
                 return jsonify(
@@ -133,13 +116,8 @@ def create_app():
                     }
                 ), 409
 
-        mapping = {
-            'approved_all': 'applied',
-            'approved_synopsis_only': 'applied',
-            'rejected': 'rejected',
-        }
-        queue[index]['status'] = mapping[status_value]
-        _save_queue(queue)
+        queue_manager.update_status(queue, index, status_value)
+        queue_manager.save_queue(queue)
         result = {'proposal': queue[index], 'ok': True}
         if sync_result:
             result['sync'] = sync_result
@@ -147,7 +125,7 @@ def create_app():
 
     @app.route('/api/proposals/<int:index>/edit', methods=['POST'])
     def edit_proposal(index):
-        queue = _load_queue()
+        queue = queue_manager.load_queue()
         if index >= len(queue):
             return jsonify({'error': 'Proposal not found'}), 404
 
@@ -155,412 +133,65 @@ def create_app():
         entry_text = data.get('entry', '')
         proposal = queue[index]
 
-        if proposal['proposal_type'] == 'new_entity':
-            proposal['draft_entry'] = entry_text
-        else:
-            proposal['proposed_entry'] = entry_text
-
-        _save_queue(queue)
-        return jsonify({'proposal': proposal, 'ok': True})
+        queue_manager.edit_proposal_text(queue, index, entry_text, proposal['proposal_type'])
+        queue_manager.save_queue(queue)
+        return jsonify({'proposal': queue[index], 'ok': True})
 
     @app.route('/api/proposals/<int:index>/relation', methods=['POST'])
     def update_relation(index):
-        queue = _load_queue()
+        queue = queue_manager.load_queue()
         if index >= len(queue):
             return jsonify({'error': 'Proposal not found'}), 404
 
         data = request.get_json()
         action = (data.get('action') or '').strip().lower()
         target_name = data.get('target_name', '')
-        proposal = queue[index]
-        relations = proposal.get('relation_changes', [])
 
         if action == 'create':
-            new_rel = {
-                'action': 'create',
-                'relation': data.get('relation', ''),
-                'target_name': target_name,
-                'attitude': data.get('attitude', ''),
-                'reason': data.get('reason', ''),
-            }
-            relations.append(new_rel)
+            queue_manager.add_relation_change(
+                queue, index, action, target_name,
+                relation=data.get('relation', ''),
+                attitude=data.get('attitude', ''),
+                reason=data.get('reason', ''),
+            )
 
         elif action == 'delete':
-            found = next((r for r in relations if r['target_name'] == target_name), None)
-            if not found:
+            if not queue_manager.delete_relation_change(queue, index, target_name):
                 return jsonify({'error': f"No relation to '{target_name}' found"}), 404
-            relations.remove(found)
 
         elif action == 'update':
-            found = next((r for r in relations if r['target_name'] == target_name), None)
-            if not found:
+            if queue_manager.update_relation_change(
+                    queue, index, target_name,
+                    relation=data.get('relation', ''),
+                    attitude=data.get('attitude', ''),
+                    reason=data.get('reason', ''),
+            ) is None:
                 return jsonify({'error': f"No relation to '{target_name}' found"}), 404
-            found['relation'] = data.get('relation', found['relation'])
-            found['attitude'] = data.get('attitude', found['attitude'])
-            found['reason'] = data.get('reason', found['reason'])
 
         else:
             return jsonify({'error': f'Invalid action: {action}'}), 400
 
-        proposal['relation_changes'] = relations
-        _save_queue(queue)
-        return jsonify({'proposal': proposal, 'ok': True})
+        queue_manager.save_queue(queue)
+        return jsonify({'proposal': queue[index], 'ok': True})
 
     def _sync_proposal_to_kanka(idx):
-        """Actually push a proposal to Kanka.io. Returns (success, details)."""
-        with contextlib.suppress(ImportError):
-            from .mentions import add_missing_entity_tags  # noqa: F401
+        """Thin wrapper that delegates to sync_engine.apply_proposal().
 
-        queue = _load_queue()
+        Kept for backward compatibility with existing callers.
+        """
+        queue = queue_manager.load_queue()
         if idx >= len(queue):
-            return False, 'Proposal not found in queue'
-
-        # Reset per-session caches so stale data doesn't persist across reviews
-        global _entity_index_cache, _name_to_id_override
-        _entity_index_cache = {}
-        _name_to_id_override = {}
+            return {'ok': False, 'message': 'Proposal not found in queue', 'warnings': []}
 
         proposal = queue[idx]
         client = KankaClient()
-        details = []
-        errors = []
-        warnings = []
-
-        ptype = proposal.get('proposal_type')
-        pname = proposal.get('entity_name', '?')
-        _debug(f'=== SYNC {idx}: type={ptype}, entity={pname} ===')
-        _debug(f'  raw proposal keys: {list(proposal.keys())}')
-
-        def resolve_name_to_id(client, name):
-            """Resolve an entity name to its entity_id via a full index build."""
-            global _entity_index_cache
-            _debug(f'@@@ resolve_name_to_id CALLED: {name!r} cache_has={bool(_entity_index_cache)} @@@')
-            try:
-                # Check override map first (newly-created entities in this batch)
-                needle = name.strip().lower()
-                for n, eid in _name_to_id_override.items():
-                    if n == needle:
-                        return eid
-
-                # Parse Kanka wiki links like [organisation:9419438|Zhentarim] or [entity:123]
-                import re as _re
-
-                wiki_match = _re.search(
-                    r'\[(?:entity|character|location|organisation|monster|deity|background|class|subrace|race):(\d+)',
-                    name,
-                )
-                if wiki_match:
-                    # The number inside is a Kanka entity_id — look it up in the index to verify
-                    candidate_eid = int(wiki_match.group(1))
-                    _debug(f"    parsed wiki link entity_id={candidate_eid} from '{name}'")
-                    # Build index if needed so we can validate the eid exists and get its kind
-                    if not _entity_index_cache:
-                        index = build_entity_index(client)
-                        name_map = {}
-                        for eid, data in index.items():
-                            name_map[data['name'].strip().lower()] = eid
-                        _entity_index_cache = (index, name_map)
-                        _debug(f'  built entity index with {len(index)} entities')
-                    index, name_map = _entity_index_cache
-                    if candidate_eid in index:
-                        _debug(f"    wiki link eid found in index -> '{index[candidate_eid]['name']}'")
-                        return candidate_eid
-
-                # Use cached index if available, else build fresh
-                if not _entity_index_cache:
-                    index = build_entity_index(client)
-                    name_map = {}
-                    for eid, data in index.items():
-                        name_map[data['name'].strip().lower()] = eid
-                    _entity_index_cache = (index, name_map)
-                    _debug(f'  built entity index with {len(index)} entities')
-
-                index, name_map = _entity_index_cache
-                _debug(f"    resolving '{name}' (needle={needle!r})")
-
-                # Exact match via pre-built map — always wins over fuzzy/substring
-                if needle in name_map:
-                    eid = name_map[needle]
-                    _debug(f"    exact match found: '{index[eid]['name']}' -> eid={eid}")
-                    return eid
-
-                # Fuzzy fallback — try partial substring match (case-insensitive)
-                candidates = [data['name'] for data in index.values() if needle in data['name'].lower()]
-                _debug(f"    substring candidates for '{name}': {candidates[:5]}")
-                if len(candidates) == 1:
-                    _debug(f"    single substring match: '{candidates[0]}'")
-                    return next(eid for eid, data in index.items() if data['name'] == candidates[0])
-
-                # Fuzzy fallback — try Levenshtein distance via difflib
-                entity_names = list(index.values())
-                matches = difflib.get_close_matches(needle, [d['name'].lower() for d in entity_names], n=5, cutoff=0.7)
-                _debug(f'    difflib candidates: {[d["name"] for d in entity_names[:10]]}')
-                if matches:
-                    _debug(f"    fuzzy match candidates for '{name}': {matches[:3]}")
-                    for eid, data in index.items():
-                        if data['name'].lower() == matches[0]:
-                            _debug(f"    fuzzy resolved '{name}' -> '{data['name']}' (eid={eid})")
-                            return eid
-                if not candidates and not matches:
-                    _debug(
-                        f"    no match at all for '{name}' — index has {len(index)} entities, "
-                        f'names include: {[d["name"] for d in entity_names[:10]]}'
-                    )
-            except Exception as e:
-                errors.append(f'Resolution warning: {e}')
-            return None
-
-        try:
-            if proposal.get('proposal_type') == 'new_entity':
-                entity_type = proposal.get('suggested_type', 'character')
-                kind_param_map = {
-                    'character': 'characters',
-                    'location': 'locations',
-                    'organization': 'organisations',
-                    'creature': 'creatures',
-                }
-                kind_param = kind_param_map.get(entity_type, 'characters')
-                _debug(f'  creating {entity_type}: name={proposal["entity_name"]!r}')
-                result = getattr(client, f'create_{entity_type}')(
-                    proposal['entity_name'], entry=proposal.get('draft_entry', '')
-                )
-                data = result.get('data', {}) if isinstance(result, dict) else {}
-                new_entity_id = data.get('entity_id')
-                _debug(f'  create response: {result}')
-                proposal['created_local_id'] = data.get('id')
-                proposal['created_kind'] = entity_type
-                proposal['created_entity_id'] = new_entity_id
-                details.append(f"Created {entity_type} '{proposal['entity_name']}'")
-                if new_entity_id:
-                    details.append(f' (entity_id={new_entity_id})')
-                    # Make immediately available as relation target for later proposals in same batch
-                    queue[idx]['_resolved'] = True
-                    _name_to_id_override[proposal['entity_name'].strip().lower()] = new_entity_id
-                else:
-                    errors.append(f"Created entity but couldn't read entity_id from response. Raw response: {result}")
-
-            elif proposal.get('proposal_type') == 'update':
-                # Update synopsis entry — map entity_kind to API plural form
-                kind_map = {
-                    'character': 'characters',
-                    'location': 'locations',
-                    'organization': 'organisations',
-                    'creature': 'creatures',
-                }
-                kind_param = kind_map.get(proposal['entity_kind'], 'characters')
-                _debug(f"  updating {kind_param}/{proposal['entity_local_id']} for '{proposal['entity_name']}'")
-                client.update_entity_entry(
-                    kind_param,
-                    proposal['entity_local_id'],
-                    proposal['proposed_entry'],
-                )
-                details.append(f"Updated synopsis for '{proposal['entity_name']}'")
-
-        except Exception as e:
-            _debug(f'  SYNC EXCEPTION (synopsis): type={type(e).__name__} err={e}')
-            _debug(f'    full traceback:\n{tb_mod.format_exc()}')
-            errors.append(f'Sync error: {e}')
-
-        # Handle relation changes (both new_entity and update)
-        rel_changes = proposal.get('relation_changes', [])
-        if rel_changes:
-            _debug(f'  relation_changes count={len(rel_changes)}')
-            for i, rc in enumerate(rel_changes):
-                _debug(
-                    f'    [{i}] action={rc.get("action")!r} target={rc.get("target_name")!r} '
-                    f'relation={rc.get("relation")!r} attitude={rc.get("attitude")!r}'
-                )
-            try:
-                if proposal.get('proposal_type') == 'new_entity':
-                    entity_id_str = str(proposal.get('created_entity_id', ''))
-                    _debug(f'  new_entity: created_entity_id_raw={entity_id_str!r}')
-                    if not entity_id_str or not entity_id_str.isdigit():
-                        errors.append(
-                            'Cannot resolve relations for new entity: no entity_id available. '
-                            'Approve the synopsis first, then retry relations.'
-                        )
-                    else:
-                        entity_id = int(entity_id_str)
-                else:
-                    eid = proposal.get('entity_id')
-                    _debug(f'  update: entity_id from proposal={eid!r}')
-                    if not eid:
-                        eid = resolve_name_to_id(client, proposal['entity_name'])
-                        _debug(f"  resolved name->id for '{proposal['entity_name']}': {eid!r}")
-                        if not eid:
-                            errors.append(
-                                f"Cannot find entity_id for '{proposal['entity_name']}'. "
-                                'Ensure the entity exists in Kanka.'
-                            )
-                    if eid is not None:
-                        entity_id = int(eid)
-
-                # Only proceed with relations if we have a valid entity_id and no fatal errors
-                fatal_errors = [e for e in errors if 'Cannot resolve' in e or 'Cannot find entity_id' in e]
-                if not fatal_errors and 'entity_id' in locals():
-                    _debug(f'  fetching existing relations for entity_id={entity_id}')
-                    existing_relations = client.get_relations(entity_id)
-                    _debug(f'  existing_relations ({len(existing_relations)} total):')
-                    for ri, er in enumerate(existing_relations):
-                        rel_name = er.get('relation') if isinstance(er, dict) else getattr(er, 'relation', None)
-                        _debug(
-                            f'    [{ri}] target_id={_rel_target(er)!r} '
-                            f'owner_id={_rel_owner(er)!r} id={_rel_id(er)!r} relation={rel_name!r}'
-                        )
-                    for rc in rel_changes:
-                        target_name = rc['target_name']
-                        action = (rc.get('action') or '').strip().lower()
-
-                        if action == 'delete':
-                            _debug(f'  DELETE relation -> {target_name}')
-                            target_entity_id = resolve_name_to_id(client, target_name)
-                            _debug(f"    resolved target '{target_name}' -> entity_id={target_entity_id!r}")
-                            if not target_entity_id:
-                                warnings.append(f'Skipped delete relation -> {target_name}: entity not found in Kanka.')
-                                continue
-                            existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
-                            _debug(f'    existing relation lookup: {existing is not None}')
-                            if existing and _rel_id(existing):
-                                rid = _rel_id(existing)
-                                _debug(f'    calling delete_relation eid={entity_id} rid={rid}')
-                                client.delete_relation(entity_id, rid)
-                                details.append(f'Deleted relation -> {target_name}')
-                            elif existing:
-                                errors.append(
-                                    f'Cannot delete relation -> {target_name}: API did not return a relation id. '
-                                    f'Raw relation object: {existing}. Try deleting manually in Kanka.'
-                                )
-                            else:
-                                details.append(
-                                    f"No existing relation to '{target_name}' found — "
-                                    'already removed or deleted externally.'
-                                )
-
-                        elif action in ('create', 'update'):
-                            _debug(f'  {action.upper()} relation -> {target_name} (relation={rc.get("relation")!r})')
-                            target_entity_id = resolve_name_to_id(client, target_name)
-                            if target_entity_id:
-                                _debug(f"    resolved target '{target_name}' -> entity_id={target_entity_id}")
-                            else:
-                                _debug(f"    FAILED to resolve '{target_name}' — entity not found in Kanka index")
-                            if not target_entity_id:
-                                warnings.append(
-                                    f'Skipped {action} relation -> {target_name}: entity not found in Kanka.'
-                                )
-                                continue
-
-                            existing = next((r for r in existing_relations if _rel_target(r) == target_entity_id), None)
-
-                            # Also detect reverse-direction relations with the same type.
-                            # Kanka returns 409 if trying to create the exact same relation
-                            # in the opposite direction (e.g., A 'commands' B and B 'commands' A).
-                            # Different relation types between two entities are allowed.
-                            proposed_relation = rc.get('relation', '').strip().lower()
-                            has_reverse_same_type = any(
-                                _rel_owner(r) == target_entity_id
-                                and _rel_target(r) == entity_id
-                                and (r.get('relation') if isinstance(r, dict) else getattr(r, 'relation', ''))
-                                .strip()
-                                .lower()
-                                == proposed_relation
-                                for r in existing_relations
-                            )
-                            _debug(f'    has_reverse_same_type: {has_reverse_same_type}')
-
-                            if has_reverse_same_type:
-                                details.append(
-                                    f"Relation '{proposed_relation}' already exists between this entity and '{target_name}' "
-                                    '(in the opposite direction — cannot create a duplicate link).'
-                                )
-
-                            elif action == 'create' or not existing:
-                                _debug(f'    create_relation eid={entity_id} tid={target_entity_id}')
-                                _debug(f'    relation_name={rc.get("relation")!r}, attitude={rc.get("attitude")!r}')
-                                _debug(f'    action={action!r}, existing={existing is not None}')
-                                try:
-                                    resp = client.create_relation(
-                                        entity_id, target_entity_id, rc['relation'], rc.get('attitude')
-                                    )
-                                    _debug(
-                                        f'    create_relation response keys: '
-                                        f'{list(resp.keys()) if isinstance(resp, dict) else type(resp)}'
-                                    )
-                                    _debug(f'    create_relation response: {resp}')
-                                    details.append(f"Created relation -> {target_name}: '{rc['relation']}'")
-                                except Exception as create_err:
-                                    # Capture the HTTP status code if available so 409s are actionable
-                                    _debug(f'    create_relation ERR: {type(create_err).__name__}')
-                                    _debug(f'    full traceback:\n{tb_mod.format_exc()}')
-                                    status_code = getattr(create_err, 'response', None)
-                                    if hasattr(status_code, 'status_code'):
-                                        errors.append(
-                                            f'Failed to create relation -> {target_name}: '
-                                            f'HTTP {status_code.status_code} — "{create_err}". '
-                                            f'This usually means a relation already exists between these entities. '
-                                            f'Check Kanka directly and delete any duplicate, then retry.'
-                                        )
-                                    else:
-                                        errors.append(f'Failed to create relation -> {target_name}: {create_err}')
-
-                            elif existing and _rel_id(existing):
-                                rid = _rel_id(existing)
-                                _debug(f'    update_relation eid={entity_id} rid={rid} rel={rc.get("relation")!r}')
-                                try:
-                                    client.update_relation(
-                                        entity_id,
-                                        _rel_id(existing),
-                                        relation=rc['relation'],
-                                        attitude=rc.get('attitude'),
-                                    )
-                                    _debug('    update_relation succeeded')
-                                    details.append(f"Updated relation -> {target_name}: '{rc['relation']}'")
-                                except Exception as update_err:
-                                    _debug(f'    update_relation ERR: {type(update_err).__name__}')
-                                    _debug(f'    full traceback:\n{tb_mod.format_exc()}')
-                                    status_code = getattr(update_err, 'response', None)
-                                    if hasattr(status_code, 'status_code'):
-                                        errors.append(
-                                            f'Failed to update relation -> {target_name}: '
-                                            f'HTTP {status_code.status_code} — "{update_err}". '
-                                            f'This may mean the relation was modified externally. Check Kanka directly.'
-                                        )
-                                    else:
-                                        errors.append(f'Failed to update relation -> {target_name}: {update_err}')
-
-                            elif existing and not _rel_id(existing):
-                                errors.append(
-                                    f'Cannot update relation -> {target_name}: '
-                                    "API returned a relation without an 'id'. "
-                                    f'Raw: {existing}. Try updating manually in Kanka.'
-                                )
-
-            except Exception as e:
-                _debug(f'  RELATION SYNC OUTER EXCEPTION: type={type(e).__name__} err={e}')
-                _debug(f'    full traceback:\n{tb_mod.format_exc()}')
-                # Capture HTTP error details for actionable feedback
-                resp = getattr(e, 'response', None)
-                if resp is not None:
-                    try:
-                        body = resp.text[:500]
-                    except Exception:
-                        body = '<unreadable>'
-                    _debug(f'    response status={getattr(resp, "status_code", "?")} body={body!r}')
-                errors.append(f'Relation sync error: {e}')
-
-        if errors:
-            msg = '; '.join(errors)
-            if warnings:
-                msg += ' | Warnings: ' + '; '.join(warnings)
-            return {'ok': False, 'message': msg, 'warnings': list(warnings)}
-        result_msg = '; '.join(details)
-        if warnings:
-            result_msg += ' | Warnings: ' + '; '.join(warnings)
-        return {'ok': True, 'message': result_msg, 'warnings': list(warnings)}
+        # Pass empty dict to trigger fresh index build per call (cache reset)
+        return sync_engine.apply_proposal(client, proposal, {})
 
     @app.route('/api/proposals/<int:index>/sync', methods=['POST'])
     def sync_proposal(index):
         """Sync a single proposal to Kanka.io. Used before marking as applied."""
-        queue = _load_queue()
+        queue = queue_manager.load_queue()
         if index >= len(queue):
             return jsonify({'error': 'Proposal not found'}), 404
 
@@ -574,14 +205,14 @@ def create_app():
             'proposal': queue[index],
         }
         # Mark as applied after successful sync; caller should also update local state via /status
-        _save_queue(queue)
+        queue_manager.save_queue(queue)
         return jsonify(result)
 
     @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
     def regenerate_proposal(index):
         """Re-run a truncated update proposal through the LLM with higher token limits."""
         try:
-            queue = _load_queue()
+            queue = queue_manager.load_queue()
         except Exception as e:
             print(f'[REGEN] ERROR loading queue: {e}', file=sys.stderr, flush=True)
             import traceback
@@ -734,7 +365,7 @@ def create_app():
         queue[index]['uncertain'] = result_proposal.get('uncertain', [])
         queue[index]['truncated'] = result_proposal.get('truncated', False)
 
-        _save_queue(queue)
+        queue_manager.save_queue(queue)
         return jsonify(
             {
                 'ok': True,
@@ -843,26 +474,6 @@ def create_app():
     return app
 
 
-def _load_queue():
-    try:
-        from . import config, state
-    except ImportError:
-        from kanka_wiki_updater import config, state
-
-    queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-    return state._load(queue_file, [])
-
-
-def _save_queue(queue):
-    try:
-        from . import config, state
-    except ImportError:
-        from kanka_wiki_updater import config, state
-
-    queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-    state._save(queue_file, queue)
-
-
 def _sync_thread(job_id, proc, buffer):
     """Background thread that reads subprocess stdout and pushes to deque."""
     try:
@@ -886,7 +497,6 @@ def _sync_thread(job_id, proc, buffer):
                 _sync_jobs[job_id]['status'] = 'error'
 
 
-# ── HTML template (embedded single-page app) ───────────────────────────────
 
 
 
