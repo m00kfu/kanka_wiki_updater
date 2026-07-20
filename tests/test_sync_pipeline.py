@@ -492,7 +492,7 @@ def test_propose_new_entity_truncation_heuristic():
         'created_at': '2024-01-02T10:00:00',
     }
 
-    with patch('kanka_wiki_updater.sync_pipeline.chat_json') as mock_chat:
+    with patch('kanka_wiki_updater.ingest_journal.chat_json') as mock_chat:
         mock_chat.return_value = {
             'new_entities': [
                 {'name': 'Zara', 'suggested_type': 'character', 'draft_entry': 'A mysterious figure,', 'reason': ''},

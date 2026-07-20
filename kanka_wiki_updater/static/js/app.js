@@ -233,17 +233,18 @@ function escapeHtml(text) {
 }
 
 function escapeJsHtml(str) {
-  var escaped = (escapeHtml(str || '')).replace(/\\\\/g, '\\\\').replace(/'/g, "\\'");
-  return escaped.replace(/\\r\\n/g, '<br>').replace(/\\r/g, '<br>').replace(/\\n/g, '<br>')
-    .replace(/\\\\n/g, '\\\\n').replace(/\\\\r/g, '\\\\r');
+  var escaped = (escapeHtml(str || '')).replace(/\\/g, '\\').replace(/'/g, "\\'");
+  return escaped.replace(/\r\n/g, '<br>').replace(/\r/g, '<br>').replace(/\n/g, '<br>')
+    .replace(/\\n/g, '\\n').replace(/\\r/g, '\\r');
 }
+
 
 function escapeHtmlForTextarea(str) {
   return escapeHtml(str || '');
 }
 
 function escapeJs(str) {
-  return (str || '').replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\'").replace(/"/g, '\\\\"').replace(/\\n/g, '\\\\n').replace(/\\r/g, '\\\\r').replace(/\\//g, '\\/');
+  return (str || '').replace(/\\/g, '\\\\\\\\').replace(/'/g, "\\'").replace(/"/g, '\\\\"').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/\\//g, '\\/');
 }
 
 function stripHtml(html) {

@@ -108,6 +108,17 @@ def _annotate_journals(text, journal_id, display_name=None):
 # ---------------------------------------------------------------------------
 
 
+def _to_dict(obj):
+    """Normalize a dict or SimpleNamespace-like object to a plain dict."""
+    if isinstance(obj, dict):
+        return obj
+    try:
+        return dict(vars(obj))
+    except TypeError:
+        # Fallback for objects that don't support vars() — return as-is.
+        return obj  # type: ignore[return-value]
+
+
 def build_entity_index(client):
     """One pass over characters + locations + organizations + creatures, keyed by
     entity_id (the cross-entity-type id used by relations and mentions).
@@ -125,13 +136,14 @@ def build_entity_index(client):
             print(f'  [synopsis_generator] build_entity_index: {kind}: ERROR — {e}', file=sys.stderr)
             continue
         for row in rows:
-            entry_text = row.get('entry', '') or ''
-            rels = row.get('relations', []) or []
-            name = (row.get('name') or '<UNKNOWN>').strip()
-            index[row['entity_id']] = {
+            d = _to_dict(row)
+            entry_text = d.get('entry', '') or ''
+            rels = d.get('relations', []) or []
+            name = (d.get('name') or '<UNKNOWN>').strip()
+            index[d['entity_id']] = {
                 'kind': kind,
-                'local_id': row['id'],  # internal DB ID for API calls
-                'entity_id': row['entity_id'],  # public wiki page number for [journal:N] tags
+                'local_id': d['id'],  # internal DB ID for API calls
+                'entity_id': d['entity_id'],  # public wiki page number for [journal:N] tags
                 'name': name,
                 'entry': entry_text,
                 'relations': list(rels),
