@@ -11,76 +11,9 @@ def _load_queue_from_file():
     from kanka_wiki_updater.queue_manager import load_queue as _lmq
     return _lmq()
 
-# ── Fixtures ────────────────────────────────────────────────────────────────
 
 
-@pytest.fixture
-def mock_queue(tmp_path):
-    """Create a temporary pending_changes.json with mixed proposal types."""
-    queue = [
-        {
-            'proposal_type': 'new_entity',
-            'entity_name': 'Vexara the Veiled',
-            'suggested_type': 'character',
-            'draft_entry': 'A mysterious sorceress.',
-            'source_journal': 'Session 12',
-            'status': 'pending',
-        },
-        {
-            'proposal_type': 'update',
-            'entity_name': 'Kael Ironfist',
-            'entity_kind': 'character',
-            'entity_id': '42',
-            'entity_local_id': 101,
-            'source_journal': 'Session 13',
-            'change_summary': 'Updated synopsis.',
-            'previous_entry': '<p>Old text.</p>',
-            'proposed_entry': '<p>New text with allies.</p>',
-            'relation_changes': [
-                {
-                    'action': 'create',
-                    'relation': 'ally',
-                    'target_name': 'Vexara the Veiled',
-                    'attitude': 'cautious trust',
-                    'reason': 'Met at Ironhold.',
-                }
-            ],
-            'status': 'pending',
-        },
-    ]
-    queue_file = tmp_path / 'pending_changes.json'
-    with open(queue_file, 'w') as f:
-        json.dump(queue, f, indent=2)
-    return str(queue_file), tmp_path
-
-
-@pytest.fixture
-def app_with_queue(mock_queue):
-    """Create a Flask test client with the review_web app and a temp queue file."""
-    from kanka_wiki_updater.review_web import create_app
-
-    _queue_file, data_dir = mock_queue
-    # Override DATA_DIR so state.py reads our temp file
-    import kanka_wiki_updater.config as config
-    import kanka_wiki_updater.review_web as rw
-
-    original_data_dir = config.DATA_DIR
-    config.DATA_DIR = str(data_dir)
-
-    # Reset module-level sync job state between tests
-    rw._sync_jobs.clear()
-    rw._job_counter[0] = 0
-
-    app = create_app()
-    app.config['TESTING'] = True
-
-    client = app.test_client()
-
-    yield client
-
-    # Restore original DATA_DIR after test
-    config.DATA_DIR = original_data_dir
-
+# ── Fixtures moved to conftest.py (project-wide) ───────────────────────
 
 # ── App factory tests ───────────────────────────────────────────────────────
 
@@ -320,22 +253,17 @@ class TestIndexPage:
 
 
 class TestApiSyncRun:
-    def test_run_sync_starts_process(self, app_with_queue, monkeypatch):
-        """POST /api/sync/run spawns a subprocess and returns job_id."""
-        import unittest.mock
-
-        mock_proc = unittest.mock.MagicMock()
-        mock_proc.stdout = iter(['line1\n', 'line2\n'])
-        mock_proc.returncode = 0
-        mock_proc.wait = unittest.mock.MagicMock()
-
-        monkeypatch.setattr('kanka_wiki_updater.review_web.subprocess.Popen', lambda *args, **kw: mock_proc)
+    def test_run_sync_starts_process(self, app_with_queue):
+        """POST /api/sync/run spawns a background thread and returns job_id."""
+        from kanka_wiki_updater import review_web as rw
 
         resp = app_with_queue.post('/api/sync/run')
         assert resp.status_code == 200
         data = resp.get_json()
         assert 'job_id' in data
         assert data['status'] == 'running'
+        # Verify job was created in _sync_jobs
+        rw._sync_cancelled.clear()  # clean up for next test
 
 
 class TestApiSyncOutput:
