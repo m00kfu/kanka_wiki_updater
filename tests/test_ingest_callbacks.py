@@ -672,9 +672,9 @@ class TestSyncOutputWithBufferContent:
         resp = app_with_queue.get(f'/api/sync/output?job_id={job_id}')
         assert resp.status_code == 200
         body = resp.data.decode()
-        # Buffer content should be emitted as output events
-        assert '"type": "output"' in body
-        assert 'Kael' in body
+        # Buffered SSE lines are yielded directly (already properly formatted)
+        assert 'event: entity_progress' in body
+        assert '"name": "Kael"' in body
 
     def test_empty_buffer_still_streams_status(self, app_with_queue):
         from kanka_wiki_updater import review_web as rw

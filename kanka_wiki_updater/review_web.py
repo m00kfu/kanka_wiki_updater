@@ -148,9 +148,8 @@ class _SSECallbackEmitter:
         with _sync_lock:
             job = _sync_jobs.get(self.job_id)
             if job is not None and 'buffer' in job:
-                job['buffer'].append(
-                    f'event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n'
-                )
+                frame = f'event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n'
+                job['buffer'].append(frame)
 
     # -- public API --------------------------------------------------------
 
@@ -267,7 +266,10 @@ def create_app():
 
         if action == 'create':
             queue_manager.add_relation_change(
-                queue, index, action, target_name,
+                queue,
+                index,
+                action,
+                target_name,
                 relation=data.get('relation', ''),
                 attitude=data.get('attitude', ''),
                 reason=data.get('reason', ''),
@@ -278,12 +280,17 @@ def create_app():
                 return jsonify({'error': f"No relation to '{target_name}' found"}), 404
 
         elif action == 'update':
-            if queue_manager.update_relation_change(
-                    queue, index, target_name,
+            if (
+                queue_manager.update_relation_change(
+                    queue,
+                    index,
+                    target_name,
                     relation=data.get('relation', ''),
                     attitude=data.get('attitude', ''),
                     reason=data.get('reason', ''),
-            ) is None:
+                )
+                is None
+            ):
                 return jsonify({'error': f"No relation to '{target_name}' found"}), 404
 
         else:
@@ -525,6 +532,8 @@ def create_app():
                 entry = progress.get(key, {})
                 entry['status'] = 'processing'
                 progress[key] = entry
+            # Emit AFTER releasing the lock to avoid deadlock —
+            # emitter.entity_progress() also acquires _sync_lock internally.
             emitter.entity_progress('processing', name=entity_name, journal_name=journal_name)
 
         def on_journal_entities_discovered(journal_name, entity_names):
@@ -552,35 +561,52 @@ def create_app():
                 if error_msg:
                     entry['error_message'] = error_msg
                 progress[key] = entry
+            # Emit AFTER releasing the lock to avoid deadlock —
+            # emitter.entity_progress() also acquires _sync_lock internally.
             emitter.entity_progress(
-                status, name=entity_name, journal_name=journal_name,
+                status,
+                name=entity_name,
+                journal_name=journal_name,
                 error_message=error_msg,
             )
 
         def on_proposal_queued(proposal):
-            emitter.proposal_pushed({
-                'type': proposal.get('proposal_type', 'update'),
-                'name': proposal.get('entity_name', ''),
-                'kind': proposal.get('entity_kind', ''),
-                'status': 'pending',
-            })
+            emitter.proposal_pushed(
+                {
+                    'type': proposal.get('proposal_type', 'update'),
+                    'name': proposal.get('entity_name', ''),
+                    'kind': proposal.get('entity_kind', ''),
+                    'status': 'pending',
+                }
+            )
 
         def on_new_entity_suggestion(suggestion):
-            emitter.proposal_pushed({
-                'type': suggestion.get('proposal_type', 'new_entity'),
-                'name': suggestion.get('entity_name', ''),
-                'kind': suggestion.get('suggested_type', ''),
-                'status': 'pending',
-            })
+            emitter.proposal_pushed(
+                {
+                    'type': suggestion.get('proposal_type', 'new_entity'),
+                    'name': suggestion.get('entity_name', ''),
+                    'kind': suggestion.get('suggested_type', ''),
+                    'status': 'pending',
+                }
+            )
 
         def on_journal_completed(journal_name, entities_processed, suggestions_count):
-            # Mark all pending/processing entities from this journal as done.
+            # Collect keys to update while holding the lock, then emit events
+            # AFTER releasing it — emitter.entity_progress() also acquires
+            # _sync_lock internally, so doing both under the same lock would
+            # deadlock on a non-reentrant Lock().
+            keys_to_update = []
             with _sync_lock:
                 for key in list(progress.keys()):
                     if key[0] == journal_name and progress[key]['status'] in ('pending', 'processing'):
                         progress[key]['status'] = 'done'
+                        keys_to_update.append(key)
+            # Emit individual completion events outside the lock
+            for key in keys_to_update:
+                emitter.entity_progress('done', name=key[1], journal_name=journal_name)
             emitter.entity_progress(
-                'journal_complete', journal_name=journal_name,
+                'journal_complete',
+                journal_name=journal_name,
                 entities_processed=entities_processed,
                 suggestions_count=suggestions_count,
             )
@@ -603,6 +629,7 @@ def create_app():
             try:
                 from . import config as pkg_config
                 from .ingest_journal import run_ingest as ingest_run
+
                 client = KankaClient()
                 ingest_run(
                     client=client,
@@ -616,6 +643,7 @@ def create_app():
                         _sync_jobs[job_id]['finished_at'] = time.time()
             except Exception as e:
                 import traceback
+
                 print(f'[SYNC ERROR] {e}', file=sys.stderr, flush=True)
                 traceback.print_exc(file=sys.stderr, flush=True)
                 with _sync_lock:
@@ -650,10 +678,14 @@ def create_app():
             seen_progress_keys = set()  # track which progress keys already emitted
             try:
                 while True:
-                    # Drain any buffered lines first (from _SSECallbackEmitter)
+                    # Drain any buffered SSE lines from _SSECallbackEmitter.
+                    # Lines are already properly formatted SSE frames
+                    # ('event: <type>\ndata: {...}\n\n') — yield them directly
+                    # so the frontend receives typed events (entity_progress,
+                    # status_change, etc.) instead of double-wrapped message events.
                     while buffer:
                         line = buffer.popleft()
-                        yield f'event: message\ndata: {json.dumps({"type": "output", "text": line})}\n\n'
+                        yield line
                         idle_start = time.time()  # reset on data
 
                     # Also emit any entity progress entries that haven't been sent yet.
@@ -667,6 +699,12 @@ def create_app():
                             idle_start = time.time()
 
                     if job['status'] in ('completed', 'error', 'cancelled'):
+                        # Drain any remaining buffered events (e.g. final
+                        # entity completion or journal-complete events) before
+                        # closing the stream so the frontend sees them.
+                        while buffer:
+                            line = buffer.popleft()
+                            yield line
                         yield f'event: status\ndata: {json.dumps({"status": job["status"]})}\n\n'
                         yield 'event: end\n\n'
                         return
@@ -722,10 +760,6 @@ def create_app():
         return jsonify({'active': bool(jobs), 'jobs': jobs})
 
     return app
-
-
-
-
 
 
 def main():

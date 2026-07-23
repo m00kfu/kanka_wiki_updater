@@ -298,12 +298,18 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
             print(f'\nSync cancelled by user after processing {total_journals_processed} journal(s).')
             break
 
+        cancelled_during_journal = False
+
         t0 = time.time()
         mentioned = find_mentioned_entities(journal.get('entry', ''), index)
         new_candidates = propose_new_entities(journal, known_names)
         total_units = len(mentioned) + (1 if new_candidates else 0)
 
         journal_entity_count = 0
+
+        # Track which entities were started so we can emit completion callbacks
+        # even if one crashes mid-processing.
+        started_eids: list[int] = []
 
         # --- Discover entities for this journal (fast, no LLM) ---------------
         entity_names_for_journal = []
@@ -320,20 +326,58 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
                 journal.get('name', ''), entity_names_for_journal,
             )
 
-            # Process each mentioned entity
-            for eid in mentioned:
-                entity = index[eid]
-                cbs['entity_started'](entity['name'], journal.get('name', ''))
+            # Track per-entity success/failure for individual status emission
+            entity_ok = {}
 
-                proposal = propose_update(eid, entity, journal, index)
+            for eid in mentioned:
+                try:
+                    entity = index[eid]
+                except KeyError:
+                    print(f'      ! Entity {eid} not found in index — skipping', file=sys.stderr)
+                    continue
+
+                cbs['entity_started'](entity['name'], journal.get('name', ''))
+                started_eids.append(eid)
+
+                try:
+                    proposal = propose_update(eid, entity, journal, index)
+                except Exception as e:
+                    print(f'      ! Error processing {entity["name"]}: {e}', file=sys.stderr)
+                    proposal = {'_llm_error': str(e)}
+
                 if isinstance(proposal, dict) and 'proposal_type' in proposal:
                     state.append_to_queue([proposal])
                     total_proposals += 1
                     cbs['proposal_queued'](proposal)
                     journal_entity_count += 1
+                    entity_ok[eid] = True
+                elif isinstance(proposal, dict) and '_llm_error' in proposal:
+                    # LLM call failed — mark as error so the UI shows an
+                    # accurate status instead of staying on "processing".
+                    entity_ok[eid] = False
+                else:
+                    # No meaningful change (None or non-error dict) — still done,
+                    # just no proposal queued. Don't show as an error to the user.
+                    entity_ok[eid] = True
 
-            # New-entity scanning
-            if new_candidates:
+                # Emit completion status IMMEDIATELY after this entity's LLM call
+                # completes, so the UI updates in real-time instead of waiting for
+                # ALL entities to finish before showing any results.
+                ok = entity_ok.get(eid, False)
+                error_msg = 'LLM call failed' if not ok else None
+                cbs['llm_result'](entity['name'], journal.get('name', ''), ok, error_msg)
+
+                # Check for cancellation after each entity's LLM call completes.
+                # The in-flight LLM call cannot be interrupted, but subsequent
+                # entities won't start processing once cancelled.
+                if cancelled_event is not None and cancelled_event.is_set():
+                    print(f'\nSync cancelled by user after processing {journal_entity_count} entity(ies) for '
+                          f"'{journal.get('name', '')}'.")
+                    cancelled_during_journal = True
+                    break
+
+            # New-entity scanning (skip if cancelled mid-journal)
+            if new_candidates and not cancelled_during_journal:
                 print(
                     f'      + {len(new_candidates)} new entity suggestion(s): '
                     + ', '.join(f'{c["entity_name"]} ({c["suggested_type"]})' for c in new_candidates)
@@ -346,24 +390,25 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
 
             total_entities_processed += journal_entity_count + (len(new_candidates) if new_candidates else 0)
 
-        # Mark entity as done / error for each mentioned entity
-        if mentioned:
-            for eid in mentioned:
-                entity = index[eid]
-                cbs['llm_result'](entity['name'], journal.get('name', ''), True, None)
+        # Note: llm_result is now called inside the entity loop above,
+        # immediately after each entity's LLM call completes. This ensures
+        # real-time status updates in the UI instead of waiting for all
+        # entities to finish before showing any results.
 
-            if new_candidates:
-                for candidate in new_candidates:
-                    cbs['llm_result'](candidate['entity_name'], journal.get('name', ''), True, candidate)
+        # New-entity candidates always succeed (no LLM synopsis step).
+        if new_candidates and not cancelled_during_journal:
+            for candidate in new_candidates:
+                cbs['llm_result'](candidate['entity_name'], journal.get('name', ''), True, candidate)
 
-        # Mark journal as completed
+        # Mark journal as completed.
         total_journals_processed += 1
         cbs['journal_completed'](journal.get('name', f'Journal {i}'), journal_entity_count, len(new_candidates))
-
-        state.mark_journal_processed(journal['id'], title=journal.get('name'))
-        elapsed = time.time() - t0
-        mins, secs = divmod(int(elapsed), 60)
-        print(f"      ({i}/{len(to_process)}) '{journal.get('name')}' processed in {mins:02d}:{secs:02d}")
+        if not cancelled_during_journal:
+            state.mark_journal_processed(journal['id'], title=journal.get('name'))
+        if not cancelled_during_journal:
+            elapsed = time.time() - t0
+            mins, secs = divmod(int(elapsed), 60)
+            print(f"      ({i}/{len(to_process)}) '{journal.get('name')}' processed in {mins:02d}:{secs:02d}")
 
     # --- Phase 3: Finalize --------------------------------------------------
     if journals and len(to_process) == total_new:

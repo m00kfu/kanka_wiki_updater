@@ -210,8 +210,8 @@ function renderSyncContent(content) {
   var jobStatus = currentSyncJob ? currentSyncJob.status : 'idle';
 
   // Build sync header with status badge and controls
-  var btnText = (jobStatus === 'running' || !currentSyncJob) ? 'Run Sync' : 'Restart Sync';
-  if (jobStatus === 'cancelled') btnText = 'Re-run Sync';
+  var btnText = jobStatus === 'running' ? 'Cancel Sync' : (!currentSyncJob || jobStatus === 'completed' || jobStatus === 'error') ? 'Run Sync' : (jobStatus === 'cancelled' ? 'Re-run Sync' : 'Restart Sync');
+  var btnClass = jobStatus === 'running' ? 'btn-danger' : 'btn-primary';
 
   var html = '<div class="sync-progress-container">' +
     '<div class="sync-header">' +
@@ -219,7 +219,7 @@ function renderSyncContent(content) {
         '<span class="badge-dot"></span> ' + (jobStatus || 'idle').toUpperCase() +
       '</span>' +
       '<span class="sync-count-summary" id="syncCountSummary"></span>' +
-      '<button class="btn btn-primary" onclick="runSync()">' + btnText + '</button>' +
+      '<button class="btn ' + btnClass + '" onclick="runSync()">' + btnText + '</button>' +
     '</div>';
 
   if (jobStatus === 'idle') {
