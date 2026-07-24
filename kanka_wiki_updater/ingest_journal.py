@@ -345,6 +345,8 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
                     print(f'      ! Error processing {entity["name"]}: {e}', file=sys.stderr)
                     proposal = {'_llm_error': str(e)}
 
+                llm_result_data = None  # payload for llm_result callback
+
                 if isinstance(proposal, dict) and 'proposal_type' in proposal:
                     state.append_to_queue([proposal])
                     total_proposals += 1
@@ -355,17 +357,19 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
                     # LLM call failed — mark as error so the UI shows an
                     # accurate status instead of staying on "processing".
                     entity_ok[eid] = False
+                    llm_result_data = proposal  # carries _llm_error key
                 else:
-                    # No meaningful change (None or non-error dict) — still done,
-                    # just no proposal queued. Don't show as an error to the user.
+                    # No meaningful change — LLM decided skip (not an error).
+                    # Pass _no_proposal flag so downstream can mark as 'skipped'.
                     entity_ok[eid] = True
+                    llm_result_data = {'_no_proposal': True}
 
                 # Emit completion status IMMEDIATELY after this entity's LLM call
                 # completes, so the UI updates in real-time instead of waiting for
                 # ALL entities to finish before showing any results.
                 ok = entity_ok.get(eid, False)
                 error_msg = 'LLM call failed' if not ok else None
-                cbs['llm_result'](entity['name'], journal.get('name', ''), ok, error_msg)
+                cbs['llm_result'](entity['name'], journal.get('name', ''), ok, llm_result_data)
 
                 # Check for cancellation after each entity's LLM call completes.
                 # The in-flight LLM call cannot be interrupted, but subsequent

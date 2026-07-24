@@ -607,6 +607,7 @@ kbd {
 .entity-card.status-pending    { color: var(--text-dim); }
 .entity-card.status-processing { color: var(--amber); }
 .entity-card.status-done       { color: var(--green); }
+.entity-card.status-skipped    { color: var(--text-dim); opacity: 0.55; }
 .entity-card.status-error      { color: var(--red); cursor: default; }
 
 /* Inline error indicator & expandable detail */

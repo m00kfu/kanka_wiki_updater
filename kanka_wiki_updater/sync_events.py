@@ -27,4 +27,4 @@ EVENT_SYNC_START      = 'sync_start'
 EVENT_SYNC_COMPLETE   = 'sync_complete'
 
 # Accepted entity progress statuses
-ENTITY_STATUSES = ('pending', 'processing', 'done', 'error')
+ENTITY_STATUSES = ('pending', 'processing', 'done', 'skipped', 'error')

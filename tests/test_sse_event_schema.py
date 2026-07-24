@@ -60,7 +60,7 @@ class TestEntityStatuses:
     """Verify accepted entity progress statuses."""
 
     def test_all_statuses_defined(self, rw):
-        expected = ('pending', 'processing', 'done', 'error')
+        expected = ('pending', 'processing', 'done', 'skipped', 'error')
         assert rw.ENTITY_STATUSES == expected
 
     def test_no_duplicate_statuses(self, rw):

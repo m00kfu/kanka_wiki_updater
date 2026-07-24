@@ -47,7 +47,6 @@ try:
         ENTITY_STATUSES,
     )
     from .sync_orchestrator import start_sync as _start_sync
-    from .sync_pipeline import build_entity_index
 except ImportError:
     from kanka_wiki_updater import queue_manager, sync_engine
     from kanka_wiki_updater import synopsis_generator
@@ -60,7 +59,6 @@ except ImportError:
         ENTITY_STATUSES,
     )
     from kanka_wiki_updater.sync_orchestrator import start_sync as _start_sync
-    from kanka_wiki_updater.sync_pipeline import build_entity_index
 
 # KankaClient imported at module level so tests can mock it directly.
 # (sync_engine also imports it, but mocking review_web is more convenient.)
@@ -423,10 +421,17 @@ def create_app():
 
         def on_llm_result(entity_name, journal_name, ok, data):
             key = (journal_name, entity_name)
-            status = 'done' if ok else 'error'
-            error_msg = None
-            if not ok:
+
+            if isinstance(data, dict) and data.get('_no_proposal'):
+                status = 'skipped'
+                error_msg = None
+            elif not ok:
+                status = 'error'
                 error_msg = str(data) if data else 'LLM call failed'
+            else:
+                status = 'done'
+                error_msg = None
+
             with _sync_lock:
                 entry = progress.get(key, {})
                 entry['status'] = status

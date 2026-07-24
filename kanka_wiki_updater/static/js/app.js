@@ -283,7 +283,7 @@ function renderSyncContent(content) {
 
     for (var e = 0; e < entities.length; e++) {
       var ent = entities[e];
-      var iconMap = {'pending':'&#9675;', 'processing':'&#8635;', 'done':'&#10003;', 'error':'&#10007;'};
+      var iconMap = {'pending':'&#9675;', 'processing':'&#8635;', 'done':'&#10003;', 'skipped':'&#8617;', 'error':'&#10007;'};
       var icon = iconMap[ent.status] || '&#9675;';
 
       var errorHtml = '';
@@ -314,16 +314,20 @@ function renderSyncContent(content) {
   content.innerHTML = html;
 
   // Update count summary
-  var totalCount = 0, totalDone = 0;
+  var totalCount = 0, totalDone = 0, totalSkipped = 0;
   for (var k3 in syncEntities) {
     if (!syncEntities[k3]._meta && syncEntities[k3].journal_name) {
       totalCount++;
       if (syncEntities[k3].status === 'done') totalDone++;
+      else if (syncEntities[k3].status === 'skipped') totalSkipped++;
     }
   }
   var summaryEl = document.getElementById('syncCountSummary');
   if (summaryEl) {
-    summaryEl.textContent = totalCount + ' entities' + (totalDone > 0 ? ', ' + totalDone + ' done' : '');
+    var parts = [totalCount + ' entities'];
+    if (totalDone > 0) parts.push(totalDone + ' done');
+    if (totalSkipped > 0) parts.push(totalSkipped + ' skipped');
+    summaryEl.textContent = parts.join(', ');
   }
 }
 
@@ -842,12 +846,13 @@ document.addEventListener('keydown', function(e) {
 
 // ── Completion summary banner ─────────────────────────────
 
-function showCompletionSummary(total, done, errors, proposals) {
+function showCompletionSummary(total, done, skipped, errors, proposals) {
   var content = document.getElementById('content');
   if (!content || currentTab !== 'sync') return;
 
   var parts = [total + ' entity' + (total !== 1 ? 'ies' : '') + ' processed'];
   if (done > 0) parts.push(done + ' done');
+  if (skipped > 0) parts.push(skipped + ' skipped');
   if (errors > 0) parts.push(errors + ' error' + (errors !== 1 ? '' : 's'));
 
   var html = '<div class="sync-summary-banner">' +
@@ -1058,16 +1063,17 @@ async function runSync() {
     _renderSyncContent();
 
     // Show completion summary before refreshing proposals
-    var totalEntities = 0, doneCount = 0, errorCount = 0;
+    var totalEntities = 0, doneCount = 0, skippedCount = 0, errorCount = 0;
     for (var k in syncEntities) {
       if (!syncEntities[k]._meta && syncEntities[k].journal_name) {
         totalEntities++;
         if (syncEntities[k].status === 'done') doneCount++;
+        else if (syncEntities[k].status === 'skipped') skippedCount++;
         else if (syncEntities[k].status === 'error') errorCount++;
       }
     }
 
-    showCompletionSummary(totalEntities, doneCount, errorCount, 0);
+    showCompletionSummary(totalEntities, doneCount, skippedCount, errorCount, 0);
 
     // Refresh proposals from server to fill in full data
     loadProposals();
