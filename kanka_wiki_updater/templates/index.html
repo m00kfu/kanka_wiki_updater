@@ -18,7 +18,7 @@
     <button class="btn btn-secondary" onclick="cancelEdit()" style="padding:4px 12px;font-size:12px;">Cancel</button>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-  <div id="syncIndicator" style="display:none;background:#0d1f3a;border-bottom:1px solid var(--cyan);padding:6px 24px;font-size:12px;color:var(--cyan);align-items:center;gap:8px;">
+  <div id="syncIndicator" style="display:none;background:rgba(196,136,58,.07);border-bottom:1px solid var(--amber);padding:6px 24px;font-size:12px;color:var(--amber);align-items:center;gap:8px;">
     <span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span>
     <span id="syncIndicatorText">Sync running...</span>
   </div>
@@ -29,7 +29,7 @@
   <div class="action-bar" id="actionBar">
     <button class="btn btn-primary" onclick="approveAll()">Approve All</button>
     <button class="btn btn-secondary" onclick="approveSynopsisOnly()">Synopsis Only</button>
-    <button class="btn" onclick="regenerateProposal()" style="display:none;background:#1f6feb;color:white;border-color:#1f6feb" id="regenerateBtn">Regenerate</button>
+    <button class="btn btn-secondary" onclick="regenerateProposal()" style="display:none" id="regenerateBtn">Regenerate</button>
     <button class="btn btn-danger" onclick="rejectCurrent()">Reject</button>
     <div style="flex:1"></div>
     <span style="font-size:12px;color:var(--text-dim)">[n]ext [p]rev [e]dit [esc]cancel [a]pprove [s]ynopsis [g]enerate [r]eject [q]uit</span>

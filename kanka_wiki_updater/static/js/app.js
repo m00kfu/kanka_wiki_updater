@@ -18,6 +18,7 @@ function getVisibleIndices() {
     return proposals.reduce((acc, p, i) => { if (p.status !== 'pending') acc.push(i); return acc; }, []);
   }
 }
+
 function updateStats() {
   const pending = getPending();
   const applied = proposals.filter(p => p.status === 'applied').length;
@@ -37,28 +38,34 @@ function renderSidebar() {
     '<button class="tab-btn ' + (currentTab === "sync" ? "active" : "inactive") + '" data-tab="sync" onclick="switchTab(\'sync\')">Sync</button>' +
     '</div>';
   html += '<div class="sidebar-list">';
+
   let pending = proposals.filter(p => p.status === 'pending');
   if (currentTab === 'new') {
+    // New entities first, then updates — both sorted by name within type
     pending.sort((a, b) => {
       const aNew = a.proposal_type === 'new_entity' ? 0 : 1;
       const bNew = b.proposal_type === 'new_entity' ? 0 : 1;
-      return aNew - bNew;
+      return aNew - bNew || (a.entity_name || '').localeCompare(b.entity_name || '');
     });
   }
+
   const filtered = currentTab === 'new' ? pending : proposals.filter(p => p.status !== 'pending');
+
   for (let f = 0; f < filtered.length; f++) {
     const origIdx = proposals.indexOf(filtered[f]);
     var isActive = origIdx === selectedIndex ? ' active' : '';
     var kind = filtered[f].proposal_type === 'new_entity' ? 'NEW' : 'UPD';
     var badgeClass = filtered[f].proposal_type === 'new_entity' ? 'badge-new' : 'badge-upd';
     var statusBadge = '';
-    if (filtered[f].status === 'applied') { statusBadge = '<span style="color:var(--green)">&#10003;</span>'; }
-    else if (filtered[f].status === 'rejected') { statusBadge = '<span style="color:var(--red)">&#10007;</span>'; }
+    if (filtered[f].status === 'applied') { statusBadge = '<span style="color:var(--green);font-weight:700;">&#10003;</span>'; }
+    else if (filtered[f].status === 'rejected') { statusBadge = '<span style="color:var(--red);font-weight:700;">&#10007;</span>'; }
     var placeholderClass = (filtered[f]._sync_placeholder) ? ' sync-placeholder' : '';
+
     html += '<div class="proposal-item' + isActive + placeholderClass + '" onclick="selectProposal(' + origIdx + ')">' +
       '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + escapeJsHtml(filtered[f].entity_name) + statusBadge + '</div>' +
-      '<div class="meta">' + escapeJsHtml(filtered[f].source_journal) + '</div></div>';
+      '<div class="meta">' + escapeJsHtml(filtered[f].source_journal || '') + '</div></div>';
   }
+
   html += '</div>';
   sidebar.innerHTML = html;
 }
@@ -81,36 +88,37 @@ function renderContent() {
     renderSyncContent(content);
     return;
   }
+
   var p = proposals[selectedIndex];
   var html = '';
 
-  // Header
+  // ── Header ────────────────────────────────────────────────
   if (p.proposal_type === 'new_entity') {
-    html += '<div class="proposal-header"><h2>New ' + p.suggested_type + ': <span id="entityNameDisplay">' + escapeJsHtml(p.entity_name) + '</span></h2>';
+    html += '<div class="proposal-header"><h2>New <span style="font-weight:400;color:var(--text-dim);font-size:16px">' + escapeJsHtml(p.suggested_type) + '</span>: <span id="entityNameDisplay">' + escapeJsHtml(p.entity_name) + '</span></h2>';
     var sourceLink = p._source_journal_url ? '<a href="' + p._source_journal_url + '" target="_blank" rel="noopener noreferrer">' : '';
     var sourceClose = p._source_journal_url ? '</a>' : '';
-    html += '<div class="source">&larr; ' + sourceLink + escapeJsHtml(p.source_journal) + sourceClose + '</div></div>';
+    html += '<div class="source">&#8592; ' + sourceLink + escapeJsHtml(p.source_journal) + sourceClose + '</div></div>';
   } else {
-    var statusIcon = {pending:'&#9675;', applied:'<span style="color:var(--green)">&#10003;</span>', rejected:'<span style="color:var(--red)">&#10007;</span>'}[p.status] || '&#9675;';
+    var statusIcon = {'pending':'&#9675;', 'applied':'<span style="color:var(--green);font-weight:700;">&#10003;</span>', 'rejected':'<span style="color:var(--red);font-weight:700;">&#10007;</span>'}[p.status] || '&#9675;';
     html += '<div class="proposal-header"><h2>' + statusIcon + ' ' + escapeJsHtml(p.entity_name) + ' <span style="font-weight:400;color:var(--text-dim);font-size:16px">(' + p.entity_kind + ')</span></h2>';
     var sourceLink = p._source_journal_url ? '<a href="' + p._source_journal_url + '" target="_blank" rel="noopener noreferrer">' : '';
     var sourceClose = p._source_journal_url ? '</a>' : '';
-    html += '<div class="source">&larr; ' + sourceLink + escapeJsHtml(p.source_journal) + sourceClose + '</div>';
+    html += '<div class="source">&#8592; ' + sourceLink + escapeJsHtml(p.source_journal) + sourceClose + '</div>';
     if (p.change_summary) { html += '<div class="summary">' + escapeJsHtml(p.change_summary) + '</div>'; }
     html += '</div>';
 
     // Regenerate link for update proposals
     html += '<div style="padding:8px 0">' +
-      '<button class="btn" onclick="regenerateProposal()" style="font-size:12px;padding:4px 12px;">&#x21bb; Regenerate Proposal</button>' +
+      '<button class="btn" onclick="regenerateProposal()" style="font-size:12px;padding:4px 12px;">&#8635; Regenerate Proposal</button>' +
       ' <span style="font-size:11px;color:var(--text-dim)">or press [g]</span></div>';
   }
 
-  // Warnings for dropped mentions (all proposal types)
+  // ── Warnings ──────────────────────────────────────────────
   var prevEntry = p.previous_entry || '';
   var proposedEntry = p.proposed_entry || '';
   if (prevEntry && proposedEntry) {
-    var oldIds = (prevEntry.match(/\\[entity:(\\d+)\\]/g) || []).map(function(s){ return s.match(/(\\d+)/)[1]; });
-    var newIds = (proposedEntry.match(/\\[entity:(\\d+)\\]/g) || []).map(function(s){ return s.match(/(\\d+)/)[1]; });
+    var oldIds = (prevEntry.match(/\[entity:(\d+)\]/g) || []).map(function(s){ return s.match(/(\d+)/)[1]; });
+    var newIds = (proposedEntry.match(/\[entity:(\d+)\]/g) || []).map(function(s){ return s.match(/(\d+)/)[1]; });
     var dropped = oldIds.filter(function(x){ return newIds.indexOf(x) === -1; });
     if (dropped.length > 0) {
       html += '<div class="warning critical">!! ' + dropped.length + ' mention link(s) missing from new version!</div>';
@@ -135,18 +143,18 @@ function renderContent() {
     html += '<div class="warning critical">&#9888; WARNING: The proposed synopsis (' + newLen + ' chars) is much shorter than the previous version (' + prevLen + ' chars). This likely means old content was summarized/condensed instead of preserved. Review carefully.</div>';
   }
 
-  // Synopsis / draft editing area
+  // ── Synopsis / draft editing area ─────────────────────────
   html += '<div class="diff-section"><h3>' + (p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis') + '</h3><div class="diff-container">';
   if (editingField === 'synopsis') {
     var currentText = p.proposal_type === 'new_entity' ? p.draft_entry : p.proposed_entry;
-    html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtmlForTextarea(stripHtml(currentText) || '') + '</textarea>';
+    html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtmlForTextarea(stripHtml(currentText || '')) + '</textarea>';
   } else {
     if (p.proposal_type === 'new_entity') {
-      html += '<div class="diff-line" style="cursor:pointer" onclick="startEdit(\'synopsis\')">' + renderJournalLinks(p.draft_entry || '(none)') + '</div>';
-      html += '<div style="padding:4px 12px;font-size:11px;color:var(--text-dim)">Click to edit</div>';
+      html += '<div class="diff-line" style="cursor:pointer;padding:16px;min-height:60px;" onclick="startEdit(\'synopsis\')">' + renderJournalLinks(p.draft_entry || '(none)') + '</div>';
+      html += '<div style="padding:4px 14px;font-size:11px;color:var(--text-dim)">Click to edit</div>';
     } else {
-      var prevLines = stripHtml(p.previous_entry).split('\\n');
-      var newLines = (p.proposed_entry || '').split('\\n');
+      var prevLines = stripHtml(p.previous_entry).split('\n');
+      var newLines = (p.proposed_entry || '').split('\n');
       var maxLen = Math.max(prevLines.length, newLines.length);
       for (var i = 0; i < maxLen; i++) {
         if (i >= prevLines.length) {
@@ -157,27 +165,28 @@ function renderContent() {
           html += '<div class="diff-line diff-del">' + escapeJsHtml(prevLines[i]) + '</div>';
           html += '<div class="diff-line diff-add">' + renderJournalLinks(newLines[i]) + '</div>';
         } else {
-          html += '<div class="diff-line" style="padding-left:20px">' + escapeJsHtml(prevLines[i]) + '</div>';
+          html += '<div class="diff-line" style="padding-left:20px;color:var(--text-dim)">' + escapeJsHtml(prevLines[i]) + '</div>';
         }
       }
     }
   }
   html += '</div></div>';
 
-  // Relation changes (update proposals only)
+  // ── Relation changes (update proposals only) ──────────────
   if (p.relation_changes && p.relation_changes.length > 0) {
     html += '<div class="diff-section"><h3>Relationship Changes</h3><div class="relations-list">';
-    p.relation_changes.forEach(function(rc, idx) {
+    for (var rcIdx = 0; rcIdx < p.relation_changes.length; rcIdx++) {
+      var rc = p.relation_changes[rcIdx];
       var actionClass = rc.action === 'create' ? 'rel-create' : rc.action === 'update' ? 'rel-update' : 'rel-delete';
-      html += '<div class="relation-card" id="rel-' + idx + '">' +
+      html += '<div class="relation-card" id="rel-' + rcIdx + '">' +
         '<div class="rel-header">' +
           '<span class="rel-action ' + actionClass + '">' + escapeJsHtml(rc.action) + '</span>' +
           '<span class="rel-target">' + escapeJsHtml(p.entity_name) + ' --' + escapeJsHtml(rc.relation) + '--> ' + escapeJsHtml(rc.target_name) + '</span>' +
-          '<button class="btn" onclick="deleteRelation(' + idx + ')" style="padding:2px 8px;font-size:11px;margin-left:auto;">Delete</button>' +
+          '<button class="btn" onclick="deleteRelation(' + rcIdx + ')" style="padding:2px 8px;font-size:11px;margin-left:auto;">Delete</button>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text-dim)">Attitude: ' + escapeJsHtml(rc.attitude || 'N/A') + '</div>' +
         '<div class="rel-reason">Reason: ' + escapeJsHtml(rc.reason) + '</div></div>';
-    });
+    }
     html += '</div>';
 
     // Add new relation form
@@ -190,7 +199,7 @@ function renderContent() {
     html += '</div>';
   }
 
-  // Status indicator
+  // ── Status indicator ──────────────────────────────────────
   if (p.status !== 'pending') {
     var statusColor = p.status === 'applied' ? 'var(--green)' : 'var(--red)';
     html += '<div style="text-align:center;padding:16px;color:' + statusColor + ';font-weight:600;font-size:14px">Status: ' + p.status.toUpperCase() + '</div>';
@@ -210,8 +219,20 @@ function renderSyncContent(content) {
   var jobStatus = currentSyncJob ? currentSyncJob.status : 'idle';
 
   // Build sync header with status badge and controls
-  var btnText = jobStatus === 'running' ? 'Cancel Sync' : (!currentSyncJob || jobStatus === 'completed' || jobStatus === 'error') ? 'Run Sync' : (jobStatus === 'cancelled' ? 'Re-run Sync' : 'Restart Sync');
-  var btnClass = jobStatus === 'running' ? 'btn-danger' : 'btn-primary';
+  var btnText, btnClass;
+  if (jobStatus === 'running') {
+    btnText = 'Cancel Sync';
+    btnClass = 'btn-danger';
+  } else if (!currentSyncJob || jobStatus === 'completed' || jobStatus === 'error') {
+    btnText = 'Run Sync';
+    btnClass = 'btn-primary';
+  } else if (jobStatus === 'cancelled') {
+    btnText = 'Re-run Sync';
+    btnClass = 'btn-primary';
+  } else {
+    btnText = 'Restart Sync';
+    btnClass = 'btn-primary';
+  }
 
   var html = '<div class="sync-progress-container">' +
     '<div class="sync-header">' +
@@ -247,27 +268,27 @@ function renderSyncContent(content) {
     var journalName = order[g];
     // Collect entities for this journal
     var entities = [];
-    for (var k in syncEntities) {
-      if (!syncEntities[k]._meta && syncEntities[k].journal_name === journalName) {
-        entities.push(syncEntities[k]);
+    for (var k2 in syncEntities) {
+      if (!syncEntities[k2]._meta && syncEntities[k2].journal_name === journalName) {
+        entities.push(syncEntities[k2]);
       }
     }
 
     var doneCount = 0;
-    for (var e2 = 0; e2 < entities.length; e2++) {
-      if (entities[e2].status === 'done') doneCount++;
+    for (var eIdx = 0; eIdx < entities.length; eIdx++) {
+      if (entities[eIdx].status === 'done') doneCount++;
     }
 
     html += '<div class="journal-group">' +
-      '<div class="journal-group-header">' +
-        '&#x1f4d6; ' + escapeJsHtml(journalName) +
+      '<div class="journal-group-header">&#128203; ' + escapeJsHtml(journalName) +
         '<span class="group-progress">(' + entities.length + ' entity' + (entities.length !== 1 ? 'ies' : '') + ', ' + doneCount + '/' + entities.length + ' done)</span>' +
       '</div>' +
       '<div class="entity-cards">';
 
     for (var e = 0; e < entities.length; e++) {
       var ent = entities[e];
-      var icon = {'pending':'&#9675;', 'processing':'&#8635;', 'done':'&#10003;', 'error':'&#10007;'}[ent.status] || '&#9675;';
+      var iconMap = {'pending':'&#9675;', 'processing':'&#8635;', 'done':'&#10003;', 'error':'&#10007;'};
+      var icon = iconMap[ent.status] || '&#9675;';
       html += '<div class="entity-card status-' + ent.status + '" title=' +
         (ent.error_message ? escapeJs(ent.error_message) : (ent.status === 'processing' ? 'Processing...' : '')) + '>' +
         '<span class="entity-icon">' + icon + '</span>' +
@@ -287,15 +308,14 @@ function renderSyncContent(content) {
   }
 
   html += '</div>'; // close sync-progress-container
-
   content.innerHTML = html;
 
   // Update count summary
   var totalCount = 0, totalDone = 0;
-  for (var k in syncEntities) {
-    if (!syncEntities[k]._meta && syncEntities[k].journal_name) {
+  for (var k3 in syncEntities) {
+    if (!syncEntities[k3]._meta && syncEntities[k3].journal_name) {
       totalCount++;
-      if (syncEntities[k].status === 'done') totalDone++;
+      if (syncEntities[k3].status === 'done') totalDone++;
     }
   }
   var summaryEl = document.getElementById('syncCountSummary');
@@ -308,7 +328,7 @@ async function selectProposal(i) {
   // Resolve sync-placeholder proposals by fetching full data from server
   if (proposals[i] && proposals[i]._sync_placeholder) {
     showLoading('Resolving proposal...', 'Fetching full data for: ' + proposals[i].entity_name);
-    
+
     var result = await apiCall('/api/proposals', 'GET');
     hideLoading();
     if (!result) return;
@@ -337,6 +357,8 @@ async function selectProposal(i) {
   renderContent();
 }
 
+// ── Text utilities ────────────────────────────────────────
+
 function escapeHtml(text) {
   var div = document.createElement('div');
   div.appendChild(document.createTextNode(text || ''));
@@ -349,13 +371,13 @@ function escapeJsHtml(str) {
     .replace(/\\n/g, '\\n').replace(/\\r/g, '\\r');
 }
 
-
 function escapeHtmlForTextarea(str) {
   return escapeHtml(str || '');
 }
 
 function escapeJs(str) {
-  return (str || '').replace(/\\/g, '\\\\\\\\').replace(/'/g, "\\'").replace(/"/g, '\\\\"').replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/\\//g, '\\/');
+  return (str || '').replace(/\\/g, '\\\\\\\\').replace(/'/g, "\\'").replace(/"/g, '\\\\"')
+    .replace(/\n/g, '\\\\n').replace(/\r/g, '\\\\r').replace(/\//g, '\\/');
 }
 
 function stripHtml(html) {
@@ -368,14 +390,14 @@ function renderJournalLinks(text) {
   return escapeJsHtml(text);
 }
 
-// ── Actions ────────────────────────────────────────────────────────────────
+// ── API calls ─────────────────────────────────────────────
 
 async function apiCall(url, method, body) {
   try {
     var res = await fetch(url, {
       method: method,
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
+      body: JSON.stringify(body || {})
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return await res.json();
@@ -384,6 +406,8 @@ async function apiCall(url, method, body) {
     return null;
   }
 }
+
+// ── Actions ───────────────────────────────────────────────
 
 async function approveAll() {
   if (selectedIndex === null) return;
@@ -460,7 +484,7 @@ function _advance(fromIndex) {
   renderContent();
 }
 
-// ── Editor ─────────────────────────────────────────────────────────────────
+// ── Editor ────────────────────────────────────────────────
 
 function startEdit(field) {
   editingField = field;
@@ -496,7 +520,7 @@ function cancelEdit() {
   renderContent();
 }
 
-// ── Relation management ────────────────────────────────────────────────────
+// ── Relation management ───────────────────────────────────
 
 async function addRelation() {
   if (selectedIndex === null) return;
@@ -533,7 +557,7 @@ async function deleteRelation(idx) {
   }
 }
 
-// ── Truncation regeneration ────────────────────────────────────────────────
+// ── Truncation regeneration ───────────────────────────────
 
 async function regenerateProposal() {
   if (selectedIndex === null) return;
@@ -557,7 +581,7 @@ async function regenerateProposal() {
   }
 }
 
-// ── Toast ──────────────────────────────────────────────────────────────────
+// ── Toast notifications ───────────────────────────────────
 
 function showToast(message, type) {
   var toast = document.getElementById('toast');
@@ -566,7 +590,7 @@ function showToast(message, type) {
   setTimeout(function(){ toast.classList.remove('show'); }, 7000);
 }
 
-// ── Loading overlay ─────────────────────────────────────────────────────────
+// ── Loading overlay ───────────────────────────────────────
 
 var _loadingRefreshInterval = null;
 
@@ -609,15 +633,15 @@ function hideLoading() {
   }
 }
 
-// ── Keyboard shortcuts ─────────────────────────────────────────────────────
+// ── Keyboard shortcuts ────────────────────────────────────
 
 document.addEventListener('keydown', function(e) {
   if (editingField || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
   switch(e.key.toLowerCase()) {
     case 'n': {
-      const visible = getVisibleIndices();
-      const pos = visible.indexOf(selectedIndex);
+      var visible = getVisibleIndices();
+      var pos = visible.indexOf(selectedIndex);
       if (pos !== null && pos < visible.length - 1) {
         selectedIndex = visible[pos + 1];
         renderSidebar();
@@ -626,10 +650,10 @@ document.addEventListener('keydown', function(e) {
       break;
     }
     case 'p': {
-      const visible = getVisibleIndices();
-      const pos = visible.indexOf(selectedIndex);
-      if (pos !== null && pos > 0) {
-        selectedIndex = visible[pos - 1];
+      var visible2 = getVisibleIndices();
+      var pos2 = visible2.indexOf(selectedIndex);
+      if (pos2 !== null && pos2 > 0) {
+        selectedIndex = visible2[pos2 - 1];
         renderSidebar();
         renderContent();
       }
@@ -644,7 +668,7 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// ── Escape key to cancel editing ───────────────────────────────────────────
+// ── Escape key to cancel editing ──────────────────────────
 
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape' || !editingField) return;
@@ -655,7 +679,7 @@ document.addEventListener('keydown', function(e) {
   cancelEdit();
 });
 
-// ── Sync pipeline runner (typed SSE dispatch) ──────────────────────────────
+// ── Sync pipeline runner (typed SSE dispatch) ─────────────
 
 function _addJournalGroup(journalName) {
   if (!syncEntities['__journal_order__']) { syncEntities['__journal_order__'] = []; }
@@ -738,12 +762,12 @@ async function runSync() {
 
     // Avoid duplicate placeholders for the same entity+journal combo
     var found = false;
-    for (var i = 0; i < proposals.length; i++) {
-      if (proposals[i].entity_name === data.name &&
-          proposals[i]._sync_placeholder &&
-          proposals[i].source_journal === 'Syncing...') {
+    for (var i2 = 0; i2 < proposals.length; i2++) {
+      if (proposals[i2].entity_name === data.name &&
+          proposals[i2]._sync_placeholder &&
+          proposals[i2].source_journal === 'Syncing...') {
         // Update existing placeholder
-        proposals[i] = Object.assign(proposals[i], placeholder);
+        proposals[i2] = Object.assign(proposals[i2], placeholder);
         found = true;
         break;
       }
@@ -776,21 +800,23 @@ async function runSync() {
     loadProposals();
   });
 }
+
 function loadProposals() {
   fetch('/api/proposals')
     .then(function(r){ return r.json(); })
     .then(function(data) {
       var existing = proposals.slice();
-      for (var i = 0; i < data.length; i++) {
-        var found = false;
-        for (var j = 0; j < existing.length; j++) {
-          if (existing[j].entity_name === data[i].entity_name && existing[j].source_journal === data[i].source_journal) {
-            existing[j] = data[i];
-            found = true;
+      for (var i3 = 0; i3 < data.length; i3++) {
+        var found2 = false;
+        for (var j2 = 0; j2 < existing.length; j2++) {
+          if (existing[j2].entity_name === data[i3].entity_name &&
+              existing[j2].source_journal === data[i3].source_journal) {
+            existing[j2] = data[i3];
+            found2 = true;
             break;
           }
         }
-        if (!found) { existing.push(data[i]); }
+        if (!found2) { existing.push(data[i3]); }
       }
       proposals = existing;
       updateStats();
@@ -800,7 +826,7 @@ function loadProposals() {
     .catch(function() { /* silently ignore — keep current state */ });
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────
 
 updateStats();
 renderSidebar();
@@ -809,7 +835,7 @@ else { document.getElementById('content').innerHTML = '<div class="empty-state">
 
 setInterval(updateStats, 5000);
 
-// ── Background sync indicator (header bar when pipeline runs) ───────────────
+// ── Background sync indicator (header bar when pipeline runs) ──
 
 function updateSyncIndicator() {
   var indicator = document.getElementById('syncIndicator');
@@ -818,8 +844,8 @@ function updateSyncIndicator() {
     var statusText = 'Sync: Running';
     // Count entities in sync state for the header bar
     var entityCount = 0;
-    for (var k in syncEntities) {
-      if (!syncEntities[k]._meta && syncEntities[k].journal_name) entityCount++;
+    for (var k4 in syncEntities) {
+      if (!syncEntities[k4]._meta && syncEntities[k4].journal_name) entityCount++;
     }
     if (entityCount > 0) {
       statusText += ' — ' + entityCount + ' entities';
