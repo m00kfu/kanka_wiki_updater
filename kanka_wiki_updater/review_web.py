@@ -711,7 +711,8 @@ def create_app():
 
                     # Idle timeout — prevent forever-blocking generators.
                     if time.time() - idle_start > _SSE_IDLE_TIMEOUT:
-                        break
+                        yield 'event: end\n\n'
+                        return
 
                     time.sleep(0.2)  # poll interval
             except GeneratorExit:

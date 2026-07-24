@@ -2,6 +2,7 @@ let selectedIndex = null;
 let currentTab = 'new'; // default tab
 let editingField = null; // 'synopsis' or 'name' for new entities
 let editingOriginal = ''; // original text when entering edit mode (for escape-to-cancel)
+let diffViewMode = 'unified'; // or 'side-by-side'
 let currentSyncJob = null; // {job_id, status}
 let syncEventSource = null; // EventSource reference for proper cleanup
 
@@ -109,8 +110,7 @@ function renderContent() {
 
     // Regenerate link for update proposals
     html += '<div style="padding:8px 0">' +
-      '<button class="btn" onclick="regenerateProposal()" style="font-size:12px;padding:4px 12px;">&#8635; Regenerate Proposal</button>' +
-      ' <span style="font-size:11px;color:var(--text-dim)">or press [g]</span></div>';
+      '<button class="btn" onclick="regenerateProposal()" style="font-size:12px;padding:4px 12px;">&#8635; Regenerate Proposal</button></div>';
   }
 
   // ── Warnings ──────────────────────────────────────────────
@@ -144,7 +144,14 @@ function renderContent() {
   }
 
   // ── Synopsis / draft editing area ─────────────────────────
-  html += '<div class="diff-section"><h3>' + (p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis') + '</h3><div class="diff-container">';
+  var synopsisHeading = p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis';
+  var toggleBtn = '';
+  if (p.proposal_type !== 'new_entity') {
+    var isSideBySide = diffViewMode === 'side-by-side';
+    toggleBtn = '<button class="diff-view-toggle" onclick="toggleDiffView()" title="Switch to side-by-side view">' +
+      (isSideBySide ? '&#9775; Unified' : '&#9642; Side-by-Side') + '</button>';
+  }
+  html += '<div class="diff-section"><h3>' + synopsisHeading + ' ' + toggleBtn + '</h3><div class="diff-container">';
   if (editingField === 'synopsis') {
     var currentText = p.proposal_type === 'new_entity' ? p.draft_entry : p.proposed_entry;
     html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtmlForTextarea(stripHtml(currentText || '')) + '</textarea>';
@@ -152,22 +159,10 @@ function renderContent() {
     if (p.proposal_type === 'new_entity') {
       html += '<div class="diff-line" style="cursor:pointer;padding:16px;min-height:60px;" onclick="startEdit(\'synopsis\')">' + renderJournalLinks(p.draft_entry || '(none)') + '</div>';
       html += '<div style="padding:4px 14px;font-size:11px;color:var(--text-dim)">Click to edit</div>';
+    } else if (diffViewMode === 'side-by-side') {
+      html += renderSideBySideDiff(p.previous_entry, p.proposed_entry);
     } else {
-      var prevLines = stripHtml(p.previous_entry).split('\n');
-      var newLines = (p.proposed_entry || '').split('\n');
-      var maxLen = Math.max(prevLines.length, newLines.length);
-      for (var i = 0; i < maxLen; i++) {
-        if (i >= prevLines.length) {
-          html += '<div class="diff-line diff-add">' + renderJournalLinks(newLines[i]) + '</div>';
-        } else if (i >= newLines.length) {
-          html += '<div class="diff-line diff-del">' + escapeJsHtml(prevLines[i]) + '</div>';
-        } else if (prevLines[i] !== newLines[i]) {
-          html += '<div class="diff-line diff-del">' + escapeJsHtml(prevLines[i]) + '</div>';
-          html += '<div class="diff-line diff-add">' + renderJournalLinks(newLines[i]) + '</div>';
-        } else {
-          html += '<div class="diff-line" style="padding-left:20px;color:var(--text-dim)">' + escapeJsHtml(prevLines[i]) + '</div>';
-        }
-      }
+      html += renderUnifiedDiff(p.previous_entry, p.proposed_entry);
     }
   }
   html += '</div></div>';
@@ -239,6 +234,7 @@ function renderSyncContent(content) {
       '<span class="sync-status-badge ' + jobStatus + '">' +
         '<span class="badge-dot"></span> ' + (jobStatus || 'idle').toUpperCase() +
       '</span>' +
+      '<span class="sync-elapsed" id="syncElapsed"></span>' +
       '<span class="sync-count-summary" id="syncCountSummary"></span>' +
       '<button class="btn ' + btnClass + '" onclick="runSync()">' + btnText + '</button>' +
     '</div>';
@@ -289,14 +285,21 @@ function renderSyncContent(content) {
       var ent = entities[e];
       var iconMap = {'pending':'&#9675;', 'processing':'&#8635;', 'done':'&#10003;', 'error':'&#10007;'};
       var icon = iconMap[ent.status] || '&#9675;';
-      html += '<div class="entity-card status-' + ent.status + '" title=' +
-        (ent.error_message ? escapeJs(ent.error_message) : (ent.status === 'processing' ? 'Processing...' : '')) + '>' +
-        '<span class="entity-icon">' + icon + '</span>' +
-        escapeJsHtml(ent.name);
+
+      var errorHtml = '';
       if (ent.error_message) {
-        html += '<span class="error-tip">Error</span>';
+        var errId = 'err-' + Math.random().toString(36).substr(2, 8);
+        errorHtml = '<span class="error-indicator" data-error-id="' + errId + '" onclick="toggleErrorDetail(event)">&#9888;</span>' +
+            '<div class="error-detail" id="' + errId + '" style="display:none;">' +
+              escapeJsHtml(ent.error_message) +
+              ' <span class="error-close" onclick="closeErrorDetail(\'' + errId.replace(/'/g, "\\'") + '\')" style="cursor:pointer;margin-left:8px;color:var(--text-dim);">&#10007;</span>' +
+            '</div>';
       }
-      html += '</div>';
+
+      html += '<div class="entity-card status-' + ent.status + '">' +
+          '<span class="entity-icon">' + icon + '</span>' +
+          escapeJsHtml(ent.name) + errorHtml +
+        '</div>';
     }
 
     html += '</div></div>'; // close entity-cards, journal-group
@@ -388,6 +391,142 @@ function stripHtml(html) {
 
 function renderJournalLinks(text) {
   return escapeJsHtml(text);
+}
+
+// ── Diff helpers (LCS-based line diff) ───────────────────
+
+function normalizeDiffLines(text) {
+  // Strip HTML and trim each line to avoid false diffs from whitespace
+  // differences introduced by <p>, </p>, or other block-level tags.
+  var stripped = stripHtml(text || '');
+  return stripped.split('\n').map(function(l){ return l.trim(); });
+}
+
+function computeDiff(oldLines, newLines) {
+  // Returns array of {type:'keep'|'del'|'add', line: string}
+  var m = oldLines.length, n = newLines.length;
+  if (m === 0 && n === 0) return [];
+
+  // Build LCS table bottom-up
+  var dp = [];
+  for (var i = 0; i <= m; i++) {
+    dp[i] = new Array(n + 1).fill(0);
+  }
+  for (var i = m - 1; i >= 0; i--) {
+    for (var j = n - 1; j >= 0; j--) {
+      if (oldLines[i] === newLines[j]) {
+        dp[i][j] = dp[i + 1][j + 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+  }
+
+  // Backtrack to produce operations
+  var ops = [];
+  var i = 0, j = 0;
+  while (i < m || j < n) {
+    if (i < m && j < n && oldLines[i] === newLines[j]) {
+      ops.push({ type: 'keep', line: oldLines[i] });
+      i++; j++;
+    } else if (i < m && (j >= n || dp[i][j] === dp[i + 1][j])) {
+      ops.push({ type: 'del', line: oldLines[i] });
+      i++;
+    } else {
+      ops.push({ type: 'add', line: newLines[j] });
+      j++;
+    }
+  }
+  return ops;
+}
+
+function renderUnifiedDiff(prevText, newText) {
+  var prevLines = normalizeDiffLines(prevText);
+  var newLines = normalizeDiffLines(newText);
+  var ops = computeDiff(prevLines, newLines);
+
+  // Check if there are actual changes
+  var hasChanges = false;
+  for (var i = 0; i < ops.length; i++) {
+    if (ops[i].type !== 'keep') { hasChanges = true; break; }
+  }
+  if (!hasChanges) {
+    return '<div class="empty-diff">No changes</div>';
+  }
+
+  var html = '';
+  for (var i = 0; i < ops.length; i++) {
+    if (ops[i].type === 'keep') {
+      html += '<div class="diff-line" style="padding-left:20px;color:var(--text-dim)">' + escapeJsHtml(ops[i].line) + '</div>';
+    } else if (ops[i].type === 'del') {
+      html += '<div class="diff-line diff-del">' + escapeJsHtml(ops[i].line) + '</div>';
+    } else {
+      html += '<div class="diff-line diff-add">' + renderJournalLinks(ops[i].line) + '</div>';
+    }
+  }
+  return html;
+}
+
+function renderSideBySideDiff(prevText, newText) {
+  var prevLines = normalizeDiffLines(prevText);
+  var newLines = normalizeDiffLines(newText);
+  var ops = computeDiff(prevLines, newLines);
+
+  // Check if there are actual changes
+  var hasChanges = false;
+  for (var i = 0; i < ops.length; i++) {
+    if (ops[i].type !== 'keep') { hasChanges = true; break; }
+  }
+  if (!hasChanges) {
+    return '<div class="empty-diff">No changes</div>';
+  }
+
+  // Group operations into rows: each row has at most one old-line and one new-line
+  var rows = [];
+  for (var i = 0; i < ops.length; i++) {
+    if (ops[i].type === 'keep') {
+      rows.push({ left: ops[i].line, right: ops[i].line });
+    } else if (ops[i].type === 'del' && i + 1 < ops.length && ops[i + 1].type === 'add') {
+      // Paired change — show old and new on same row
+      rows.push({ left: ops[i].line, right: ops[i + 1].line });
+      i++;
+    } else if (ops[i].type === 'del') {
+      rows.push({ left: ops[i].line, right: null });
+    } else {
+      rows.push({ left: null, right: ops[i].line });
+    }
+  }
+
+  var html = '<div class="diff-columns">';
+  // Left column header + content
+  html += '<div class="diff-column diff-column-left"><div class="diff-col-header">Previous</div>';
+  for (var r = 0; r < rows.length; r++) {
+    if (rows[r].left !== null) {
+      html += '<div class="diff-line diff-del">' + escapeJsHtml(rows[r].left) + '</div>';
+    } else {
+      html += '<div class="diff-line diff-empty"></div>';
+    }
+  }
+  html += '</div>';
+
+  // Right column header + content
+  html += '<div class="diff-column diff-column-right"><div class="diff-col-header">Proposed</div>';
+  for (var r = 0; r < rows.length; r++) {
+    if (rows[r].right !== null) {
+      html += '<div class="diff-line diff-add">' + renderJournalLinks(rows[r].right) + '</div>';
+    } else {
+      html += '<div class="diff-line diff-empty"></div>';
+    }
+  }
+  html += '</div></div>';
+
+  return html;
+}
+
+function toggleDiffView() {
+  if (editingField) return;
+  diffViewMode = diffViewMode === 'unified' ? 'side-by-side' : 'unified';
+  renderContent();
 }
 
 // ── API calls ─────────────────────────────────────────────
@@ -668,9 +807,31 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// ── Shortcuts dropdown toggle ─────────────────────────────
+
+function toggleShortcuts() {
+  var dd = document.getElementById('shortcutsDropdown');
+  dd.classList.toggle('visible');
+}
+
+function hideShortcuts() {
+  var dd = document.getElementById('shortcutsDropdown');
+  if (dd) dd.classList.remove('visible');
+}
+
+// Close shortcuts dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('shortcutsDropdown');
+  var btn = document.getElementById('shortcutToggle');
+  if (dd && dd.classList.contains('visible') && !dd.contains(e.target) && !btn.contains(e.target)) {
+    hideShortcuts();
+  }
+});
+
 // ── Escape key to cancel editing ──────────────────────────
 
 document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideShortcuts();
   if (e.key !== 'Escape' || !editingField) return;
   var editor = document.getElementById('synopsisEditor');
   if (!editor) return;
@@ -678,6 +839,83 @@ document.addEventListener('keydown', function(e) {
   if (hasChanges && !confirm('Discard unsaved changes?')) return;
   cancelEdit();
 });
+
+// ── Completion summary banner ─────────────────────────────
+
+function showCompletionSummary(total, done, errors, proposals) {
+  var content = document.getElementById('content');
+  if (!content || currentTab !== 'sync') return;
+
+  var parts = [total + ' entity' + (total !== 1 ? 'ies' : '') + ' processed'];
+  if (done > 0) parts.push(done + ' done');
+  if (errors > 0) parts.push(errors + ' error' + (errors !== 1 ? '' : 's'));
+
+  var html = '<div class="sync-summary-banner">' +
+      '<span class="sync-summary-text">&#10003; Sync complete \u2014 ' + parts.join(', ') + '</span>' +
+      '<button class="btn btn-primary" onclick="reviewNewProposals()" style="margin-left:12px;">Review New Proposals \u2192</button>' +
+    '</div>';
+
+  var container = content.querySelector('.sync-progress-container');
+  if (container) {
+    container.insertAdjacentHTML('afterbegin', html);
+  } else {
+    content.innerHTML = html + content.innerHTML;
+  }
+}
+
+function reviewNewProposals() {
+  stopElapsedTimer();
+  currentTab = 'new';
+  selectedIndex = null;
+  renderSidebar();
+  var visible = getVisibleIndices();
+  if (visible.length > 0) {
+    selectedIndex = visible[0];
+  }
+  renderContent();
+}
+
+// ── Elapsed time timer ────────────────────────────────────
+
+var _elapsedInterval = null;
+
+function startElapsedTimer() {
+  if (_elapsedInterval) clearInterval(_elapsedInterval);
+  _elapsedInterval = setInterval(function() {
+    if (!currentSyncJob || !currentSyncJob.started_at) return;
+    var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
+    var el = document.getElementById('syncElapsed');
+    if (el) {
+      var mins = Math.floor(elapsed / 60);
+      var secs = elapsed % 60;
+      el.textContent = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
+    }
+  }, 1000);
+}
+
+function stopElapsedTimer() {
+  if (_elapsedInterval) {
+    clearInterval(_elapsedInterval);
+    _elapsedInterval = null;
+  }
+}
+
+// ── Inline error expand/collapse ──────────────────────────
+
+function toggleErrorDetail(e) {
+  e.stopPropagation();
+  var indicator = e.target;
+  var errId = indicator.getAttribute('data-error-id');
+  var detail = document.getElementById(errId);
+  if (detail) {
+    detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function closeErrorDetail(errId) {
+  var detail = document.getElementById(errId);
+  if (detail) detail.style.display = 'none';
+}
 
 // ── Sync pipeline runner (typed SSE dispatch) ─────────────
 
@@ -704,6 +942,7 @@ async function runSync() {
     var jobId = currentSyncJob.job_id;
     apiCall('/api/sync/cancel?job_id=' + encodeURIComponent(jobId), 'POST')
       .catch(function() { /* best-effort */ });
+    stopElapsedTimer();
     // Optimistically mark as cancelled in UI
     currentSyncJob.status = 'cancelled';
     _renderSyncContent();
@@ -717,11 +956,31 @@ async function runSync() {
   var result = await apiCall('/api/sync/run', 'POST');
   if (!result || !result.job_id) return;
 
-  currentSyncJob = { job_id: result.job_id, status: 'running' };
+  currentSyncJob = { job_id: result.job_id, status: 'running', started_at: Date.now() };
+  startElapsedTimer();
   renderContent();
 
   // Connect to SSE stream with typed event listeners
   syncEventSource = new EventSource('/api/sync/output?job_id=' + result.job_id);
+
+  // Connection error / unexpected close — poll server for actual status.
+  // This catches cases where the SSE stream closed without sending an 'end'
+  // event (e.g. idle timeout, network drop), preventing the UI from staying
+  // stuck in "running" forever.
+  syncEventSource.onerror = function() {
+    if (!currentSyncJob || currentSyncJob.status !== 'running') return;
+    fetch('/api/sync/status')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data && data.jobs && data.jobs.length > 0) {
+          var job = data.jobs[0];
+          currentSyncJob.status = job.status;
+          stopElapsedTimer();
+          _renderSyncContent();
+        }
+      })
+      .catch(function() { /* best-effort */ });
+  };
 
   // Entity progress events — entity cards update in real-time
   syncEventSource.addEventListener('entity_progress', function(e) {
@@ -794,8 +1053,22 @@ async function runSync() {
   syncEventSource.addEventListener('end', function() {
     syncEventSource.close();
     syncEventSource = null;
+    stopElapsedTimer();
     if (currentSyncJob) currentSyncJob.status = 'completed';
     _renderSyncContent();
+
+    // Show completion summary before refreshing proposals
+    var totalEntities = 0, doneCount = 0, errorCount = 0;
+    for (var k in syncEntities) {
+      if (!syncEntities[k]._meta && syncEntities[k].journal_name) {
+        totalEntities++;
+        if (syncEntities[k].status === 'done') doneCount++;
+        else if (syncEntities[k].status === 'error') errorCount++;
+      }
+    }
+
+    showCompletionSummary(totalEntities, doneCount, errorCount, 0);
+
     // Refresh proposals from server to fill in full data
     loadProposals();
   });
