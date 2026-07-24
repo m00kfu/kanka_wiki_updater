@@ -7,7 +7,7 @@ anything is published back to the wiki.
 
 ## How it works
 
-1. `sync_pipeline.py` fetches journals updated since the last run, figures
+1. `ingest_journal.py` fetches journals updated since the last run, figures
    out which characters/locations each one mentions (via Kanka's
    `[entity:N]` link syntax, with a fuzzy name-match fallback for plain
    prose mentions), and asks the LLM to propose an updated synopsis +
@@ -15,17 +15,18 @@ anything is published back to the wiki.
    `pending_changes.json` in the data directory (default:
    `~/.local/share/kanka_wiki_updater/`, configurable via `DATA_DIR`) —
    **nothing is sent to Kanka yet**.
-2. `review.py` walks you through each pending proposal (a diff of the
-   synopsis, plus any relationship changes) so you can approve, reject, or
-   approve-the-synopsis-but-skip-the-relationships. New-entity suggestions
+2. `review_web.py` presents pending proposals through a web UI where you can
+   approve, reject, or edit them inline. New-entity suggestions
    (proper nouns mentioned in a session note that don't match any existing
    character/location) are reviewed first, so approving one makes it
    available as a relation target for proposals reviewed right after it.
    Approved changes are PATCHed/POSTed to Kanka immediately.
-3. `revert.py` undoes everything `review.py` applied in its most recent
-   run, in reverse order — restoring synopses, undoing relation
+3. `revert.py` undoes everything applied to Kanka in its most recent
+   review run, in reverse order — restoring synopses, undoing relation
    create/update/delete actions, and deleting any newly-created entity
    (after first undoing anything that pointed at it).
+4. `reset_to_first.py` performs a nuclear undo: resets all entities back to their
+   earliest recorded `previous_entry` from the pending queue.
 
 ## Setup
 
@@ -46,22 +47,21 @@ anything is published back to the wiki.
 From the directory *containing* this `kanka_wiki_updater` folder:
 
 ```bash
-python -m kanka_wiki_updater.sync_pipeline   # pull notes, generate proposals (with progress bar)
-python -m kanka_wiki_updater.review          # interactive CLI review and publish
-python -m kanka_wiki_updater.review_web      # web-based review UI at http://127.0.0.1:5555
-python -m kanka_wiki_updater.revert          # undo the most recent review run, if needed
+python -m kanka_wiki_updater.review_web       # web-based review UI at http://127.0.0.1:5555 (includes sync trigger)
+python -m kanka_wiki_updater.revert           # undo the most recent review run, if needed
+python -m kanka_wiki_updater.reset_to_first   # nuclear undo to first recorded state (--dry-run)
 ```
 
-Run `sync_pipeline` after each session. It only looks at journals updated
-since the last run (tracked in `sync_state.json` in the data directory),
-so it's safe to run repeatedly without reprocessing old notes. The pipeline shows a Unicode
-progress bar with journal names as it processes each one.
+Run `review_web` after each session — click **Sync** in the Sync tab to fetch new journals,
+generate proposals, and queue them for review. It only looks at journals updated since the last run
+(tracked in `sync_state.json` in the data directory), so it's safe to run repeatedly without
+reprocessing old notes.
 
 The web review UI (`review_web`) offers a tabbed interface with:
 - **Review tab** — browse, filter (by status/type), edit proposals inline, manage relations via modal dialogs, and approve/reject
 - **Sync tab** — run the sync pipeline from the browser with live SSE output streaming and cancel support
 
-If a `review` run published something you didn't mean to (or you just want
+If a review run published something you didn't mean to (or you just want
 to compare before/after), `revert` will show you exactly what that run
 changed and ask for confirmation before undoing all of it. It only goes back
 one run, and won't redo something already reverted — see the docstring at
@@ -89,11 +89,13 @@ giving the model a second chance to produce a complete response.
   `LLM_PROVIDER=opencode` plus `OPENCODE_API_KEY` (+ optional `OPENCODE_MODEL`) for OpenCode Zen.
   Provider logic lives in `llm_providers.py`. If you see JSON parsing failures, try a model that's
   better at structured output, or lower `temperature`. The web UI also supports regenerating truncated proposals (click the regenerate button to re-run through the LLM with 2× token budget).
+- **Sync cancellation**: during a sync run from the web UI, click "Cancel" to stop processing
+  further journals. In-flight LLM calls will complete but subsequent journals won't start.
 - **Relation IDs**: Kanka's documented example response for listing
   relations doesn't explicitly show an `id` field per relation (only
   owner/target/label/attitude). If `update`/`delete` relation actions
   misbehave in your testing, print a raw relation object from
-  `client.get_relations(...)` and adjust `review.py` to whatever field
+  `client.get_relations(...)` and adjust `sync_engine.py` to whatever field
   Kanka actually returns for the relation's own ID.
 - **Rate limits**: Kanka allows 30 requests/minute (90/minute for
   subscribers). The client throttles to ~1 request every 2.1 seconds by
@@ -101,6 +103,6 @@ giving the model a second chance to produce a complete response.
   and want more speed.
 - **Nothing auto-publishes.** If you eventually trust it enough to skip the
   review step, you could wire `propose_update`'s output straight into the
-  apply logic in `review.py` — but I'd watch it across a few real sessions
+  apply logic in `sync_engine.apply_proposal()` — but I'd watch it across a few real sessions
   first, since LLMs will occasionally invent a connection that "sounds
   right" but isn't actually in the notes.
