@@ -1077,3 +1077,231 @@ class TestRegenerateApiErrors:
         assert resp.status_code == 400
         data = resp.get_json()
         assert 'Cannot contact Kanka to fetch entities' in data['error']
+
+
+# ── Unit tests for synopsis_generator.regenerate_proposal() ────────────────
+
+
+class TestRegenerateProposalFunction:
+    """Direct unit tests for the extracted regenerate_proposal() function."""
+
+    def _make_mock_client(self, journal=None, entities=None):
+        """Build a mock KankaClient with optional journal + entity data."""
+        client = umock.MagicMock()
+        if journal is not None:
+            client.get_journal.return_value = journal
+        else:
+            client.get_journal.return_value = None
+        if entities is not None:
+            client.get_characters.return_value = entities
+        return client
+
+    def _make_mock_journal(self, entity_id=789):
+        """Build a mock journal entry."""
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            id=entity_id,
+            name='Session 1',
+            date='',
+            created_at='',
+            entry='<p>Fresh session content.</p>',
+        )
+
+    def _make_mock_entity(self, local_id=42, entity_id=99):
+        """Build a mock character entity."""
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            id=local_id,
+            entity_id=str(entity_id),
+            name='Kael Ironfist',
+            entry='<p>Old synopsis text.</p>',
+        )
+
+    def test_success_returns_ok_with_proposed_entry(self):
+        """Successful regeneration returns ok=True with proposed_entry."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        mock_journal = self._make_mock_journal()
+        mock_entity = self._make_mock_entity()
+        client = self._make_mock_client(journal=mock_journal, entities=[mock_entity])
+
+        # Mock build_synopsis_proposal to return a valid proposal
+        with umock.patch(
+            'kanka_wiki_updater.synopsis_generator.build_synopsis_proposal',
+            return_value={
+                'proposed_entry': '<p>New synopsis.</p>',
+                'change_summary': 'Updated.',
+                'uncertain': [],
+                'truncated': False,
+            },
+        ):
+            result = regenerate_proposal(
+                client,
+                {
+                    'proposal_type': 'update',
+                    '_journal_id': 789,
+                    'entity_local_id': 42,
+                    'entity_id': 99,
+                    'entity_name': 'Kael Ironfist',
+                    'entity_kind': 'character',
+                },
+            )
+
+        assert result['ok'] is True
+        assert result['proposed_entry'] == '<p>New synopsis.</p>'
+        assert result['change_summary'] == 'Updated.'
+        assert result['truncated'] is False
+
+    def test_non_update_returns_error(self):
+        """Non-update proposals return an error."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        client = self._make_mock_client()
+        result = regenerate_proposal(
+            client,
+            {
+                'proposal_type': 'new_entity',
+                '_journal_id': 789,
+                'entity_local_id': 42,
+            },
+        )
+
+        assert result['ok'] is False
+        assert 'only update' in result['error'].lower()
+
+    def test_missing_journal_id_returns_error(self):
+        """Missing _journal_id returns an error."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        client = self._make_mock_client()
+        result = regenerate_proposal(
+            client,
+            {
+                'proposal_type': 'update',
+                'entity_local_id': 42,
+                'entity_id': 99,
+            },
+        )
+
+        assert result['ok'] is False
+        assert 'lacks both _journal_id' in result['error']
+
+    def test_journal_not_found_returns_error(self):
+        """get_journal returning None returns a not-found error."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        client = self._make_mock_client(journal=None)
+        result = regenerate_proposal(
+            client,
+            {
+                'proposal_type': 'update',
+                '_journal_id': 789,
+                'entity_local_id': 42,
+                'entity_id': 99,
+                'entity_name': 'Kael',
+                'entity_kind': 'character',
+            },
+        )
+
+        assert result['ok'] is False
+        assert 'not found' in result['error'].lower()
+
+    def test_entity_not_in_index_returns_error(self):
+        """Entity with matching local_id not found returns error."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        mock_journal = self._make_mock_journal()
+        # Entity has id=100, but proposal asks for local_id=42
+        mock_entity = self._make_mock_entity(local_id=100)
+        client = self._make_mock_client(journal=mock_journal, entities=[mock_entity])
+
+        result = regenerate_proposal(
+            client,
+            {
+                'proposal_type': 'update',
+                '_journal_id': 789,
+                'entity_local_id': 42,
+                'entity_id': 99,
+                'entity_name': 'Kael',
+                'entity_kind': 'character',
+            },
+        )
+
+        assert result['ok'] is False
+        assert 'not found' in result['error'].lower()
+
+    def test_llm_error_propagates(self):
+        """LLM errors are surfaced with a clear message."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        mock_journal = self._make_mock_journal()
+        mock_entity = self._make_mock_entity()
+        client = self._make_mock_client(journal=mock_journal, entities=[mock_entity])
+
+        with umock.patch(
+            'kanka_wiki_updater.synopsis_generator.build_synopsis_proposal',
+            return_value={'_llm_error': 'Connection refused'},
+        ):
+            result = regenerate_proposal(client, {
+                'proposal_type': 'update',
+                '_journal_id': 789,
+                'entity_local_id': 42,
+                'entity_id': 99,
+                'entity_name': 'Kael',
+                'entity_kind': 'character',
+            })
+
+        assert result['ok'] is False
+        assert 'LLM call failed' in result['error']
+        assert 'Connection refused' in result['error']
+
+    def test_identical_output_returns_409_error(self):
+        """No meaningful change returns an error (not forced)."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        mock_journal = self._make_mock_journal()
+        mock_entity = self._make_mock_entity()
+        client = self._make_mock_client(journal=mock_journal, entities=[mock_entity])
+
+        with umock.patch(
+            'kanka_wiki_updater.synopsis_generator.build_synopsis_proposal',
+            return_value=None,
+        ):
+            result = regenerate_proposal(client, {
+                'proposal_type': 'update',
+                '_journal_id': 789,
+                'entity_local_id': 42,
+                'entity_id': 99,
+                'entity_name': 'Kael',
+                'entity_kind': 'character',
+            })
+
+        assert result['ok'] is False
+        assert 'no meaningful change' in result['error'].lower()
+
+    def test_force_bypasses_identical_check(self):
+        """Force=True returns ok=True even when no meaningful change."""
+        from kanka_wiki_updater.synopsis_generator import regenerate_proposal
+
+        mock_journal = self._make_mock_journal()
+        mock_entity = self._make_mock_entity()
+        client = self._make_mock_client(journal=mock_journal, entities=[mock_entity])
+
+        with umock.patch(
+            'kanka_wiki_updater.synopsis_generator.build_synopsis_proposal',
+            return_value=None,
+        ):
+            result = regenerate_proposal(client, {
+                'proposal_type': 'update',
+                '_journal_id': 789,
+                'entity_local_id': 42,
+                'entity_id': 99,
+                'entity_name': 'Kael',
+                'entity_kind': 'character',
+                'proposed_entry': '<p>Existing proposed.</p>',
+            }, force=True)
+
+        assert result['ok'] is True
+        # Falls back to existing proposed_entry from queue entry
+        assert result['proposed_entry'] == '<p>Existing proposed.</p>'
+        assert '(forced regeneration' in result['change_summary']

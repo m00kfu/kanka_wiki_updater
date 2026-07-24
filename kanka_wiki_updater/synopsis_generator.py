@@ -556,3 +556,135 @@ def _is_known_entity(name: str, known_names: list[str]) -> bool:
                 return True
 
     return False
+
+
+# ---------------------------------------------------------------------------
+# Regeneration (used by review_web and future TUI)
+# ---------------------------------------------------------------------------
+
+
+def regenerate_proposal(client, proposal, force=False):
+    """Re-run a truncated update proposal through the LLM with higher token limits.
+
+    Fetches fresh data from Kanka (source journal + current entity state),
+    then calls ``build_synopsis_proposal()`` with 2× max_tokens.
+
+    Parameters
+    ----------
+    client : KankaClient
+        Authenticated API client.
+    proposal : dict
+        A pending-change entry (must be 'update' type, must have _journal_id
+        and entity_local_id).
+    force : bool
+        If True, return the result even when no meaningful change was detected.
+
+    Returns
+    -------
+    dict
+        Success:  {'ok': True, 'proposed_entry': str, 'change_summary': str,
+                   'uncertain': list, 'truncated': bool}
+        Failure:  {'ok': False, 'error': str}
+    """
+    # --- Validate proposal type -------------------------------------------
+    if proposal.get('proposal_type') != 'update':
+        return {'ok': False, 'error': 'Only update proposals can be regenerated'}
+
+    entity_id = proposal.get('entity_id')
+    journal_id = proposal.get('_journal_id')
+    local_id = proposal.get('entity_local_id')
+
+    if not entity_id:
+        return {
+            'ok': False,
+            'error': (
+                'This proposal lacks the data needed to regenerate. '
+                'Re-run sync_pipeline for fresh proposals.'
+            ),
+        }
+
+    if not journal_id:
+        return {
+            'ok': False,
+            'error': (
+                'This proposal lacks both _journal_id and source_journal — '
+                'cannot locate the original session.'
+            ),
+        }
+
+    # --- Fetch source journal ---------------------------------------------
+    try:
+        src_journal = client.get_journal(journal_id)
+    except Exception as api_err:
+        return {'ok': False, 'error': f'Cannot fetch journal from Kanka: {api_err}'}
+
+    if not src_journal:
+        return {'ok': False, 'error': 'Source journal not found.'}
+
+    # --- Fetch fresh entity data (may have changed since original sync) ----
+    try:
+        kind_param = f'{proposal["entity_kind"]}s'
+        entity_raw = getattr(client, f'get_{kind_param}')()
+    except Exception as api_err:
+        return {'ok': False, 'error': f'Cannot contact Kanka to fetch entities: {api_err}'}
+
+    # Find current entity by local_id (internal DB ID)
+    entity_data = next(
+        (_to_dict(e) for e in entity_raw if _to_dict(e).get('id') == local_id),
+        None,
+    )
+    if not entity_data:
+        return {'ok': False, 'error': 'Entity not found.'}
+
+    # --- Build entity dict expected by build_synopsis_proposal -------------
+    entity = {
+        'name': proposal['entity_name'],
+        'kind': proposal['entity_kind'],
+        'entry': entity_data.get('entry') or '',
+        'local_id': local_id,
+        'entity_id': entity_data.get('entity_id'),
+    }
+
+    # --- Compute 2× max_tokens for regeneration ---------------------------
+    regen_max = (
+        config.LLM_MAX_TOKENS * 2
+        if config.LLM_PROVIDER != 'gemini'
+        else config.GEMINI_MAX_TOKENS * 2
+    )
+
+    # --- Build entity index for relation resolution ------------------------
+    idx = build_entity_index(client)
+
+    # --- Call the synopsis generator --------------------------------------
+    result_proposal = build_synopsis_proposal(
+        int(entity_id), entity, src_journal, idx, max_tokens=regen_max,
+    )
+
+    # LLM connection/call error — surface the real message
+    if isinstance(result_proposal, dict) and result_proposal.get('_llm_error'):
+        return {'ok': False, 'error': f'LLM call failed: {result_proposal["_llm_error"]}'}
+
+    # No meaningful change — either error or force through
+    if result_proposal is None:
+        if not force:
+            return {
+                'ok': False,
+                'error': 'LLM returned no meaningful change (identical to current).',
+            }
+        # Forced regeneration with identical output: build minimal proposal
+        return {
+            'ok': True,
+            'proposed_entry': proposal.get('proposed_entry', entity_data.get('entry') or ''),
+            'change_summary': '(forced regeneration - no meaningful change)',
+            'uncertain': [],
+            'truncated': False,
+        }
+
+    # --- Return success dict -----------------------------------------------
+    return {
+        'ok': True,
+        'proposed_entry': result_proposal['proposed_entry'],
+        'change_summary': result_proposal.get('change_summary', ''),
+        'uncertain': result_proposal.get('uncertain', []),
+        'truncated': False,  # regeneration resets truncated flag
+    }

@@ -37,9 +37,11 @@ except ImportError:
 # Backend modules — thin routes call these for all business logic
 try:
     from . import queue_manager, sync_engine
+    from . import synopsis_generator
     from .sync_pipeline import build_entity_index
 except ImportError:
     from kanka_wiki_updater import queue_manager, sync_engine
+    from kanka_wiki_updater import synopsis_generator
     from kanka_wiki_updater.sync_pipeline import build_entity_index
 
 # KankaClient imported at module level so tests can mock it directly.
@@ -299,20 +301,6 @@ def create_app():
         queue_manager.save_queue(queue)
         return jsonify({'proposal': queue[index], 'ok': True})
 
-    def _sync_proposal_to_kanka(idx):
-        """Thin wrapper that delegates to sync_engine.apply_proposal().
-
-        Kept for backward compatibility with existing callers.
-        """
-        queue = queue_manager.load_queue()
-        if idx >= len(queue):
-            return {'ok': False, 'message': 'Proposal not found in queue', 'warnings': []}
-
-        proposal = queue[idx]
-        client = KankaClient()
-        # Pass empty dict to trigger fresh index build per call (cache reset)
-        return sync_engine.apply_proposal(client, proposal, {})
-
     @app.route('/api/proposals/<int:index>/sync', methods=['POST'])
     def sync_proposal(index):
         """Sync a single proposal to Kanka.io. Used before marking as applied."""
@@ -321,7 +309,8 @@ def create_app():
             return jsonify({'error': 'Proposal not found'}), 404
 
         with _sync_lock:
-            sync_result = _sync_proposal_to_kanka(index)
+            client = KankaClient()
+            sync_result = sync_engine.apply_proposal(client, queue[index], {})
 
         result = {
             'ok': sync_result['ok'],
@@ -334,7 +323,7 @@ def create_app():
         return jsonify(result)
 
     @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
-    def regenerate_proposal(index):
+    def regenerate_proposal_route(index):
         """Re-run a truncated update proposal through the LLM with higher token limits."""
         try:
             queue = queue_manager.load_queue()
@@ -363,140 +352,37 @@ def create_app():
         if proposal.get('proposal_type') != 'update':
             return jsonify({'error': 'Only update proposals can be regenerated'}), 400
 
-        # Allow regeneration of truncated proposals, or force-regenerate via ?force=1.
-        # Stale proposals without _journal_id are OK as long as source_journal is present.
-        _debug('about to enter main try block')
-        journal_id = proposal.get('_journal_id')
-        entity_id = proposal.get('entity_id')
-        if not entity_id:
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': (
-                        'This proposal lacks the data needed to regenerate. Re-run sync_pipeline for fresh proposals.'
-                    ),
-                }
-            ), 400
-
-        # Need at least _journal_id for journal lookup.
-        if not journal_id:
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': (
-                        'This proposal lacks both _journal_id and source_journal — cannot locate the original session.'
-                    ),
-                }
-            ), 400
-
-        # Delegate synopsis regeneration to the shared generator.
-        from kanka_wiki_updater.synopsis_generator import build_synopsis_proposal
+        force = request.args.get('force', '0').lower() in ('1', 'true')
 
         try:
             client = KankaClient()
         except Exception as e:
             return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
 
-        # Fetch the source journal directly via the single-journal endpoint.
-        try:
-            src_journal = client.get_journal(journal_id)
-        except Exception as api_err:
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': f'Cannot fetch journal from Kanka: {api_err}',
-                }
-            ), 400
+        result = synopsis_generator.regenerate_proposal(client, proposal, force=force)
 
-        if not src_journal:
-            return jsonify({'ok': False, 'error': 'Source journal not found.'}), 404
-
-        # Helper to safely get attrs from dict or SimpleNamespace.
-        def _safe_get(obj, key, default=None):
-            if isinstance(obj, dict):
-                return obj.get(key, default)
-            return getattr(obj, key, default)
-
-        # Fetch fresh entity data (may have changed since original sync).
-        try:
-            kind_param = f'{proposal["entity_kind"]}s'
-            entity_raw = getattr(client, f'get_{kind_param}')()
-        except Exception as api_err:
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': f'Cannot contact Kanka to fetch entities: {api_err}',
-                }
-            ), 400
-
-        entity_data = next(
-            (e for e in entity_raw if _safe_get(e, 'id') == proposal['entity_local_id']),
-            None,
-        )
-        if not entity_data:
-            return jsonify({'ok': False, 'error': 'Entity not found.'}), 404
-
-        # Build the entity dict expected by build_synopsis_proposal.
-        entity = {
-            'name': proposal['entity_name'],
-            'kind': proposal['entity_kind'],
-            'entry': _safe_get(entity_data, 'entry') or '',
-            'local_id': proposal['entity_local_id'],  # internal DB ID for API calls
-            'entity_id': _safe_get(entity_data, 'entity_id'),  # public wiki page number for [journal:N] tags
-        }
-
-        # Use 2x max_tokens for regeneration.
-        import kanka_wiki_updater.config as pkg_config
-
-        regen_max = (
-            pkg_config.LLM_MAX_TOKENS * 2 if pkg_config.LLM_PROVIDER != 'gemini' else pkg_config.GEMINI_MAX_TOKENS * 2
-        )
-
-        # Build entity index for relation resolution.
-        idx = build_entity_index(client)
-
-        result_proposal = build_synopsis_proposal(int(entity_id), entity, src_journal, idx, max_tokens=regen_max)
-
-        force_regenerate = request.args.get('force', '0').lower() in ('1', 'true')
-
-        # LLM connection/call error — show the real message instead of masking as "no change".
-        if isinstance(result_proposal, dict) and result_proposal.get('_llm_error'):
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': f'LLM call failed: {result_proposal["_llm_error"]}',
-                }
-            ), 500
-
-        if result_proposal is None and not force_regenerate:
-            return jsonify(
-                {
-                    'ok': False,
-                    'error': 'LLM returned no meaningful change (identical to current).',
-                }
-            ), 409
-
-        # When forcing regeneration with identical output, build a minimal proposal.
-        if result_proposal is None:
-            result_proposal = {
-                'proposed_entry': queue[index].get('proposed_entry', entity.get('entry') or ''),
-                'change_summary': '(forced regeneration - no meaningful change)',
-            }
+        if not result['ok']:
+            # Map error types to HTTP status codes (mirrors original route)
+            err = result['error'].lower()
+            if 'no meaningful change' in err:
+                code = 409
+            elif ('lacks' in err or 'cannot fetch' in err or 'cannot contact' in err):
+                code = 400
+            elif 'not found' in err:
+                code = 404
+            else:
+                code = 500
+            return jsonify({'ok': False, 'error': result['error']}), code
 
         # Merge the new proposal into the existing queue entry.
-        queue[index]['proposed_entry'] = result_proposal['proposed_entry']
-        queue[index]['change_summary'] = result_proposal.get('change_summary', '')
+        queue[index]['proposed_entry'] = result['proposed_entry']
+        queue[index]['change_summary'] = result.get('change_summary', '')
         queue[index]['relation_changes'] = []
-        queue[index]['uncertain'] = result_proposal.get('uncertain', [])
-        queue[index]['truncated'] = result_proposal.get('truncated', False)
+        queue[index]['uncertain'] = result.get('uncertain', [])
+        queue[index]['truncated'] = False
 
         queue_manager.save_queue(queue)
-        return jsonify(
-            {
-                'ok': True,
-                'proposal': queue[index],
-            }
-        )
+        return jsonify({'ok': True, 'proposal': queue[index]})
 
     @app.route('/api/sync/run', methods=['POST'])
     def run_sync():
