@@ -17,7 +17,7 @@ def mock_env():
 @pytest.fixture
 def mock_requests(monkeypatch):
     """Provide a mocked requests module."""
-    monkeypatch.setattr('kanka_wiki_updater.llm_providers.requests', mock)
+    monkeypatch.setattr('kanka_wiki_updater.llm.providers.requests', mock)
 
 
 # ── Shared queue fixtures (moved from test_review_web.py) ───────────────────
@@ -66,19 +66,19 @@ def mock_queue(tmp_path):
 @pytest.fixture
 def app_with_queue(mock_queue):
     """Create a Flask test client with the review_web app and a temp queue file."""
-    from kanka_wiki_updater.review_web import create_app
+    from kanka_wiki_updater.review.web import create_app
 
     _queue_file, data_dir = mock_queue
     # Override DATA_DIR so state.py reads our temp file
-    import kanka_wiki_updater.config as config
-    import kanka_wiki_updater.review_web as rw
+    import kanka_wiki_updater.core.config as config
+    import kanka_wiki_updater.review.web as rw
 
     original_data_dir = config.DATA_DIR
     config.DATA_DIR = str(data_dir)
 
     # Reset module-level sync job state between tests
     rw._sync_jobs.clear()
-    from kanka_wiki_updater import sync_orchestrator as so
+    from kanka_wiki_updater.sync import sync_orchestrator as so
     so._jobs.clear()
 
     app = create_app()

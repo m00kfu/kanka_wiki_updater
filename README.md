@@ -7,7 +7,7 @@ anything is published back to the wiki.
 
 ## How it works
 
-1. `ingest_journal.py` fetches journals updated since the last run, figures
+1. `sync/ingest_journal.py` fetches journals updated since the last run, figures
    out which characters/locations each one mentions (via Kanka's
    `[entity:N]` link syntax, with a fuzzy name-match fallback for plain
    prose mentions), and asks the LLM to propose an updated synopsis +
@@ -15,17 +15,17 @@ anything is published back to the wiki.
    `pending_changes.json` in the data directory (default:
    `~/.local/share/kanka_wiki_updater/`, configurable via `DATA_DIR`) —
    **nothing is sent to Kanka yet**.
-2. `review_web.py` presents pending proposals through a web UI where you can
+2. `review/web/` serves the review UI (template + static assets under `review/web/templates/` and `review/web/static/`) where you can
    approve, reject, or edit them inline. New-entity suggestions
    (proper nouns mentioned in a session note that don't match any existing
    character/location) are reviewed first, so approving one makes it
    available as a relation target for proposals reviewed right after it.
    Approved changes are PATCHed/POSTed to Kanka immediately.
-3. `revert.py` undoes everything applied to Kanka in its most recent
+3. `cli/revert.py` undoes everything applied to Kanka in its most recent
    review run, in reverse order — restoring synopses, undoing relation
    create/update/delete actions, and deleting any newly-created entity
    (after first undoing anything that pointed at it).
-4. `reset_to_first.py` performs a nuclear undo: resets all entities back to their
+4. `cli/reset_to_first.py` performs a nuclear undo: resets all entities back to their
    earliest recorded `previous_entry` from the pending queue.
 
 ## Setup
@@ -44,21 +44,29 @@ anything is published back to the wiki.
 
 ## Running
 
-From the directory *containing* this `kanka_wiki_updater` folder:
+From the project root:
 
 ```bash
-python -m kanka_wiki_updater.review_web       # web-based review UI at http://127.0.0.1:5555 (includes sync trigger)
-python -m kanka_wiki_updater.revert           # undo the most recent review run, if needed
-python -m kanka_wiki_updater.reset_to_first   # nuclear undo to first recorded state (--dry-run)
+python -m kanka_wiki_updater.review.web       # web-based review UI at http://127.0.0.1:5555 (includes sync trigger)
+python -m kanka_wiki_updater.cli revert       # undo the most recent review run, if needed
+python -m kanka_wiki_updater.cli reset        # nuclear undo to first recorded state (--dry-run)
 ```
 
-Run `review_web` after each session — click **Sync** in the Sync tab to fetch new journals,
+Or install the package and use the CLI entry point:
+
+```bash
+pip install -e .
+kanka-wiki-updater revert
+kanka-wiki-updater reset
+```
+
+Run `review.web` after each session — click **Sync** in the Sync tab to fetch new journals,
 generate proposals, and queue them for review. It only looks at journals updated since the last run
 (tracked in `sync_state.json` in the data directory), so it's safe to run repeatedly without
 reprocessing old notes.
 
 The web review UI (`review_web`) offers a tabbed interface with:
-- **Review tab** — browse, filter (by status/type), edit proposals inline, manage relations via modal dialogs, and approve/reject
+- **Review tab** — browse, filter (by status/type), edit proposals inline, and approve/reject
 - **Sync tab** — run the sync pipeline from the browser with live SSE output streaming and cancel support
 
 If a review run published something you didn't mean to (or you just want
@@ -87,7 +95,7 @@ giving the model a second chance to produce a complete response.
   Set `LMSTUDIO_MODEL` for LM Studio, set `LLM_PROVIDER=gemini` plus
   `GEMINI_API_KEY` + `GEMINI_MODEL` in `.env` to use Google Gemini, or set
   `LLM_PROVIDER=opencode` plus `OPENCODE_API_KEY` (+ optional `OPENCODE_MODEL`) for OpenCode Zen.
-  Provider logic lives in `llm_providers.py`. If you see JSON parsing failures, try a model that's
+  Provider logic lives in `llm/providers.py`. If you see JSON parsing failures, try a model that's
   better at structured output, or lower `temperature`. The web UI also supports regenerating truncated proposals (click the regenerate button to re-run through the LLM with 2× token budget).
 - **Sync cancellation**: during a sync run from the web UI, click "Cancel" to stop processing
   further journals. In-flight LLM calls will complete but subsequent journals won't start.
@@ -95,7 +103,7 @@ giving the model a second chance to produce a complete response.
   relations doesn't explicitly show an `id` field per relation (only
   owner/target/label/attitude). If `update`/`delete` relation actions
   misbehave in your testing, print a raw relation object from
-  `client.get_relations(...)` and adjust `sync_engine.py` to whatever field
+  `client.get_relations(...)` and adjust `sync/sync_engine.py` to whatever field
   Kanka actually returns for the relation's own ID.
 - **Rate limits**: Kanka allows 30 requests/minute (90/minute for
   subscribers). The client throttles to ~1 request every 2.1 seconds by
