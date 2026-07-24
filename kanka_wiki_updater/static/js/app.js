@@ -42,11 +42,11 @@ function renderSidebar() {
 
   let pending = proposals.filter(p => p.status === 'pending');
   if (currentTab === 'new') {
-    // New entities first, then updates — both sorted by name within type
+    // New entities first, then updates — preserve insertion order within each group
     pending.sort((a, b) => {
       const aNew = a.proposal_type === 'new_entity' ? 0 : 1;
       const bNew = b.proposal_type === 'new_entity' ? 0 : 1;
-      return aNew - bNew || (a.entity_name || '').localeCompare(b.entity_name || '');
+      return aNew - bNew;
     });
   }
 
@@ -506,7 +506,8 @@ function renderSideBySideDiff(prevText, newText) {
   html += '<div class="diff-column diff-column-left"><div class="diff-col-header">Previous</div>';
   for (var r = 0; r < rows.length; r++) {
     if (rows[r].left !== null) {
-      html += '<div class="diff-line diff-del">' + escapeJsHtml(rows[r].left) + '</div>';
+      var leftClass = (rows[r].right === null || rows[r].left !== rows[r].right) ? 'diff-del' : 'diff-keep';
+      html += '<div class="diff-line ' + leftClass + '">' + escapeJsHtml(rows[r].left) + '</div>';
     } else {
       html += '<div class="diff-line diff-empty"></div>';
     }
@@ -517,7 +518,8 @@ function renderSideBySideDiff(prevText, newText) {
   html += '<div class="diff-column diff-column-right"><div class="diff-col-header">Proposed</div>';
   for (var r = 0; r < rows.length; r++) {
     if (rows[r].right !== null) {
-      html += '<div class="diff-line diff-add">' + renderJournalLinks(rows[r].right) + '</div>';
+      var rightClass = (rows[r].left === null || rows[r].left !== rows[r].right) ? 'diff-add' : 'diff-keep';
+      html += '<div class="diff-line ' + rightClass + '">' + renderJournalLinks(rows[r].right) + '</div>';
     } else {
       html += '<div class="diff-line diff-empty"></div>';
     }
@@ -537,11 +539,14 @@ function toggleDiffView() {
 
 async function apiCall(url, method, body) {
   try {
-    var res = await fetch(url, {
+    var opts = {
       method: method,
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body || {})
-    });
+      headers: {'Content-Type': 'application/json'}
+    };
+    if (body !== undefined && body !== null) {
+      opts.body = JSON.stringify(body);
+    }
+    var res = await fetch(url, opts);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return await res.json();
   } catch (e) {
@@ -614,6 +619,8 @@ async function rejectCurrent() {
 
 function _advance(fromIndex) {
   var visible = getVisibleIndices();
+  // Try forward first, then backward (forward works for full list,
+  // backward is needed when items are removed from a filtered tab)
   for (var i = 0; i < visible.length; i++) {
     if (visible[i] > fromIndex) {
       selectedIndex = visible[i];
@@ -621,6 +628,12 @@ function _advance(fromIndex) {
       renderContent();
       return;
     }
+  }
+  for (var j = visible.length - 1; j >= 0; j--) {
+    selectedIndex = visible[j];
+    renderSidebar();
+    renderContent();
+    return;
   }
   selectedIndex = null;
   renderSidebar();
