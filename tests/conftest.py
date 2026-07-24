@@ -78,7 +78,8 @@ def app_with_queue(mock_queue):
 
     # Reset module-level sync job state between tests
     rw._sync_jobs.clear()
-    rw._job_counter[0] = 0
+    from kanka_wiki_updater import sync_orchestrator as so
+    so._jobs.clear()
 
     app = create_app()
     app.config['TESTING'] = True

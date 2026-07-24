@@ -38,10 +38,28 @@ except ImportError:
 try:
     from . import queue_manager, sync_engine
     from . import synopsis_generator
+    from .sync_events import (
+        EVENT_ENTITY_PROGRESS,
+        EVENT_PROPOSAL_PUSHED,
+        EVENT_STATUS_CHANGE,
+        EVENT_SYNC_COMPLETE,
+        EVENT_SYNC_START,
+        ENTITY_STATUSES,
+    )
+    from .sync_orchestrator import start_sync as _start_sync
     from .sync_pipeline import build_entity_index
 except ImportError:
     from kanka_wiki_updater import queue_manager, sync_engine
     from kanka_wiki_updater import synopsis_generator
+    from kanka_wiki_updater.sync_events import (
+        EVENT_ENTITY_PROGRESS,
+        EVENT_PROPOSAL_PUSHED,
+        EVENT_STATUS_CHANGE,
+        EVENT_SYNC_COMPLETE,
+        EVENT_SYNC_START,
+        ENTITY_STATUSES,
+    )
+    from kanka_wiki_updater.sync_orchestrator import start_sync as _start_sync
     from kanka_wiki_updater.sync_pipeline import build_entity_index
 
 # KankaClient imported at module level so tests can mock it directly.
@@ -53,23 +71,13 @@ except ImportError:
 
 _sync_lock = threading.Lock()
 
-# Web-specific job tracking state (SSE streaming) — NOT moved to backend modules
+# Web-specific job tracking state (SSE streaming) — NOT moved to backend modules.
+# Each entry has the orchestrator's base keys plus 'buffer' for SSE frames.
 _sync_jobs = {}
-_job_counter = [0]
 _sync_cancel_lock = threading.Lock()  # protects _sync_jobs mutations
 
 # Per-job cancellation flag (set when user clicks "Cancel" during a sync).
 _sync_cancelled = threading.Event()
-
-# ── SSE event type constants ───────────────────────────────────────────────
-EVENT_ENTITY_PROGRESS = 'entity_progress'
-EVENT_PROPOSAL_PUSHED = 'proposal_pushed'
-EVENT_STATUS_CHANGE = 'status_change'
-EVENT_SYNC_START = 'sync_start'
-EVENT_SYNC_COMPLETE = 'sync_complete'
-
-# Accepted entity progress statuses
-ENTITY_STATUSES = ('pending', 'processing', 'done', 'error')
 
 # SSE idle timeout in seconds — if no data arrives within this window, the
 # generator terminates and sends ``event: end`` so clients can reconnect.
@@ -88,7 +96,12 @@ def _emit_sse(event_type, data):
 
 
 def _get_entity_progress(job_id):
-    """Return the entity progress dict for *job_id*, creating it if needed."""
+    """Return the entity progress dict for *job_id*, creating it if needed.
+
+    Thin wrapper around :func:`sync_orchestrator._get_entity_progress` that
+    operates on web-specific ``_sync_jobs`` state so existing callers and
+    tests continue to work without changes.
+    """
     job = _sync_jobs.get(job_id)
     if job is None:
         return None
@@ -101,15 +114,9 @@ def _get_entity_progress(job_id):
 def _set_entity_status(job_id, key, status, **extra):
     """Update (or create) an entity progress entry under the lock.
 
-    Parameters
-    ----------
-    job_id : str
-    key : tuple[str, str]
-        ``(journal_name, entity_name)`` — the dict key.
-    status : str
-        One of ENTITY_STATUSES.
-    **extra
-        Additional fields (e.g. ``error_message``, ``source_journal_url``).
+    Thin wrapper around :func:`sync_orchestrator._set_entity_status` that
+    operates on web-specific ``_sync_jobs`` state so existing callers and
+    tests continue to work without changes.
     """
     if status not in ENTITY_STATUSES:
         raise ValueError(f'Invalid entity status {status!r}; must be one of {ENTITY_STATUSES}')
@@ -147,6 +154,8 @@ class _SSECallbackEmitter:
 
     def _append(self, event_type, data):
         """Append a single SSE frame to the job's buffer (under lock)."""
+        if self.job_id is None:
+            return  # emitter created before start_sync returns
         with _sync_lock:
             job = _sync_jobs.get(self.job_id)
             if job is not None and 'buffer' in job:
@@ -174,13 +183,7 @@ class _SSECallbackEmitter:
         self._append(EVENT_STATUS_CHANGE, {'status': status})
 
 
-# ── Job lifecycle helpers ───────────────────────────────────────────────────
-
-
-def _next_job_id():
-    """Generate a unique job ID."""
-    _job_counter[0] += 1
-    return f'sync-{_job_counter[0]}'
+# ── App factory ─────────────────────────────────────────────────────────────
 
 
 def create_app():
@@ -388,29 +391,16 @@ def create_app():
     def run_sync():
         """Start a sync pipeline run in-process (no subprocess).
 
-        Spawns a background thread that calls ``ingest_journal.run_ingest()``
-        directly with SSE-emitting callbacks.  The SSE generator at
+        Delegates to :func:`sync_orchestrator.start_sync` for job lifecycle
+        management, then wraps the returned job_id with web-specific SSE
+        infrastructure (output buffer).  The SSE generator at
         ``/api/sync/output`` streams typed events to connected clients.
         """
-        job_id = _next_job_id()
-
         # Reset cancellation flag for this new sync run
         _sync_cancelled.clear()
 
-        buffer = deque(maxlen=500)
         progress = {}
-
-        with _sync_lock:
-            _sync_jobs[job_id] = {
-                'status': 'running',
-                'started_at': time.time(),
-                'finished_at': None,
-                'progress': progress,
-                'buffer': buffer,
-            }
-
-        # -- Callbacks -------------------------------------------------------
-        emitter = _SSECallbackEmitter(job_id)
+        emitter = _SSECallbackEmitter(None)  # job_id set below after start_sync
 
         def on_entity_started(entity_name, journal_name):
             key = (journal_name, entity_name)
@@ -418,13 +408,9 @@ def create_app():
                 entry = progress.get(key, {})
                 entry['status'] = 'processing'
                 progress[key] = entry
-            # Emit AFTER releasing the lock to avoid deadlock —
-            # emitter.entity_progress() also acquires _sync_lock internally.
             emitter.entity_progress('processing', name=entity_name, journal_name=journal_name)
 
         def on_journal_entities_discovered(journal_name, entity_names):
-            """Fire when all entities for a journal are discovered (before LLM)."
-            Registers them as 'pending' so the UI shows the full list upfront."""
             for name in entity_names:
                 key = (journal_name, name)
                 with _sync_lock:
@@ -447,8 +433,6 @@ def create_app():
                 if error_msg:
                     entry['error_message'] = error_msg
                 progress[key] = entry
-            # Emit AFTER releasing the lock to avoid deadlock —
-            # emitter.entity_progress() also acquires _sync_lock internally.
             emitter.entity_progress(
                 status,
                 name=entity_name,
@@ -457,37 +441,28 @@ def create_app():
             )
 
         def on_proposal_queued(proposal):
-            emitter.proposal_pushed(
-                {
-                    'type': proposal.get('proposal_type', 'update'),
-                    'name': proposal.get('entity_name', ''),
-                    'kind': proposal.get('entity_kind', ''),
-                    'status': 'pending',
-                }
-            )
+            emitter.proposal_pushed({
+                'type': proposal.get('proposal_type', 'update'),
+                'name': proposal.get('entity_name', ''),
+                'kind': proposal.get('entity_kind', ''),
+                'status': 'pending',
+            })
 
         def on_new_entity_suggestion(suggestion):
-            emitter.proposal_pushed(
-                {
-                    'type': suggestion.get('proposal_type', 'new_entity'),
-                    'name': suggestion.get('entity_name', ''),
-                    'kind': suggestion.get('suggested_type', ''),
-                    'status': 'pending',
-                }
-            )
+            emitter.proposal_pushed({
+                'type': suggestion.get('proposal_type', 'new_entity'),
+                'name': suggestion.get('entity_name', ''),
+                'kind': suggestion.get('suggested_type', ''),
+                'status': 'pending',
+            })
 
         def on_journal_completed(journal_name, entities_processed, suggestions_count):
-            # Collect keys to update while holding the lock, then emit events
-            # AFTER releasing it — emitter.entity_progress() also acquires
-            # _sync_lock internally, so doing both under the same lock would
-            # deadlock on a non-reentrant Lock().
             keys_to_update = []
             with _sync_lock:
                 for key in list(progress.keys()):
                     if key[0] == journal_name and progress[key]['status'] in ('pending', 'processing'):
                         progress[key]['status'] = 'done'
                         keys_to_update.append(key)
-            # Emit individual completion events outside the lock
             for key in keys_to_update:
                 emitter.entity_progress('done', name=key[1], journal_name=journal_name)
             emitter.entity_progress(
@@ -510,35 +485,26 @@ def create_app():
             'journal_entities_discovered': on_journal_entities_discovered,
         }
 
-        # -- Background thread -----------------------------------------------
-        def _ingest_thread():
-            try:
-                from . import config as pkg_config
-                from .ingest_journal import run_ingest as ingest_run
+        # Start the orchestrator — it creates its own job state under _lock.
+        job_id = _start_sync(
+            callbacks=callbacks,
+            cancelled_event=_sync_cancelled,
+        )
 
-                client = KankaClient()
-                ingest_run(
-                    client=client,
-                    callbacks=callbacks,
-                    limit=pkg_config.JOURNAL_BATCH_LIMIT,
-                    cancelled_event=_sync_cancelled,
-                )
-                with _sync_lock:
-                    if job_id in _sync_jobs and _sync_jobs[job_id]['status'] != 'cancelled':
-                        _sync_jobs[job_id]['status'] = 'completed'
-                        _sync_jobs[job_id]['finished_at'] = time.time()
-            except Exception as e:
-                import traceback
-
-                print(f'[SYNC ERROR] {e}', file=sys.stderr, flush=True)
-                traceback.print_exc(file=sys.stderr, flush=True)
-                with _sync_lock:
-                    if job_id in _sync_jobs and _sync_jobs[job_id]['status'] != 'cancelled':
-                        _sync_jobs[job_id]['status'] = 'error'
-                        _sync_jobs[job_id]['finished_at'] = time.time()
-
-        thread = threading.Thread(target=_ingest_thread, daemon=True)
-        thread.start()
+        # Update emitter with real job_id and wrap with web-specific SSE buffer.
+        emitter.job_id = job_id
+        buffer = deque(maxlen=500)
+        with _sync_lock:
+            if job_id in _sync_jobs:
+                _sync_jobs[job_id]['buffer'] = buffer
+            else:
+                _sync_jobs[job_id] = {
+                    'status': 'running',
+                    'started_at': time.time(),
+                    'finished_at': None,
+                    'progress': progress,
+                    'buffer': buffer,
+                }
         return jsonify({'job_id': job_id, 'status': 'running'})
 
     @app.route('/api/sync/output')

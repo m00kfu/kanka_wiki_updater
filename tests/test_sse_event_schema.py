@@ -13,7 +13,6 @@ from unittest import mock as umock
 
 import pytest
 
-
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
 
@@ -24,7 +23,15 @@ def rw():
     yield rw_mod
     # Reset module-level state between tests
     rw_mod._sync_jobs.clear()
-    rw_mod._job_counter[0] = 0
+
+
+@pytest.fixture
+def so():
+    """Import sync_orchestrator fresh for each test."""
+    from kanka_wiki_updater import sync_orchestrator as so_mod
+    yield so_mod
+    # Reset orchestrator state between tests
+    so_mod._jobs.clear()
 
 
 # ── Event type constant checks (U1) ────────────────────────────────────────
@@ -107,70 +114,76 @@ class TestEmitSSE:
 
 
 class TestGetEntityProgress:
-    """Tests for the per-job entity progress accessor."""
+    """Tests for the per-job entity progress accessor (from sync_orchestrator)."""
 
-    def test_returns_none_for_unknown_job(self, rw):
-        result = rw._get_entity_progress('nonexistent')
+    def test_returns_none_for_unknown_job(self, so):
+        result = so._get_entity_progress('nonexistent')
         assert result is None
 
-    def test_creates_progress_dict_on_first_call(self, rw):
+    def test_creates_progress_dict_on_first_call(self, so):
         job_id = 'sync-1'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
-        progress = rw._get_entity_progress(job_id)
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
+        progress = so._get_entity_progress(job_id)
         assert isinstance(progress, dict)
         # Verify it's stored on the job
-        assert rw._sync_jobs[job_id].get('progress') is progress
+        assert so._jobs[job_id].get('progress') is progress
 
-    def test_returns_existing_progress(self, rw):
+    def test_returns_existing_progress(self, so):
         job_id = 'sync-2'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': [], 'progress': {'existing': True}}
-        result = rw._get_entity_progress(job_id)
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running', 'progress': {'existing': True}}
+        result = so._get_entity_progress(job_id)
         assert result == {'existing': True}
 
-    def test_multiple_jobs_have_independent_progress(self, rw):
+    def test_multiple_jobs_have_independent_progress(self, so):
         for i in range(3):
             job_id = f'sync-{i}'
-            rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+            with so._lock:
+                so._jobs[job_id] = {'status': 'running'}
 
-        assert rw._get_entity_progress('sync-0') is not rw._get_entity_progress('sync-1')
+        assert so._get_entity_progress('sync-0') is not so._get_entity_progress('sync-1')
 
 
 # ── _set_entity_status() tests (U1) ────────────────────────────────────────
 
 
 class TestSetEntityStatus:
-    """Tests for entity progress entry creation and updates."""
+    """Tests for entity progress entry creation and updates (from sync_orchestrator)."""
 
-    def test_creates_entry_on_first_set(self, rw):
+    def test_creates_entry_on_first_set(self, so):
         job_id = 'sync-3'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         key = ('Session 1', 'Kael Ironfist')
-        rw._set_entity_status(job_id, key, 'processing')
+        so._set_entity_status(job_id, key, 'processing')
 
-        progress = rw._get_entity_progress(job_id)
+        progress = so._get_entity_progress(job_id)
         entry = progress[key]
         assert entry['name'] == 'Kael Ironfist'
         assert entry['journal_name'] == 'Session 1'
         assert entry['status'] == 'processing'
 
-    def test_updates_existing_entry(self, rw):
+    def test_updates_existing_entry(self, so):
         job_id = 'sync-4'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         key = ('Session 2', 'Vexara')
-        rw._set_entity_status(job_id, key, 'pending')
-        rw._set_entity_status(job_id, key, 'processing')
+        so._set_entity_status(job_id, key, 'pending')
+        so._set_entity_status(job_id, key, 'processing')
 
-        entry = rw._sync_jobs[job_id]['progress'][key]
+        entry = so._jobs[job_id]['progress'][key]
         assert entry['status'] == 'processing'
         # Name and journal_name should be preserved
         assert entry['name'] == 'Vexara'
         assert entry['journal_name'] == 'Session 2'
 
-    def test_extra_fields_merged(self, rw):
+    def test_extra_fields_merged(self, so):
         job_id = 'sync-5'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         key = ('Session 3', 'Warryn')
-        rw._set_entity_status(
+        so._set_entity_status(
             job_id,
             key,
             'error',
@@ -178,49 +191,52 @@ class TestSetEntityStatus:
             source_journal_url='https://kanka.io/journal/12345',
         )
 
-        entry = rw._sync_jobs[job_id]['progress'][key]
+        entry = so._jobs[job_id]['progress'][key]
         assert entry['status'] == 'error'
         assert entry['error_message'] == 'LLM timeout'
         assert entry['source_journal_url'] == 'https://kanka.io/journal/12345'
 
-    def test_none_extra_fields_ignored(self, rw):
+    def test_none_extra_fields_ignored(self, so):
         job_id = 'sync-6'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         key = ('Session 4', 'Test')
-        rw._set_entity_status(job_id, key, 'done', error_message=None)
+        so._set_entity_status(job_id, key, 'done', error_message=None)
 
-        entry = rw._sync_jobs[job_id]['progress'][key]
+        entry = so._jobs[job_id]['progress'][key]
         assert 'error_message' not in entry
 
-    def test_invalid_status_raises(self, rw):
+    def test_invalid_status_raises(self, so):
         job_id = 'sync-7'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         key = ('Session 5', 'Bad')
         with pytest.raises(ValueError, match='Invalid entity status'):
-            rw._set_entity_status(job_id, key, 'unknown')
+            so._set_entity_status(job_id, key, 'unknown')
 
-    def test_unknown_job_is_safe_noop(self, rw):
+    def test_unknown_job_is_safe_noop(self, so):
         """Calling _set_entity_status for a nonexistent job should not crash."""
-        rw._set_entity_status('nonexistent', ('J', 'E'), 'pending')  # no error
+        so._set_entity_status('nonexistent', ('J', 'E'), 'pending')  # no error
 
 
 # ── Thread-safety tests (U1) ──────────────────────────────────────────────
 
 
 class TestEntityProgressThreadSafety:
-    """Verify concurrent updates to entity progress are safe."""
+    """Verify concurrent updates to entity progress are safe (sync_orchestrator)."""
 
-    def test_concurrent_updates_same_key(self, rw):
+    def test_concurrent_updates_same_key(self, so):
         """Multiple threads updating the same entity key should not corrupt state."""
         job_id = 'sync-10'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         key = ('Session 10', 'Concurrent')
         errors = []
 
         def updater(thread_num):
             try:
                 for status in ('pending', 'processing', 'done'):
-                    rw._set_entity_status(job_id, key, status)
+                    so._set_entity_status(job_id, key, status)
             except Exception as e:
                 errors.append(e)
 
@@ -231,19 +247,20 @@ class TestEntityProgressThreadSafety:
             t.join()
 
         assert not errors  # no exceptions raised
-        entry = rw._sync_jobs[job_id]['progress'][key]
+        entry = so._jobs[job_id]['progress'][key]
         assert 'name' in entry and 'journal_name' in entry and 'status' in entry
         assert entry['status'] == 'done'  # last writer wins, but state is valid
 
-    def test_concurrent_updates_different_keys(self, rw):
+    def test_concurrent_updates_different_keys(self, so):
         """Multiple threads updating different keys should not interfere."""
         job_id = 'sync-11'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
 
         def updater(journal, entity_name, thread_num):
             key = (journal, entity_name)
             for status in ('pending', 'processing', 'done'):
-                rw._set_entity_status(job_id, key, status)
+                so._set_entity_status(job_id, key, status)
 
         threads = [
             threading.Thread(target=updater, args=(f'J{i}', f'E{i}', i))
@@ -254,23 +271,24 @@ class TestEntityProgressThreadSafety:
         for t in threads:
             t.join()
 
-        progress = rw._sync_jobs[job_id]['progress']
+        progress = so._jobs[job_id]['progress']
         assert len(progress) == 20
         for key, entry in progress.items():
             assert entry['status'] == 'done'
             assert entry['name'] == key[1]
             assert entry['journal_name'] == key[0]
 
-    def test_concurrent_get_and_set(self, rw):
+    def test_concurrent_get_and_set(self, so):
         """_get_entity_progress + _set_entity_status under concurrent load."""
         job_id = 'sync-12'
-        rw._sync_jobs[job_id] = {'status': 'running', 'buffer': []}
+        with so._lock:
+            so._jobs[job_id] = {'status': 'running'}
         errors = []
 
         def getter():
             try:
                 for _ in range(50):
-                    p = rw._get_entity_progress(job_id)
+                    p = so._get_entity_progress(job_id)
                     assert isinstance(p, dict)
             except Exception as e:
                 errors.append(e)
@@ -279,7 +297,7 @@ class TestEntityProgressThreadSafety:
             try:
                 for i in range(50):
                     key = (f'J{i % 3}', f'E{i}')
-                    rw._set_entity_status(job_id, key, 'processing')
+                    so._set_entity_status(job_id, key, 'processing')
             except Exception as e:
                 errors.append(e)
 
@@ -302,7 +320,7 @@ class TestSSEOutputWithEntityProgress:
     def test_entity_progress_events_appear_in_stream(self, app_with_queue):
         """Entity progress entries created during a job appear in SSE output."""
         from kanka_wiki_updater import review_web as rw
-        from kanka_wiki_updater.review_web import _set_entity_status, EVENT_ENTITY_PROGRESS
+        from kanka_wiki_updater.review_web import EVENT_ENTITY_PROGRESS
 
         # Create a fake job (completed so the SSE stream terminates immediately)
         job_id = 'test-job-99'
@@ -313,10 +331,14 @@ class TestSSEOutputWithEntityProgress:
                 'progress': {},
             }
 
-        # Create an entity progress entry
+        # Set up progress entry directly on web job state (SSE output reads from here)
         key = ('Test Journal', 'Test Entity')
         with app_with_queue.application.test_request_context():
-            rw._set_entity_status(job_id, key, 'processing')
+            rw._sync_jobs[job_id]['progress'][key] = {
+                'name': 'Test Entity',
+                'journal_name': 'Test Journal',
+                'status': 'processing',
+            }
 
         # Fetch SSE output — should include the entity_progress event
         resp = app_with_queue.get(f'/api/sync/output?job_id={job_id}')
@@ -327,7 +349,7 @@ class TestSSEOutputWithEntityProgress:
     def test_entity_key_only_emitted_once_per_connection(self, app_with_queue):
         """Each entity progress key should only appear once per SSE connection."""
         from kanka_wiki_updater import review_web as rw
-        from kanka_wiki_updater.review_web import _set_entity_status, EVENT_ENTITY_PROGRESS
+        from kanka_wiki_updater.review_web import EVENT_ENTITY_PROGRESS
 
         job_id = 'test-job-100'
         with app_with_queue.application.test_request_context():
@@ -339,7 +361,11 @@ class TestSSEOutputWithEntityProgress:
 
         key = ('J1', 'E1')
         with app_with_queue.application.test_request_context():
-            rw._set_entity_status(job_id, key, 'processing')
+            rw._sync_jobs[job_id]['progress'][key] = {
+                'name': 'E1',
+                'journal_name': 'J1',
+                'status': 'processing',
+            }
 
         # First SSE fetch — should see the entity
         resp1 = app_with_queue.get(f'/api/sync/output?job_id={job_id}')
