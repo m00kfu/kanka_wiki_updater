@@ -12,7 +12,9 @@ anything is published back to the wiki.
    `[entity:N]` link syntax, with a fuzzy name-match fallback for plain
    prose mentions), and asks the LLM to propose an updated synopsis +
    relationship changes for each one mentioned. Proposals are written to
-   `data/pending_changes.json` — **nothing is sent to Kanka yet**.
+   `pending_changes.json` in the data directory (default:
+   `~/.local/share/kanka_wiki_updater/`, configurable via `DATA_DIR`) —
+   **nothing is sent to Kanka yet**.
 2. `review.py` walks you through each pending proposal (a diff of the
    synopsis, plus any relationship changes) so you can approve, reject, or
    approve-the-synopsis-but-skip-the-relationships. New-entity suggestions
@@ -51,8 +53,8 @@ python -m kanka_wiki_updater.revert          # undo the most recent review run, 
 ```
 
 Run `sync_pipeline` after each session. It only looks at journals updated
-since the last run (tracked in `data/sync_state.json`), so it's safe to run
-repeatedly without reprocessing old notes. The pipeline shows a Unicode
+since the last run (tracked in `sync_state.json` in the data directory),
+so it's safe to run repeatedly without reprocessing old notes. The pipeline shows a Unicode
 progress bar with journal names as it processes each one.
 
 The web review UI (`review_web`) offers a tabbed interface with:

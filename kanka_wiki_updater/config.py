@@ -79,4 +79,15 @@ if LLM_PROVIDER == 'opencode' and not OPENCODE_API_KEY:
 _raw_batch_limit = os.environ.get('JOURNAL_BATCH_LIMIT', '').strip()
 JOURNAL_BATCH_LIMIT = int(_raw_batch_limit) if _raw_batch_limit else None
 
-DATA_DIR = os.environ.get('DATA_DIR', str(Path(__file__).resolve().parent.parent / 'data'))
+# Where persistent state (pending changes, sync progress, applied-log) lives.
+# Override with the DATA_DIR environment variable for a custom location.
+default_data_dir: Path = Path.home() / '.local' / 'share' / 'kanka_wiki_updater'
+
+# Backward-compat: if the old project-root ``data/`` exists and DATA_DIR was
+# *not* explicitly set, keep using it so existing installs don't lose state.
+if not os.environ.get('DATA_DIR'):
+    legacy_data_dir = Path(__file__).resolve().parent.parent / 'data'
+    if legacy_data_dir.is_dir():
+        default_data_dir = legacy_data_dir
+
+DATA_DIR = os.environ.get('DATA_DIR', str(default_data_dir))

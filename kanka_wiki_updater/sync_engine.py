@@ -44,10 +44,7 @@ try:
 except ImportError:
     from kanka_wiki_updater.kanka_client import KankaClient
 
-try:
-    from .sync_pipeline import build_entity_index
-except ImportError:
-    from kanka_wiki_updater.sync_pipeline import build_entity_index
+
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +160,21 @@ def resolve_entity(client, name, entity_index_cache):
         )
 
     return None
+
+
+def build_entity_index(client):
+    """One pass over characters + locations, keyed by entity_id."""
+    index = {}
+    for kind, rows in (('character', client.get_characters()), ('location', client.get_locations())):
+        for row in rows:
+            index[row['entity_id']] = {
+                'kind': kind,
+                'local_id': row['id'],
+                'name': row['name'],
+                'entry': row.get('entry') or '',
+                'relations': row.get('relations') or [],
+            }
+    return index
 
 
 def _get_or_build_index(client, entity_index_cache):
