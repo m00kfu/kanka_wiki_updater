@@ -24,9 +24,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Runtime state data
-data/
-
 # Debug/temp scripts
 _inspect_pending.py
 
@@ -34,13 +31,12 @@ _inspect_pending.py
 .ruff_cache/
 .pytest_cache/
 
-# Backup / copied files
-*.bak
-*.old
-- Copy.*
-
-# Superpowers tooling
-.superpowers/
 # Node.js dependencies
 node_modules/
-.compound-engineering/*.local.yaml
+
+# AI / agent directories
+.claude/
+CLAUDE.md
+.gitnexus/
+.docs/
+
