@@ -565,7 +565,7 @@ def create_app():
                         while buffer:
                             line = buffer.popleft()
                             yield line
-                        yield f'event: status\ndata: {json.dumps({"status": job["status"]})}\n\n'
+                        yield f'event: status_change\ndata: {json.dumps({"status": job["status"]})}\n\n'
                         yield 'event: end\n\n'
                         return
 
