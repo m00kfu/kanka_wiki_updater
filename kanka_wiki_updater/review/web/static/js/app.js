@@ -1020,6 +1020,16 @@ async function runSync() {
       error_message: data.error_message || null,
     };
 
+    // Also update matching placeholder in proposals sidebar with real journal name
+    for (var pi = 0; pi < proposals.length; pi++) {
+      if (proposals[pi]._sync_placeholder &&
+          proposals[pi].entity_name === data.name &&
+          proposals[pi].source_journal === 'Syncing...') {
+        proposals[pi].source_journal = data.journal_name;
+        break;
+      }
+    }
+
     _renderSyncContent();
   });
 
@@ -1029,24 +1039,34 @@ async function runSync() {
     try { data = JSON.parse(e.data); } catch (_) { return; }
     if (!data.name || !data.type) return;
 
+    // Look up real journal name from syncEntities (set by entity_progress events)
+    var realJournal = '';
+    for (var sk in syncEntities) {
+      if (syncEntities[sk]._meta) continue;
+      if (syncEntities[sk].name === data.name && syncEntities[sk].journal_name) {
+        realJournal = syncEntities[sk].journal_name;
+        break;
+      }
+    }
+
     // Create a minimal placeholder proposal for sidebar display
     var placeholder = {
       entity_name: data.name,
-      source_journal: 'Syncing...',
+      source_journal: realJournal || 'Syncing...',
       proposal_type: data.type === 'new_entity' ? 'new_entity' : 'update',
       entity_kind: data.kind || '',
       status: 'pending',
       _sync_placeholder: true, // marks this as a live-insert placeholder
     };
 
-    // Avoid duplicate placeholders for the same entity+journal combo
+    // Avoid duplicate entries for the same entity
     var found = false;
     for (var i2 = 0; i2 < proposals.length; i2++) {
-      if (proposals[i2].entity_name === data.name &&
-          proposals[i2]._sync_placeholder &&
-          proposals[i2].source_journal === 'Syncing...') {
-        // Update existing placeholder
-        proposals[i2] = Object.assign(proposals[i2], placeholder);
+      if (proposals[i2].entity_name === data.name) {
+        if (proposals[i2]._sync_placeholder) {
+          // Update existing placeholder with fresh data
+          Object.assign(proposals[i2], placeholder);
+        }
         found = true;
         break;
       }
@@ -1101,20 +1121,38 @@ function loadProposals() {
   fetch('/api/proposals')
     .then(function(r){ return r.json(); })
     .then(function(data) {
-      var existing = proposals.slice();
-      for (var i3 = 0; i3 < data.length; i3++) {
-        var found2 = false;
-        for (var j2 = 0; j2 < existing.length; j2++) {
-          if (existing[j2].entity_name === data[i3].entity_name &&
-              existing[j2].source_journal === data[i3].source_journal) {
-            existing[j2] = data[i3];
-            found2 = true;
+      var serverMap = {};
+      for (var si = 0; si < data.length; si++) {
+        var key = data[si].entity_name.toLowerCase();
+        if (!serverMap[key]) { serverMap[key] = []; }
+        serverMap[key].push(data[si]);
+      }
+
+      // Replace placeholders with real server data, keep non-placeholders as-is
+      for (var pi = 0; pi < proposals.length; pi++) {
+        if (proposals[pi]._sync_placeholder) {
+          var pKey = proposals[pi].entity_name.toLowerCase();
+          if (serverMap[pKey] && serverMap[pKey].length > 0) {
+            // Use the first matching real proposal from the server
+            proposals[pi] = serverMap[pKey][0];
+          }
+        }
+      }
+
+      // Add any server proposals not already represented in the list
+      for (var si2 = 0; si2 < data.length; si2++) {
+        var sName = data[si2].entity_name;
+        var sJournal = data[si2].source_journal;
+        var exists = false;
+        for (var ei = 0; ei < proposals.length; ei++) {
+          if (proposals[ei].entity_name === sName &&
+              proposals[ei].source_journal === sJournal) {
+            exists = true;
             break;
           }
         }
-        if (!found2) { existing.push(data[i3]); }
+        if (!exists) { proposals.push(data[si2]); }
       }
-      proposals = existing;
       updateStats();
       renderSidebar();
       renderContent();
