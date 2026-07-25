@@ -483,6 +483,14 @@ def create_app():
         def on_sync_started(total_journals, total_entities_estimate):
             emitter.status_change('running')
 
+        def on_sync_completed(total_proposals, total_new_entities):
+            """Update _sync_jobs status when the orchestrator thread finishes."""
+            with _sync_lock:
+                job = _sync_jobs.get(job_id)
+                if job and job['status'] == 'running':
+                    job['status'] = 'completed'
+                    job['finished_at'] = time.time()
+
         callbacks = {
             'entity_started': on_entity_started,
             'llm_result': on_llm_result,
@@ -491,6 +499,7 @@ def create_app():
             'journal_completed': on_journal_completed,
             'sync_started': on_sync_started,
             'journal_entities_discovered': on_journal_entities_discovered,
+            'sync_completed': on_sync_completed,
         }
 
         # Start the orchestrator — it creates its own job state under _lock.
