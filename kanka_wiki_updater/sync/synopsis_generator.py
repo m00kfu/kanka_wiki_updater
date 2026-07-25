@@ -352,6 +352,29 @@ def _inject_journal_italics(text, display_name_map):
     return '\n\n'.join(result)
 
 
+_JOURNAL_TAG_CLOSE_RE = re.compile(
+    r'(\[/journal\]|</i>\])'  # closing bracket (bare or </i>]</i>)
+    r'\s*'
+    r'(?=[^\s])',              # only when followed by non-whitespace
+    re.DOTALL,
+)
+
+
+def _ensure_trailing_space_after_journal_tags(text):
+    """Ensure exactly one space after every journal citation tag.
+
+    Normalises ``[journal:N|<i>Name</i>]New content`` →
+    ``[journal:N|<i>Name</i>] New content`` — inserting a single space when
+    needed, collapsing any existing whitespace to exactly one.
+
+    Only touches journal citation tags; other link types like
+    ``[location:42|Waterdeep]`` are left untouched.
+    """
+    if not text:
+        return text
+    return _JOURNAL_TAG_CLOSE_RE.sub(r'\1 ', text)
+
+
 def _deduplicate_journal_tags(text):
     """Collapse duplicate [journal:N|...] tags in the LLM output.
 
@@ -450,6 +473,9 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
     proposed_text = _deduplicate_journal_tags(proposed_text)
     # Insurance: re-inject <i> tags if the LLM stripped them from its response.
     proposed_text = _inject_journal_italics(proposed_text, display_name_map)
+    # Ensure exactly one space after every journal citation tag (catches both
+    # bare ] from deduplication and </i>] from italic injection).
+    proposed_text = _ensure_trailing_space_after_journal_tags(proposed_text)
 
     # Detect when the LLM output is significantly shorter than the input,
     # which often means information was lost (summarized/condensed instead

@@ -1114,3 +1114,82 @@ def test_build_prompts_display_name_passes_short_valid_name():
 
     session_text, user_prompt = _build_prompts(1, entity, journal, {})
     assert "[journal:12345|<i>Week 3 Recap</i>]" in user_prompt
+
+
+def test_trailing_space_after_journal_tag_injected():
+    """When LLM omits space after journal tag, _inject_journal_italics adds one."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync.synopsis_generator import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session 5',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': 'Old synopsis.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
+        # LLM output has NO space after the closing bracket.
+        mock_chat.return_value = {
+            'updated_entry': '[journal:9431667|Session 5]New synopsis about Alice.',
+            'change_summary': 'Added new info',
+            '_is_new_info': True,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    # Should have exactly one space between </i>] and "New"
+    assert '[journal:9431667|<i>Session 5</i>] New synopsis' in result['proposed_entry']
+
+
+def test_trailing_space_after_deduplicated_journal_tag():
+    """When deduplication removes a duplicate tag, space is preserved after the retained one."""
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync.synopsis_generator import propose_update
+
+    journal = {
+        'id': 789,
+        'entity_id': 9431667,
+        'name': 'Session 5',
+        'date': '2024-01-01',
+        'entry': 'Alice saved the day.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+    entity = {
+        'kind': 'character',
+        'local_id': 1,
+        'name': 'Alice',
+        'entry': 'Old synopsis.',
+        'relations': [],
+    }
+
+    with patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
+        # LLM echoes the same tag on two consecutive paragraphs with no space.
+        mock_chat.return_value = {
+            'updated_entry': (
+                '[journal:9431667|Session 5]Alice saved the day.\n\n'
+                '[journal:9431667|Session 5]She also found a sword.'
+            ),
+            'change_summary': 'Added new info',
+            '_is_new_info': True,
+        }
+
+        result = propose_update(1, entity, journal, {1: {'name': 'Alice'}})
+
+    assert result is not None
+    # After deduplication the second paragraph should have no tag but content
+    # with a space after the first tag's closing bracket.
+    proposed = result['proposed_entry']
+    assert '[journal:9431667|<i>Session 5</i>] Alice saved' in proposed
