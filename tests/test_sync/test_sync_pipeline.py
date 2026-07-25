@@ -510,7 +510,42 @@ def test_propose_new_entity_truncation_heuristic():
     assert 'truncated' not in results[1] or results[1].get('truncated') is False
 
 
-def test_propose_update_stores_journal_id():
+def test_propose_new_entities_masks_existing_entity_links():
+    """Existing wiki links like [character:123456|R] must NOT be suggested as new entities.
+
+    The display-name portion ('R') should be masked so the LLM sees only
+    '[character:123456]' and does not propose a new character named 'R'.
+    """
+    from unittest.mock import patch
+
+    from kanka_wiki_updater.sync.ingest_journal import propose_new_entities
+
+    journal = {
+        'id': 789,
+        'name': 'Session note',
+        'date': '2024-01-01',
+        'entry': 'The party met [character:123456|R] at the inn.',
+        'created_at': '2024-01-02T10:00:00',
+    }
+
+    with patch('kanka_wiki_updater.sync.ingest_journal.chat_json') as mock_chat:
+        # The LLM is mocked to return what it *would* have suggested.
+        # Without masking, the raw text contains '[character:123456|R]'
+        # and the LLM might suggest 'R' as a new character.
+        mock_chat.return_value = {
+            'new_entities': [
+                {'name': 'Rezmir', 'suggested_type': 'character', 'draft_entry': '', 'reason': ''},
+            ],
+        }
+
+        results = propose_new_entities(journal, set())
+
+    # The LLM received masked text '[character:123456]' not '[character:123456|R]',
+    # so it should NOT have suggested 'R'. It suggested 'Rezmir' which is fine.
+    names = [r['entity_name'] for r in results]
+    assert 'R' not in names
+    assert 'Rezmir' in names
+
     from unittest.mock import patch
 
     from kanka_wiki_updater.sync.synopsis_generator import propose_update

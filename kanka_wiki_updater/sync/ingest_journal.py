@@ -44,6 +44,7 @@ try:
     from .core import config, state
     from .core.kanka_client import KankaClient
     from .core.mentions import (
+        MENTION_DISPLAY_RE,
         fuzzy_name_matches,
         linked_entity_ids,
         strip_html,
@@ -63,6 +64,7 @@ except ImportError:
     from kanka_wiki_updater.core import config, state
     from kanka_wiki_updater.core.kanka_client import KankaClient
     from kanka_wiki_updater.core.mentions import (
+        MENTION_DISPLAY_RE,
         fuzzy_name_matches,
         linked_entity_ids,
         strip_html,
@@ -162,10 +164,18 @@ def apply_relation_changes_locally(entity_id, relation_changes, index, name_to_i
 
 
 def propose_new_entities(journal, known_names):
-    """Ask the LLM once per journal whether it mentions any character or location not already a known entity."""
+    """Ask the LLM once per journal whether it mentions any character or location not already a known entity.
+
+    Existing wiki links like ``[character:123456|R]`` are masked to
+    ``[character:123456]`` before scanning so the LLM does not mistake the
+    display-name portion ("R") for a new character name.
+    """
     session_text = strip_html(journal.get('entry', '') or '')
     if not session_text.strip():
         return []
+    # Mask existing entity links so their display names aren't picked up
+    # as new-entity suggestions (e.g. [character:123456|R] → [character:123456]).
+    session_text = MENTION_DISPLAY_RE.sub(r'\1]', session_text)
 
     user_prompt = NEW_ENTITY_USER_PROMPT_TEMPLATE.format(
         known_names='\n'.join(f'- {n}' for n in sorted(known_names)) or '(none yet)',
