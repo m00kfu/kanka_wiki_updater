@@ -5,6 +5,7 @@ let editingOriginal = ''; // original text when entering edit mode (for escape-t
 let diffViewMode = 'unified'; // or 'side-by-side'
 let currentSyncJob = null; // {job_id, status}
 let syncEventSource = null; // EventSource reference for proper cleanup
+let _syncEnded = false;     // guard: prevent auto-reconnect after 'end' event
 
 // ── Sync progress state (live entity tracking) ─────────────────────────────
 let syncEntities = {};   // key: "journal_name::entity_name" → {name, journal_name, status, error_message}
@@ -986,6 +987,7 @@ async function runSync() {
   // event (e.g. idle timeout, network drop), preventing the UI from staying
   // stuck in "running" forever.
   syncEventSource.onerror = function() {
+    if (!syncEventSource || _syncEnded) return;  // already cleaned up by 'end' handler
     if (!currentSyncJob || currentSyncJob.status !== 'running') return;
     fetch('/api/sync/status')
       .then(function(r){ return r.json(); })
@@ -1069,10 +1071,12 @@ async function runSync() {
 
   // Stream end — finalize sync job and refresh full proposal data
   syncEventSource.addEventListener('end', function() {
-    syncEventSource.close();
-    syncEventSource = null;
+    _syncEnded = true;        // MUST be first: blocks onerror reconnection race
+    if (syncEventSource) {     // double-check in case close() already nullified it
+      syncEventSource.close();
+      syncEventSource = null;
+    }
     stopElapsedTimer();
-    if (currentSyncJob) currentSyncJob.status = 'completed';
     _renderSyncContent();
 
     // Show completion summary before refreshing proposals

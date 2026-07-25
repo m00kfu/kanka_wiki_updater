@@ -540,6 +540,20 @@ def create_app():
             return Response('Job not found', status=404, mimetype='text/plain')
 
         job = _sync_jobs[job_id]
+
+        # If the job is already in a terminal state, do NOT start an SSE stream.
+        # Returning a non-SSE response causes EventSource to fail the connection
+        # and set readyState to CLOSED — permanently halting future reconnect
+        # attempts that would otherwise create an infinite GET loop.
+        if job['status'] in ('completed', 'error', 'cancelled'):
+            from flask import Response
+
+            return Response(
+                'Sync job already ' + job['status'],
+                status=404,
+                mimetype='text/plain',
+            )
+
         buffer = job['buffer']
 
         def generate():
@@ -577,8 +591,6 @@ def create_app():
                         yield f'event: status_change\ndata: {json.dumps({"status": job["status"]})}\n\n'
                         yield 'event: end\n\n'
                         return
-
-                    # Idle timeout — prevent forever-blocking generators.
                     if time.time() - idle_start > _SSE_IDLE_TIMEOUT:
                         yield 'event: end\n\n'
                         return
