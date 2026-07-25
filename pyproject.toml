@@ -12,7 +12,7 @@ ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 # Side-effect imports for test mocking (same pattern as review_web.py)
-"kanka_wiki_updater/sync_engine.py"     = ["F401"]
+"kanka_wiki_updater/sync/sync_engine.py" = ["F401"]
 
 [tool.ruff.format]
 quote-style = "single"

@@ -4,13 +4,20 @@
 
 ```bash
 pip install -r requirements.txt        # once: requests, python-dotenv, json_repair, colorama, ruff, pytest, flask
-python -m kanka_wiki_updater.review_web                   # web-based review UI at http://127.0.0.1:5555 (includes sync trigger)
-python -m kanka_wiki_updater.revert                       # undo the most recent unreverted review batch
-python -m kanka_wiki_updater.reset_to_first [--dry-run]   # nuclear undo to first recorded state
+python -m kanka_wiki_updater.review.web                   # web-based review UI at http://127.0.0.1:5555 (includes sync trigger)
+python -m kanka_wiki_updater.cli revert                   # undo the most recent unreverted review batch
+python -m kanka_wiki_updater.cli reset [--dry-run]        # nuclear undo to first recorded state
 ```
 
-- Run **from the parent directory** containing `kanka_wiki_updater/` (the module entry point expects relative imports).
-- `.env` is required: copy `.env.example`, fill in `KANKA_TOKEN`, `KANKA_CAMPAIGN_ID`, `LMSTUDIO_MODEL`.
+Or install as a package and use the entry point:
+```bash
+pip install -e .
+kanka-wiki-updater revert
+kanka-wiki-updater reset
+```
+
+- Run **from the project root** (the directory containing `pyproject.toml`).
+- `.env` is required: copy `.env.example`, fill in `KANKA_TOKEN`, `KANKA_CAMPAIGN_ID`, and at least one LLM provider config.
 - Changes are verified by `ruff check` + manual testing.
 
 ## Linting & formatting
@@ -28,54 +35,92 @@ Configuration is in `pyproject.toml`. Line length: 120 chars.
 ```bash
 pytest                          # run all tests
 pytest -v                       # verbose output
-pytest tests/test_mentions.py   # single file
-pytest --cov=kanka_wiki_updater # coverage report
+pytest tests/test_core/test_mentions.py   # single test file
+pytest --cov=kanka_wiki_updater           # coverage report
 ```
 
-Tests go in `tests/` alongside the source. Pure functions (mentions, state) are tested first — no mocking needed. I/O-heavy modules (kanka_client, sync_engine, ingest_journal) use pytest-mock to isolate external dependencies.
+Tests live in `tests/` mirroring the package structure:
+- `test_core/` — config, kanka_client, mentions, progress, state, colors (pure functions tested first)
+- `test_llm/` — provider implementations
+- `test_sync/` — ingest callbacks, sync orchestrator, sync pipeline, relation conflicts, sync events
+- `test_review/` — queue manager, review web routes
+- `test_cli/` — revert command
+
+I/O-heavy modules (kanka_client, sync_engine, ingest_journal) use pytest-mock to isolate external dependencies.
 
 ## Architecture at a glance
 
-| File | Purpose |
+### Package layout
+```
+kanka_wiki_updater/
+├── cli/                    # CLI entry points (revert, reset)
+│   ├── __main__.py         # argparse dispatcher → subcommand handlers
+│   ├── revert.py           # undo last applied batch
+│   └── reset_to_first.py   # nuclear undo to first journal state
+├── core/                   # Core business logic
+│   ├── config.py           # .env loading; required: KANKA_TOKEN, KANKA_CAMPAIGN_ID
+│   ├── kanka_client.py     # HTTP wrapper around Kanka API v1 (throttled ~1 req/2.1s)
+│   ├── mentions.py         # Entity resolution: [entity:N] links + fuzzy name matching
+│   ├── progress.py         # In-memory progress tracker with Unicode bar
+│   ├── prompts.py          # System/user prompt templates for LLM calls
+│   ├── state.py            # JSON state files under data/: sync cursor, pending queue, applied-log
+│   └── colors.py           # ANSI color helpers for CLI output
+├── llm/                    # LLM provider abstraction
+│   ├── client.py           # Sends prompts to OpenAI-compatible /v1/chat/completions
+│   └── providers.py        # LM Studio, Google Gemini, and OpenCode Zen implementations
+├── sync/                   # Sync pipeline
+│   ├── ingest_journal.py   # [backend only — never run directly] fetch journals → identify entities → LLM per entity → queue proposals
+│   ├── sync_engine.py      # Apply proposals to Kanka: create/update/delete entities & relations
+│   ├── sync_orchestrator.py# Job lifecycle: start/cancel/status with per-entity progress
+│   ├── synopsis_generator.py # LLM-driven synopsis generation (used by ingest + review_web)
+│   ├── sync_events.py      # Event type constants for pipeline contract
+│   └── relation_conflicts.py  # Detect/resolve conflicts in proposed relations
+├── review/                 # Review & queue management
+│   ├── queue_manager.py    # Load/save pending_changes.json, edit proposal text/status/relation changes
+│   └── web/                # Flask web UI
+│       ├── __main__.py     # Entry point: python -m kanka_wiki_updater.review.web
+│       └── __init__.py     # App factory, SSE streaming, API routes
+└── tests/                  # pytest suite (see below)
+```
+
+### Key modules
+
+| Module | Purpose |
 |---|---|
-| `config.py` | Loads `.env` settings; required vars: `KANKA_TOKEN`, `KANKA_CAMPAIGN_ID`. Defaults for LM Studio, rate limits, batch size. |
-| `kanka_client.py` | Thin HTTP wrapper around Kanka API v1 (characters, locations, relations, journal entries). Throttles requests to ~1/2s. |
-| `mentions.py` | Entity resolution: parses `[entity:N]` wiki links + fuzzy name-match fallback for plain-text mentions in session notes. |
-| `progress.py` | In-memory progress tracker with Unicode progress bar; uses `\r` carriage return for in-place terminal updates (disabled on Windows). |
-| `llm_client.py` | Sends prompts to LM Studio's OpenAI-compatible `/v1/chat/completions`. Parses JSON output with `json_repair` fallback. |
-| `llm_providers.py` | Provider implementations for LM Studio, Google Gemini, and OpenCode Zen. HTTP logic lives here; `llm_client.py` re-exports `chat_json()`. |
-| `prompts.py` | System/user prompt templates for synopsis updates and new-entity detection (strict JSON schema). |
-| `synopsis_generator.py` | Shared LLM-driven synopsis generation: prompt construction, response parsing, paragraph normalisation, journal-tag deduplication/italics injection. Used by both ingest_journal and review_web. Exports `build_synopsis_proposal()`, `propose_update()`, `build_entity_index()`, `relation_summary()`. |
-| `ingest_journal.py` | **Shared ingest core:** builds entity index → fetches journals since last sync → identifies mentioned entities → calls LLM per entity → queues proposals to `data/pending_changes.json`. Idempotent: tracks processed journal IDs so interrupted runs don't duplicate work. Accepts pluggable callbacks for progress reporting. |
-| `sync_orchestrator.py` | Job lifecycle management: runs ingest in daemon threads, provides start/cancel/status APIs with per-entity progress tracking. Used by review_web Sync tab. |
-| `sync_engine.py` | Apply proposals to Kanka API: entity resolution (wiki-link parsing, exact/substring/fuzzy matching), new entity creation, synopsis updates, relation create/update/delete with reverse-direction conflict detection. |
-| `sync_events.py` | Event type constants for the sync pipeline contract (entity progress statuses, SSE event types). |
-| `queue_manager.py` | Queue I/O and in-memory manipulation: load/save pending_changes.json, edit proposal text/status, add/delete/update relation changes. |
-| `relation_conflicts.py` | Detects and resolves conflicts in proposed relation changes (label mismatches, cross-proposal duplicates). |
-| `reset_to_first.py` | Nuclear undo: resets all entities back to their earliest recorded previous_entry from the pending queue. |
-| `review_web.py` | Flask web UI at http://127.0.0.1:5555 with tabbed interface — Review tab (browse, filter, edit proposals inline, manage relations via modals, regenerate truncated proposals via LLM) and Sync tab (run sync pipeline from browser with SSE output streaming, per-entity progress tracking, cancel support). Reads/writes `data/pending_changes.json` via queue_manager. |
-| `revert.py` | Undoes the most recent unreverted review batch in reverse order: relation changes + synopsis edits first, then new-entity deletions last. Only one-step undo; older batches without structured logs can't be reverted automatically. |
-| `state.py` | Plain JSON state files under `data/`: sync cursor, pending queue, applied-log (with run_id and revert flag), processed journal IDs. |
+| `core/config.py` | Loads `.env`; required: `KANKA_TOKEN`, `KANKA_CAMPAIGN_ID`. Defaults for LLM, rate limits, batch size. |
+| `core/kanka_client.py` | Thin HTTP wrapper around Kanka API v1 (characters, locations, relations, journals). Throttled requests. |
+| `core/mentions.py` | Entity resolution: parses `[entity:N]` wiki links + fuzzy name-match fallback for plain-text mentions. |
+| `llm/client.py` | Sends prompts to OpenAI-compatible `/v1/chat/completions`. Parses JSON with `json_repair` fallback. |
+| `llm/providers.py` | Provider implementations: LM Studio, Google Gemini, OpenCode Zen. Re-exports `chat_json()`. |
+| `sync/ingest_journal.py` | **Ingest core:** entity index → fetch journals → identify entities → LLM per entity → queue proposals. Idempotent via processed-journal tracking. |
+| `sync/sync_engine.py` | Apply proposals to Kanka: wiki-link parsing, exact/fuzzy matching, new entity creation, synopsis updates, relation CRUD with reverse-direction conflict detection. |
+| `sync/sync_orchestrator.py` | Job lifecycle management: start/cancel/status APIs with per-entity progress tracking. Used by review_web Sync tab. |
+| `sync/synopsis_generator.py` | LLM-driven synopsis generation: prompt construction, response parsing, paragraph normalisation, journal-tag dedup/italics. Exports `build_synopsis_proposal()`, `propose_update()`, `build_entity_index()`. |
+| `review/queue_manager.py` | Queue I/O and in-memory manipulation: load/save `pending_changes.json`, edit proposal text/status/relation changes. |
+| `review/web/__init__.py` | Flask app factory at http://127.0.0.1:5555 — Review tab (browse, filter, edit, approve/reject, regenerate) and Sync tab (SSE streaming, per-entity progress, cancel). |
+| `cli/revert.py` | Undoes the most recent unreverted batch in reverse order: relations + synopses first, new-entity deletions last. One-step undo only. |
+| `cli/reset_to_first.py` | Nuclear undo: resets all entities to their earliest recorded `previous_entry`. |
+| `core/state.py` | Plain JSON state files under `data/`: sync cursor, pending queue, applied-log (with run_id/revert flag), processed journal IDs. |
 
 ## Gotchas & constraints
 
-- **Nothing auto-publishes.** The pipeline only writes proposals to `pending_changes.json`. Changes reach Kanka only through `review_web.py` (web UI) or `sync_engine.apply_proposal()` after human approval.
+- **Nothing auto-publishes.** The pipeline only writes proposals to `pending_changes.json`. Changes reach Kanka only through the web UI (`review/web/__init__.py`) or `sync_engine.apply_proposal()` after human approval.
 - **Journal date sorting:** journals are sorted by in-fiction date (`date` field or calendar fields), not creation timestamp, so synopses build chronologically even if sessions were logged out of order.
 - **In-memory carry-forward:** when multiple journals mention the same entity in one sync run, each proposal's `proposed_entry` is carried forward into the memory index so subsequent journals see the latest draft (not the stale Kanka copy). The real Kanka is untouched until review.
-- **Entity creation during review:** approving a new-entity suggestion makes that entity immediately available as a relation target for update proposals reviewed later in the same session. If sync_engine can't read back an `entity_id` from Kanka's response, it won't resolve as a relation target this run — raw response is printed.
+- **Entity creation during review:** approving a new-entity suggestion makes that entity immediately available as a relation target for update proposals reviewed later in the same session. If `sync_engine` can't read back an `entity_id` from Kanka's response, it won't resolve as a relation target this run — raw response is printed.
 - **Relation ID quirks:** Kanka's API doesn't always return an `id` per relation in list responses. If create/update/delete relations misbehave, print a raw relation object and adjust the code accordingly (see README notes).
 - **Rate limits:** default 1 request every 2.1 s (`KANKA_REQUEST_INTERVAL`). Subscribers can lower this; upgraders get ~90/min.
 - **Revert limitations:** reverted batches leave journals marked as "processed" — re-running `ingest_journal` won't regenerate those proposals unless you remove the journal IDs from `data/processed_journals.json`. Only the most recent unreverted batch is undoable; pre-revert-tool runs lack sufficient detail.
-- **Gemini provider:** set `LLM_PROVIDER=gemini` plus `GEMINI_API_KEY` and `GEMINI_MODEL` in `.env` to use Google Gemini instead of LM Studio.
-- **OpenCode Zen provider:** set `LLM_PROVIDER=opencode` plus `OPENCODE_API_KEY` and optionally `OPENCODE_MODEL` in `.env`. Uses OpenCode's OpenAI-compatible API at `https://opencode.ai/zen/v1/chat/completions`.
+- **LLM providers:** defaults to LM Studio (local OpenAI-compatible server). Set `LMSTUDIO_MODEL` for LM Studio, set `LLM_PROVIDER=gemini` plus `GEMINI_API_KEY` + `GEMINI_MODEL` in `.env` to use Google Gemini, or set `LLM_PROVIDER=opencode` plus `OPENCODE_API_KEY` (+ optional `OPENCODE_MODEL`) for OpenCode Zen. Provider logic lives in `llm/providers.py`. If you see JSON parsing failures, try a model that's better at structured output, or lower `temperature`.
+- **Batch limit:** `JOURNAL_BATCH_LIMIT` controls how many journals are processed per sync run. Defaults to 1 when multiple journal types are configured; unset for unlimited.
 
 ## External references
 
-- **Kanka API v1 docs:** https://app.kanka.io/api-docs/1.0/overview — the canonical reference for all Kanka endpoint parameters, response shapes, and rate limits. Refer to this when updating `kanka_client.py` or debugging unexpected responses.
+- **Kanka API v1 docs:** https://app.kanka.io/api-docs/1.0/overview — the canonical reference for all Kanka endpoint parameters, response shapes, and rate limits. Refer to this when updating `core/kanka_client.py` or debugging unexpected responses.
 
 ## Prompt engineering notes
 
-- The LLM system prompt enforces strict JSON output (no markdown fences, escaped quotes/backslashes). If parsing fails frequently: switch to a model with better structured-output capability or lower `temperature`. For OpenCode provider, use the same format as LM Studio; just set `LLM_PROVIDER=opencode` and provide `OPENCODE_API_KEY`.
+- The LLM system prompt enforces strict JSON output (no markdown fences, escaped quotes/backslashes). If parsing fails frequently: switch to a model with better structured-output capability or lower `temperature`. All providers use the same format; just set the appropriate `LLM_PROVIDER` and API key.
 - For reasoning/"thinking" models: increase `LLM_MAX_TOKENS` and `LLM_TIMEOUT_SECONDS` — hidden chain-of-thought consumes tokens and time. This applies to all providers.
 
 <!-- gitnexus:start -->

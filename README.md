@@ -1,13 +1,13 @@
-# Kanka Session-Note Sync
+# Kanka Wiki Updater
 
 Reads new session-note journals from your Kanka campaign, asks a local LLM
-(via LM Studio or Google Gemini) to propose updated character/location synopses and
+(via LM Studio, Google Gemini, or OpenCode Zen) to propose updated character/location synopses and
 relationship changes, and queues those proposals for you to review before
 anything is published back to the wiki.
 
 ## How it works
 
-1. `sync/ingest_journal.py` fetches journals updated since the last run, figures
+1. `kanka_wiki_updater/sync/ingest_journal.py` fetches journals updated since the last run, figures
    out which characters/locations each one mentions (via Kanka's
    `[entity:N]` link syntax, with a fuzzy name-match fallback for plain
    prose mentions), and asks the LLM to propose an updated synopsis +
@@ -15,17 +15,17 @@ anything is published back to the wiki.
    `pending_changes.json` in the data directory (default:
    `~/.local/share/kanka_wiki_updater/`, configurable via `DATA_DIR`) —
    **nothing is sent to Kanka yet**.
-2. `review/web/` serves the review UI (template + static assets under `review/web/templates/` and `review/web/static/`) where you can
+2. `kanka_wiki_updater/review/web/` serves the review UI (template + static assets under `review/web/templates/` and `review/web/static/`) where you can
    approve, reject, or edit them inline. New-entity suggestions
    (proper nouns mentioned in a session note that don't match any existing
    character/location) are reviewed first, so approving one makes it
    available as a relation target for proposals reviewed right after it.
    Approved changes are PATCHed/POSTed to Kanka immediately.
-3. `cli/revert.py` undoes everything applied to Kanka in its most recent
+3. `kanka_wiki_updater/cli/revert.py` undoes everything applied to Kanka in its most recent
    review run, in reverse order — restoring synopses, undoing relation
    create/update/delete actions, and deleting any newly-created entity
    (after first undoing anything that pointed at it).
-4. `cli/reset_to_first.py` performs a nuclear undo: resets all entities back to their
+4. `kanka_wiki_updater/cli/reset_to_first.py` performs a nuclear undo: resets all entities back to their
    earliest recorded `previous_entry` from the pending queue.
 
 ## Setup
@@ -84,11 +84,11 @@ giving the model a second chance to produce a complete response.
 - **Session notes location**: this assumes session notes are Kanka
   **Journal** entities, which is the normal place for them (Kanka even has
   a built-in "Session" journal type). If yours live somewhere else (Posts
-  on a "Sessions" entity, Notes, etc.), `get_journals` in `kanka_client.py`
+  on a "Sessions" entity, Notes, etc.), `get_journals` in `core/kanka_client.py`
   is the place to adapt.
 - **Entity resolution**: works best if you use Kanka's `@mention` linking
   when writing session notes — that gives exact, unambiguous matches. The
-  fuzzy fallback in `mentions.py` catches plain-text name mentions but is
+  fuzzy fallback in `core/mentions.py` catches plain-text name mentions but is
   intentionally conservative; tune `threshold` there if it's over- or
   under-matching.
 - **LLM provider**: defaults to LM Studio (local OpenAI-compatible server).
