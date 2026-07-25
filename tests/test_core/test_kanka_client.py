@@ -60,7 +60,7 @@ class TestGetAllPagination:
         client._campaign_id = 1
         client._retry_on_rate_limit = True
 
-        result = client.get_journals(since='2024-01-01', journal_type='Session')
+        result = client.get_journals(since='2024-01-01', journal_types=['Session'])
         assert len(result) == 2
         assert result[0]['id'] == 1
 
@@ -92,11 +92,33 @@ class TestCRUDOperations:
         client, session = self._make_client()
         resp_data = {'data': [{'id': 1, 'name': 'Test'}]}
         session.request.return_value.json.return_value = resp_data
-        client.get_journals(since='2024-01-01', journal_type='Session')
+        client.get_journals(since='2024-01-01', journal_types=['Session'])
         call_kwargs = session.request.call_args[1]
         assert 'params' in call_kwargs
         assert call_kwargs['params']['last_sync'] == '2024-01-01'
+        # Single type → one call with string value
         assert call_kwargs['params']['type'] == 'Session'
+
+    def test_get_journals_passes_multiple_types(self):
+        client, session = self._make_client()
+        resp_data = {'data': [{'id': 1, 'name': 'Test'}]}
+        session.request.return_value.json.return_value = resp_data
+        client.get_journals(since='2024-01-01', journal_types=['Session', 'Draft'])
+        # Multiple types → two separate calls, one per type
+        assert session.request.call_count == 2
+        call_args_1 = session.request.call_args_list[0]
+        call_args_2 = session.request.call_args_list[1]
+        assert call_args_1[1]['params']['type'] == 'Session'
+        assert call_args_2[1]['params']['type'] == 'Draft'
+
+    def test_get_journals_no_filter_when_empty_list(self):
+        client, session = self._make_client()
+        resp_data = {'data': [{'id': 1, 'name': 'Test'}]}
+        session.request.return_value.json.return_value = resp_data
+        client.get_journals(since='2024-01-01', journal_types=[])
+        # Empty list → no type filter, single call without type param
+        call_kwargs = session.request.call_args[1]
+        assert 'type' not in call_kwargs['params']
 
     # -- update entity entry --
 

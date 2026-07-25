@@ -100,12 +100,28 @@ class KankaClient:
 
     # -- Journals (session notes) ---------------------------------------
 
-    def get_journals(self, since=None, journal_type=None):
+    def get_journals(self, since=None, journal_types=None):
+        """Fetch journals, optionally filtered by type(s).
+
+        Kanka's API does not support multiple ``type`` values in a single
+        request (repeated query params are silently deduplicated), so when
+        several types are requested we issue one call per type and merge the
+        results.
+        """
+        if journal_types:
+            all_journals = []
+            for jtype in journal_types:
+                params = {}
+                if since:
+                    params['last_sync'] = since
+                params['type'] = jtype
+                resp = self._request('GET', 'journals', params=params)
+                all_journals.extend(resp.get('data') or [])
+            return all_journals
+        # No type filter — single call is fine.
         params = {}
         if since:
             params['last_sync'] = since
-        if journal_type:
-            params['type'] = journal_type
         resp = self._request('GET', 'journals', params=params)
         return resp.get('data') or []
 

@@ -266,7 +266,7 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
 
     last_sync = state.get_last_sync()
     print(f'Fetching journals since: {last_sync or "(beginning -- full history)"}')
-    journals = client.get_journals(since=last_sync, journal_type=config.SESSION_JOURNAL_TYPE or None)
+    journals = client.get_journals(since=last_sync, journal_types=config.SESSION_JOURNAL_TYPES or None)
     print(f'Fetched {len(journals)} journal(s) from Kanka.')
 
     processed_ids = state.get_processed_journal_ids()

@@ -32,8 +32,18 @@ KANKA_BASE_URL = os.environ.get('KANKA_BASE_URL', 'https://api.kanka.io/1.0/')
 LMSTUDIO_BASE_URL = os.environ.get('LMSTUDIO_BASE_URL', 'http://localhost:1234/v1')
 LMSTUDIO_MODEL = os.environ.get('LMSTUDIO_MODEL', 'local-model')
 
-# Journal "type" field to treat as session notes. Set to "" to process all journals.
-SESSION_JOURNAL_TYPE = os.environ.get('SESSION_JOURNAL_TYPE', 'Session')
+# Comma-separated journal types to ingest (e.g. "Session,One Shot,Draft").
+# Leave empty or unset to fetch ALL journal types without filtering.
+# Falls back to the old SESSION_JOURNAL_TYPE name for backward compatibility.
+_raw_type = os.environ.get('SESSION_JOURNAL_TYPES', '').strip()
+if not _raw_type:
+    # Check old env var name (single string) for backward compat
+    _old = os.environ.get('SESSION_JOURNAL_TYPE', '').strip()
+    if _old:
+        _raw_type = _old
+if not _raw_type:
+    _raw_type = 'Session'  # preserve old default
+SESSION_JOURNAL_TYPES = [t.strip() for t in _raw_type.split(',') if t.strip()]
 
 # Raise this if you're using a reasoning/"thinking" model -- those spend
 # tokens on hidden chain-of-thought before the actual JSON answer, and if
@@ -77,7 +87,14 @@ if LLM_PROVIDER == 'opencode' and not OPENCODE_API_KEY:
 # whole backlog in one go. Can also be overridden per-run with `--limit N`
 # on the command line, which takes priority over this default.
 _raw_batch_limit = os.environ.get('JOURNAL_BATCH_LIMIT', '').strip()
-JOURNAL_BATCH_LIMIT = int(_raw_batch_limit) if _raw_batch_limit else None
+if _raw_batch_limit:
+    JOURNAL_BATCH_LIMIT = int(_raw_batch_limit)
+elif len(SESSION_JOURNAL_TYPES) > 1:
+    # Multiple journal types configured — ingest only the single oldest
+    # across all those types per run to keep things manageable.
+    JOURNAL_BATCH_LIMIT = 1
+else:
+    JOURNAL_BATCH_LIMIT = None
 
 # Where persistent state (pending changes, sync progress, applied-log) lives.
 # Override with the DATA_DIR environment variable for a custom location.

@@ -12,7 +12,7 @@ def restore_env():
     """Save and restore all config-related env vars around each test."""
     _saved = {
         k: os.environ.get(k)
-        for k in ('KANKA_TOKEN', 'KANKA_CAMPAIGN_ID', 'LLM_PROVIDER', 'GEMINI_API_KEY', 'JOURNAL_BATCH_LIMIT')
+        for k in ('KANKA_TOKEN', 'KANKA_CAMPAIGN_ID', 'LLM_PROVIDER', 'GEMINI_API_KEY', 'JOURNAL_BATCH_LIMIT', 'SESSION_JOURNAL_TYPES')
     }
     yield
     for k, v in _saved.items():
@@ -51,10 +51,40 @@ class TestDefaults:
 
         assert config_mod.LMSTUDIO_BASE_URL == 'http://localhost:1234/v1'
 
-    def test_session_journal_type_defaults(self):
-        import kanka_wiki_updater.core.config as config_mod
+    def test_session_journal_types_default_to_single_session(self):
+        # Neither new nor old env var set → falls back to 'Session'
+        # Use patch.dict with explicit '' so dotenv won't overwrite from .env file
+        with unittest.mock.patch.dict(os.environ, {'SESSION_JOURNAL_TYPES': '', 'SESSION_JOURNAL_TYPE': ''}):
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.SESSION_JOURNAL_TYPES == ['Session']
 
-        assert config_mod.SESSION_JOURNAL_TYPE == 'Session'
+    def test_session_journal_types_parses_comma_separated(self):
+        with unittest.mock.patch.dict(os.environ, {'SESSION_JOURNAL_TYPES': 'Session,One Shot,Draft'}):
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.SESSION_JOURNAL_TYPES == ['Session', 'One Shot', 'Draft']
+
+    def test_session_journal_types_empty_fetches_all(self):
+        with unittest.mock.patch.dict(os.environ, {'SESSION_JOURNAL_TYPES': ''}):
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.SESSION_JOURNAL_TYPES == ['Session']  # falls back to old default
+
+    def test_session_journal_types_new_overrides_old(self):
+        with unittest.mock.patch.dict(os.environ, {
+            'SESSION_JOURNAL_TYPE': 'OldType',
+            'SESSION_JOURNAL_TYPES': 'NewType1,NewType2',
+        }):
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.SESSION_JOURNAL_TYPES == ['NewType1', 'NewType2']
+
+    def test_session_journal_type_old_name_still_works(self):
+        with unittest.mock.patch.dict(os.environ, {'SESSION_JOURNAL_TYPE': 'Session,Draft', 'SESSION_JOURNAL_TYPES': ''}):
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.SESSION_JOURNAL_TYPES == ['Session', 'Draft']
 
     def test_llm_timeout_defaults(self):
         import kanka_wiki_updater.core.config as config_mod
@@ -88,11 +118,27 @@ class TestBatchLimit:
             assert config_mod.JOURNAL_BATCH_LIMIT == 50
 
     def test_batch_limit_none_when_empty(self):
-        with unittest.mock.patch.dict(os.environ, {'JOURNAL_BATCH_LIMIT': ''}):
+        with unittest.mock.patch.dict(os.environ, {'JOURNAL_BATCH_LIMIT': '', 'SESSION_JOURNAL_TYPES': ''}):
             import kanka_wiki_updater.core.config as config_mod
 
             importlib.reload(config_mod)
             assert config_mod.JOURNAL_BATCH_LIMIT is None
+
+    def test_batch_limit_auto_set_for_multiple_types(self):
+        with unittest.mock.patch.dict(os.environ, {'SESSION_JOURNAL_TYPES': 'Session,Draft'}):
+            os.environ.pop('JOURNAL_BATCH_LIMIT', None)
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.JOURNAL_BATCH_LIMIT == 1
+
+    def test_explicit_batch_limit_overrides_auto(self):
+        with unittest.mock.patch.dict(os.environ, {
+            'SESSION_JOURNAL_TYPES': 'Session,Draft',
+            'JOURNAL_BATCH_LIMIT': '50',
+        }):
+            import kanka_wiki_updater.core.config as config_mod
+            importlib.reload(config_mod)
+            assert config_mod.JOURNAL_BATCH_LIMIT == 50
 
 
 class TestCustomEnv:
