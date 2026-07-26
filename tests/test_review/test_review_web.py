@@ -643,12 +643,12 @@ class TestStatusWithSync:
 class TestApiProposalRegenerate:
     """Tests for the /api/proposals/<index>/regenerate endpoint."""
 
-    def test_regenerate_non_update_returns_400(self, app_with_queue):
-        """Regenerating a new_entity proposal returns 400."""
+    def test_regenerate_new_entity_missing_journal_id_returns_400(self, app_with_queue):
+        """Regenerating a new_entity proposal without _journal_id returns 400."""
         resp = app_with_queue.post('/api/proposals/0/regenerate')
         assert resp.status_code == 400
         data = resp.get_json()
-        assert 'only update' in data['error'].lower()
+        assert 'ok' not in data or not data['ok']
 
     def test_regenerate_invalid_index_returns_404(self, app_with_queue):
         """POST /api/proposals/99/regenerate returns 404."""
@@ -1051,9 +1051,7 @@ class TestRegenerateApiErrors:
 
         assert resp.status_code == 400
         data = resp.get_json()
-        assert 'lacks both _journal_id and source_journal' in data['error']
-
-    def test_regenerate_entity_fetch_fails(self, app_with_queue):
+        assert '_journal_id' in data['error']
         """When entity fetch fails after journal is found, return 400 not 500."""
         import types as _types
         from unittest import mock as umock
@@ -1156,8 +1154,8 @@ class TestRegenerateProposalFunction:
         assert result['change_summary'] == 'Updated.'
         assert result['truncated'] is False
 
-    def test_non_update_returns_error(self):
-        """Non-update proposals return an error."""
+    def test_new_entity_without_journal_id_returns_error(self):
+        """A new-entity proposal without _journal_id returns an error."""
         from kanka_wiki_updater.sync.synopsis_generator import regenerate_proposal
 
         client = self._make_mock_client()
@@ -1165,13 +1163,12 @@ class TestRegenerateProposalFunction:
             client,
             {
                 'proposal_type': 'new_entity',
-                '_journal_id': 789,
-                'entity_local_id': 42,
+                'entity_name': 'Test Entity',
             },
         )
 
         assert result['ok'] is False
-        assert 'only update' in result['error'].lower()
+        assert '_journal_id' in result['error']
 
     def test_missing_journal_id_returns_error(self):
         """Missing _journal_id returns an error."""
@@ -1188,7 +1185,7 @@ class TestRegenerateProposalFunction:
         )
 
         assert result['ok'] is False
-        assert 'lacks both _journal_id' in result['error']
+        assert '_journal_id' in result['error']
 
     def test_journal_not_found_returns_error(self):
         """get_journal returning None returns a not-found error."""
@@ -1309,3 +1306,70 @@ class TestRegenerateProposalFunction:
         # Falls back to existing proposed_entry from queue entry
         assert result['proposed_entry'] == '<p>Existing proposed.</p>'
         assert '(forced regeneration' in result['change_summary']
+
+
+# ── Known relation types API tests ────────────────────────────────
+
+
+class TestKnownRelationTypesApi:
+    def test_get_known_types_empty(self, app_with_queue):
+        """GET /api/known-relation-types returns empty list when no types known."""
+        resp = app_with_queue.get('/api/known-relation-types')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['types'] == []
+        assert data['counts'] == {}
+
+    def test_add_known_type(self, app_with_queue):
+        """POST /api/known-relation-types adds a type and returns ok."""
+        resp = app_with_queue.post('/api/known-relation-types', json={'label': 'Blood Oath'})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+        assert data['type'] == 'Blood Oath'
+
+    def test_add_known_type_persists(self, app_with_queue):
+        """Added type persists across requests."""
+        # Add a type
+        app_with_queue.post('/api/known-relation-types', json={'label': 'Ritual Partner'})
+        # Fetch it back
+        resp = app_with_queue.get('/api/known-relation-types')
+        data = resp.get_json()
+        assert 'Ritual Partner' in data['types']
+
+    def test_add_known_type_empty_label_returns_400(self, app_with_queue):
+        """POST with empty label returns 400."""
+        resp = app_with_queue.post('/api/known-relation-types', json={'label': ''})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'error' in data
+
+    def test_add_known_type_no_label_returns_400(self, app_with_queue):
+        """POST with no label key returns 400."""
+        resp = app_with_queue.post('/api/known-relation-types', json={})
+        assert resp.status_code == 400
+
+    def test_add_known_type_whitespace_only_returns_400(self, app_with_queue):
+        """POST with whitespace-only label returns 400."""
+        resp = app_with_queue.post('/api/known-relation-types', json={'label': '   '})
+        assert resp.status_code == 400
+
+    def test_get_known_types_sorted_by_frequency(self, app_with_queue):
+        """Types are sorted by frequency (most popular first)."""
+        # Add types multiple times to create different counts
+        for _ in range(5):
+            app_with_queue.post('/api/known-relation-types', json={'label': 'Ally'})
+        for _ in range(1):
+            app_with_queue.post('/api/known-relation-types', json={'label': 'Enemy'})
+
+        resp = app_with_queue.get('/api/known-relation-types')
+        data = resp.get_json()
+        # Ally has count 5 (plus any from previous tests), Enemy has count 1
+        ally_idx = data['types'].index('Ally') if 'Ally' in data['types'] else -1
+        enemy_idx = data['types'].index('Enemy') if 'Enemy' in data['types'] else -1
+        assert ally_idx >= 0, f"Expected 'Ally' in types but got {data['types']}"
+        assert enemy_idx >= 0, f"Expected 'Enemy' in types but got {data['types']}"
+        # Ally should appear before Enemy since it has higher count
+        assert ally_idx < enemy_idx, "Ally (count=5+) should come before Enemy (count=1)"
+        assert data['counts']['Ally'] >= 5
+        assert data['counts'].get('Enemy', 0) >= 1

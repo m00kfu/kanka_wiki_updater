@@ -1,5 +1,18 @@
 """Detect and resolve conflicts in proposed relation changes."""
 
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Lazy-import RelationTypeTracker to avoid circular imports.
+# The tracker is only needed when detect_unknown_types() or the enhanced
+# apply_resolutions() is called with a tracker argument.
+def _get_tracker():
+    """Return a lazily-loaded RelationTypeTracker instance."""
+    from .relation_types import RelationTypeTracker  # noqa: F811
+    return RelationTypeTracker()
+
 
 def _find_target_entity_id(entity_index, target_name):
     """Find entity_id for a given name, or None."""
@@ -114,12 +127,76 @@ def detect_cross_proposal_conflicts(proposals):
     return conflicts
 
 
-def apply_resolutions(proposals, entity_index):
-    """Convenience wrapper: resolve creates-to-updates then detect cross-proposal conflicts.
+def detect_unknown_types(proposals, relation_tracker=None):
+    """Flag create/update actions using labels not in the known type set.
 
-    Returns (resolved_proposals, all_conflicts) where all_conflicts contains
-    both label_mismatch and cross_proposal conflict dicts.
+    Parameters
+    ----------
+    proposals : list[dict]
+        The proposal queue (may already be resolved by resolve_creates_to_updates).
+    relation_tracker : RelationTypeTracker | str | None, optional
+        A tracker instance, a data_dir path string, or None. When None, no
+        unknown-type detection is performed.
+
+    Returns
+    -------
+    list[dict]
+        Conflict dicts with keys: proposal_idx, entity_name, target_name,
+        proposed_type, similar_types (list[str]), conflict_kind="unknown_relation_type".
+    """
+    if relation_tracker is None:
+        return []
+
+    # Accept either a tracker instance or a data_dir path string
+    if isinstance(relation_tracker, str):
+        from .relation_types import RelationTypeTracker  # noqa: F811
+        relation_tracker = RelationTypeTracker(data_dir=relation_tracker)
+        relation_tracker.load()
+
+    conflicts = []
+    for idx, proposal in enumerate(proposals):
+        for rc in proposal.get('relation_changes', []):
+            action = (rc.get('action') or '').strip().lower()
+            if action not in ('create', 'update'):
+                continue
+
+            label = (rc.get('relation') or '').strip()
+            if not label or relation_tracker.is_known(label):
+                continue
+
+            conflicts.append(
+                {
+                    'proposal_idx': idx,
+                    'entity_name': proposal['entity_name'],
+                    'target_name': rc['target_name'],
+                    'existing_type': None,
+                    'proposed_type': label,
+                    'similar_types': relation_tracker.suggest_similar(label),
+                    'conflict_kind': 'unknown_relation_type',
+                }
+            )
+    return conflicts
+
+
+def apply_resolutions(proposals, entity_index, relation_tracker=None):
+    """Convenience wrapper: resolve creates-to-updates then detect all conflict types.
+
+    Parameters
+    ----------
+    proposals : list[dict]
+        The proposal queue.
+    entity_index : dict
+        The full entity index (for label_mismatch detection).
+    relation_tracker : RelationTypeTracker | str | None, optional
+        If provided, also detects unknown_relation_type conflicts.
+
+    Returns
+    -------
+    tuple[list[dict], list[dict]]
+        (resolved_proposals, all_conflicts) where all_conflicts contains
+        label_mismatch, cross_proposal, and optionally unknown_relation_type dicts.
     """
     resolved, conflicts = resolve_creates_to_updates(proposals, entity_index)
     cross_conflicts = detect_cross_proposal_conflicts(resolved)
-    return resolved, conflicts + cross_conflicts
+    unknown_conflicts = detect_unknown_types(resolved, relation_tracker) if relation_tracker else []
+    return resolved, conflicts + cross_conflicts + unknown_conflicts

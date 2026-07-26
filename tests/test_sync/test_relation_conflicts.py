@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from kanka_wiki_updater.sync.relation_conflicts import (
     apply_resolutions,
     detect_cross_proposal_conflicts,
+    detect_unknown_types,
     resolve_creates_to_updates,
 )
 
@@ -284,3 +285,108 @@ def test_apply_resolutions_empty():
     resolved, conflicts = apply_resolutions([], {})
     assert resolved == []
     assert conflicts == []
+
+
+def test_detect_unknown_types_flagged():
+    """Unknown relation labels are flagged as unknown_relation_type conflicts."""
+    from kanka_wiki_updater.sync.relation_types import RelationTypeTracker
+
+    tracker = RelationTypeTracker()
+    tracker.add_type('Ally')  # only Ally is known
+
+    proposals = [
+        _make_proposal(
+            relation_changes=[
+                _make_rel('create', 'Bob', relation='Enemy'),   # unknown
+                _make_rel('update', 'Carol', relation='Ally'),  # known
+            ],
+        ),
+    ]
+
+    conflicts = detect_unknown_types(proposals, tracker)
+
+    assert len(conflicts) == 1
+    c = conflicts[0]
+    assert c['conflict_kind'] == 'unknown_relation_type'
+    assert c['proposed_type'] == 'Enemy'
+    assert c['entity_name'] == 'Alice'
+    assert c['target_name'] == 'Bob'
+    # Ally should NOT be in the conflicts
+    assert all(c2.get('proposed_type') != 'Ally' for c2 in conflicts)
+
+
+def test_detect_unknown_types_skips_delete():
+    """Delete actions are not checked for unknown types."""
+    from kanka_wiki_updater.sync.relation_types import RelationTypeTracker
+
+    tracker = RelationTypeTracker()
+    tracker.add_type('Ally')
+
+    proposals = [
+        _make_proposal(
+            relation_changes=[_make_rel('delete', 'Bob', relation='Enemy')],  # unknown but delete
+        ),
+    ]
+
+    conflicts = detect_unknown_types(proposals, tracker)
+    assert len(conflicts) == 0
+
+
+def test_detect_unknown_types_empty_tracker():
+    """Empty tracker → all types are 'unknown'."""
+    from kanka_wiki_updater.sync.relation_types import RelationTypeTracker
+
+    tracker = RelationTypeTracker()  # empty
+
+    proposals = [
+        _make_proposal(
+            relation_changes=[_make_rel('create', 'Bob', relation='Ally')],
+        ),
+    ]
+
+    conflicts = detect_unknown_types(proposals, tracker)
+    assert len(conflicts) == 1
+    assert conflicts[0]['proposed_type'] == 'Ally'
+
+
+def test_detect_unknown_types_none_tracker():
+    """None tracker → no detection."""
+    proposals = [
+        _make_proposal(
+            relation_changes=[_make_rel('create', 'Bob', relation='Enemy')],
+        ),
+    ]
+
+    conflicts = detect_unknown_types(proposals, None)
+    assert conflicts == []
+
+
+def test_apply_resolutions_with_tracker_includes_unknown_type_check():
+    """apply_resolutions with tracker returns combined conflict types."""
+    from kanka_wiki_updater.sync.relation_types import RelationTypeTracker
+
+    tracker = RelationTypeTracker()
+    tracker.add_type('Ally')  # only Ally is known
+
+    p1 = _make_proposal(
+        entity_name='Alice',
+        relation_changes=[_make_rel('create', 'Bob', relation='Enemy')],  # unknown + create→update
+    )
+    proposals = [p1]
+    entity_index = {
+        1: {
+            'kind': 'character',
+            'local_id': 1,
+            'name': 'Alice',
+            'entry': '',
+            'relations': [{'target_id': 99, 'relation': 'Ally'}],
+        },
+        99: {'kind': 'character', 'local_id': 99, 'name': 'Bob', 'entry': '', 'relations': []},
+    }
+
+    resolved, conflicts = apply_resolutions(proposals, entity_index, relation_tracker=tracker)
+
+    # Should have both label_mismatch (from resolve_creates_to_updates) and unknown_relation_type
+    conflict_kinds = [c['conflict_kind'] for c in conflicts]
+    assert 'label_mismatch' in conflict_kinds
+    assert 'unknown_relation_type' in conflict_kinds

@@ -220,6 +220,7 @@ def propose_new_entities(journal, known_names):
                 'draft_entry': candidate.get('draft_entry', ''),
                 'reason': candidate.get('reason', ''),
                 'source_journal': getattr(journal, 'name', None),
+                '_journal_id': journal_id,
                 '_source_journal_url': _build_journal_url(journal_id) if journal_id else None,
                 'truncated': is_truncated,
                 'status': 'pending',

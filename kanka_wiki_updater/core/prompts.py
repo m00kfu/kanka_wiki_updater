@@ -56,6 +56,20 @@ Rules:
      where N is the 0-based index of that FIRST paragraph containing new info. Only include the first such index —
      do NOT list every paragraph with new material. If old content was preserved and only one paragraph added at
      the end, set this to [N] for that final paragraph's index. Omit if auto-inferred.
+ 11. RELATION CHANGES: If the session notes mention new or changed relationships for this entity, include a
+     "relation_changes" array in your JSON output. Each entry has:
+     {
+        "action": "create" | "update" | "delete",
+        "target_name": "<entity name>",
+        "relation": "<free-text relation label>",
+        "attitude": "<optional descriptor>",
+        "reason": "<brief explanation>"
+     }
+     KNOWN RELATION TYPES FOR THIS CAMPAIGN: {known_types_list}
+     - Prefer an existing type if one fits. If none fits, propose a new one — you'll be
+       able to explain why in the "reason" field.
+     - When proposing something new, briefly justify it (e.g., "Blood Oath is distinct from
+       Ally because it implies a magical binding, not just alignment").
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 
@@ -67,7 +81,16 @@ JSON schema:
      false when only rephrasing or refining existing content>,
    "new_paragraph_indices": [<int>, ...] OR null — optional array of 0-based paragraph indices that contain new info.
      Omit or set to null if not specified. Only include when _is_new_info is true.
-   "uncertain": ["<string>", "..."]
+   "uncertain": ["<string>", "..."],
+   "relation_changes": [
+     {
+       "action": "create" | "update" | "delete",
+       "target_name": "<entity name>",
+       "relation": "<free-text relation label>",
+       "attitude": "<optional descriptor>",
+       "reason": "<brief explanation>"
+     }
+   ] — optional; omit or set to empty array if no relation changes are needed
  }
 
 CRITICAL FORMATTING RULES:
@@ -81,8 +104,10 @@ USER_PROMPT_TEMPLATE = """ENTITY: {name} ({entity_kind})
 CURRENT SYNOPSIS:
 {current_entry}
 
-NEW SESSION NOTE ({journal_name}, {journal_date}):
-{session_text}
+NEW SESSION NOTE ({journal_name}, {journal_date}):\n{session_text}
+
+KNOWN RELATION TYPES FOR THIS CAMPAIGN:
+{known_types_list}
 
 Update this entity's synopsis per the rules and JSON schema in the system prompt."""
 

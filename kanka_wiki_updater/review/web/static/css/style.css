@@ -305,6 +305,23 @@ body {
   padding-top: 6px;
   border-top: 1px solid var(--border);
 }
+.relation-card .rel-accept-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+.badge-new-type {
+  font-size: clamp(0.563rem, 0.5rem + 0.2vw, var(--fs-xs)); /* ~9–11px fluid */
+  line-height: var(--lh-tight);
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: rgba(255,183,60,.15);
+  color: var(--amber);
+  vertical-align: middle;
+}
 
 /* ── Warnings ─────────────────────────────────────────── */
 .warning {

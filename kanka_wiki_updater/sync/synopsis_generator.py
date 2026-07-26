@@ -172,8 +172,15 @@ def relation_summary(relations, index):
 # ---------------------------------------------------------------------------
 
 
-def _build_prompts(entity_id, entity, journal, index, display_name_map=None):
+def _build_prompts(entity_id, entity, journal, index, display_name_map=None,
+                   known_types_list=''):
     """Build annotated session text and formatted user prompt for the LLM.
+
+    Parameters
+    ----------
+    known_types_list : str, optional
+        Human-readable list of known relation types for this campaign.
+        Passed into ``USER_PROMPT_TEMPLATE`` so the LLM can prefer existing types.
 
     Returns ``(session_text, user_prompt)`` or ``(None, None)`` if the journal
     entry is empty after stripping HTML.
@@ -214,6 +221,7 @@ def _build_prompts(entity_id, entity, journal, index, display_name_map=None):
         journal_name=journal.get('name') or 'Session note',
         journal_date=journal.get('date') or journal.get('created_at', '') or '',
         session_text=session_text,
+        known_types_list=known_types_list if known_types_list else '(not yet tracked — run sync to discover types)',
     )
     return session_text, user_prompt
 
@@ -420,7 +428,8 @@ def _deduplicate_journal_tags(text):
 
 
 
-def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
+def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
+                            relation_tracker=None):
     """Build a synopsis update proposal for an entity based on a single journal entry.
 
     This is the shared core used by both ``sync_pipeline.propose_update()`` and
@@ -438,6 +447,9 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
         The full entity index (for relation resolution).
     max_tokens : int, optional
         Override for LLM max tokens.  If omitted the default config value is used.
+    relation_tracker : RelationTypeTracker | None, optional
+        If provided, known relation types are injected into prompts and proposed
+        relation labels are validated against them.
 
     Returns
     -------
@@ -445,9 +457,16 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
         A proposal dict ready to be queued in ``pending_changes.json``, or
         ``None`` when no meaningful change was detected.
     """
+    # Build known-types list for the prompt
+    if relation_tracker:
+        known_types_list = '\n'.join(f'  - {t}' for t in relation_tracker.get_sorted_labels(limit=15))
+    else:
+        known_types_list = ''
+
     display_name_map: dict[str, str] = {}
     _session_text, user_prompt = _build_prompts(
         entity_id, entity, journal, index, display_name_map=display_name_map,
+        known_types_list=known_types_list,
     )
     if user_prompt is None:
         return None
@@ -494,6 +513,27 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
     if is_potentially_truncated and not result['truncated']:
         result['_info_loss_warning'] = True  # internal flag for review.py
 
+    # Parse and validate relation_changes from LLM output
+    raw_rels = result.get('relation_changes') or []
+    validated_rels = []
+    for rc in raw_rels:
+        validated = dict(rc)
+        if relation_tracker:
+            label = (rc.get('relation') or '').strip()
+            if label and relation_tracker.is_known(label):
+                validated['_type_status'] = 'known'
+                validated['similar_types'] = []
+            elif label:
+                validated['_type_status'] = 'new_suggested'
+                validated['similar_types'] = relation_tracker.suggest_similar(label)
+            else:
+                validated['_type_status'] = 'known'
+                validated['similar_types'] = []
+        else:
+            validated['_type_status'] = 'unknown'
+            validated['similar_types'] = []
+        validated_rels.append(validated)
+
     return {
         'proposal_type': 'update',
         'entity_id': entity_id,
@@ -506,7 +546,7 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
         'previous_entry': previous_text,
         'proposed_entry': proposed_text,
         'change_summary': result.get('change_summary', ''),
-        'relation_changes': [],
+        'relation_changes': validated_rels,
         'uncertain': result.get('uncertain', []),
         'truncated': result.get('truncated', False) or '[TRUNCATED:' in (result.get('change_summary', '') or ''),
         '_info_loss_warning': is_potentially_truncated and not result['truncated'],
@@ -519,13 +559,16 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None):
 # ---------------------------------------------------------------------------
 
 
-def propose_update(entity_id, entity, journal, index):
+def propose_update(entity_id, entity, journal, index, relation_tracker=None):
     """Thin wrapper for sync_pipeline compatibility.
 
     Calls ``build_synopsis_proposal()`` with the same parameters as before.
     Keeps existing call sites unchanged while sharing all logic internally.
     """
-    return build_synopsis_proposal(entity_id, entity, journal, index)
+    return build_synopsis_proposal(
+        entity_id, entity, journal, index,
+        relation_tracker=relation_tracker,
+    )
 
 
 def _is_known_entity(name: str, known_names: list[str]) -> bool:
@@ -589,21 +632,26 @@ def _is_known_entity(name: str, known_names: list[str]) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def regenerate_proposal(client, proposal, force=False):
-    """Re-run a truncated update proposal through the LLM with higher token limits.
+def regenerate_proposal(client, proposal, force=False, relation_tracker=None):
+    """Re-run a truncated update or new-entity proposal through the LLM with higher token limits.
 
-    Fetches fresh data from Kanka (source journal + current entity state),
-    then calls ``build_synopsis_proposal()`` with 2× max_tokens.
+    For **update** proposals: fetches fresh data from Kanka (source journal + current entity
+    state), then calls ``build_synopsis_proposal()`` with 2× max_tokens.
+
+    For **new_entity** proposals: re-calls the new-entity LLM prompt using the source journal,
+    producing a fresh draft synopsis for the proposed entity.
 
     Parameters
     ----------
     client : KankaClient
         Authenticated API client.
     proposal : dict
-        A pending-change entry (must be 'update' type, must have _journal_id
-        and entity_local_id).
+        A pending-change entry (must be 'update' or 'new_entity' type, must have _journal_id).
     force : bool
         If True, return the result even when no meaningful change was detected.
+    relation_tracker : RelationTypeTracker | None, optional
+        If provided, known relation types are injected into prompts and proposed
+        relation labels are validated against them.
 
     Returns
     -------
@@ -613,27 +661,18 @@ def regenerate_proposal(client, proposal, force=False):
         Failure:  {'ok': False, 'error': str}
     """
     # --- Validate proposal type -------------------------------------------
-    if proposal.get('proposal_type') != 'update':
-        return {'ok': False, 'error': 'Only update proposals can be regenerated'}
+    ptype = proposal.get('proposal_type')
+    if ptype not in ('update', 'new_entity'):
+        return {'ok': False, 'error': f'Unsupported proposal type: {ptype}'}
 
-    entity_id = proposal.get('entity_id')
     journal_id = proposal.get('_journal_id')
-    local_id = proposal.get('entity_local_id')
 
-    if not entity_id:
-        return {
-            'ok': False,
-            'error': (
-                'This proposal lacks the data needed to regenerate. '
-                'Re-run sync_pipeline for fresh proposals.'
-            ),
-        }
-
+    # --- Validate common requirements -------------------------------------
     if not journal_id:
         return {
             'ok': False,
             'error': (
-                'This proposal lacks both _journal_id and source_journal — '
+                'This proposal lacks _journal_id — '
                 'cannot locate the original session.'
             ),
         }
@@ -646,6 +685,128 @@ def regenerate_proposal(client, proposal, force=False):
 
     if not src_journal:
         return {'ok': False, 'error': 'Source journal not found.'}
+
+    # --- Compute 2× max_tokens for regeneration ---------------------------
+    regen_max = (
+        config.LLM_MAX_TOKENS * 2
+        if config.LLM_PROVIDER != 'gemini'
+        else config.GEMINI_MAX_TOKENS * 2
+    )
+
+    # --- Dispatch by proposal type ----------------------------------------
+    if ptype == 'new_entity':
+        return _regenerate_new_entity(
+            client, proposal, src_journal, regen_max, force=force,
+        )
+    else:
+        return _regenerate_update(
+            client, proposal, src_journal, regen_max, force=force,
+            relation_tracker=relation_tracker,
+        )
+
+
+def _regenerate_new_entity(client, proposal, src_journal, regen_max, force=False):
+    """Regenerate a new-entity suggestion by re-running the LLM prompt."""
+    entity_name = proposal.get('entity_name', '')
+    if not entity_name:
+        return {
+            'ok': False,
+            'error': 'This proposal lacks an entity name.',
+        }
+
+    # Build a minimal index so relation resolution works (new entities have no relations).
+    idx = build_entity_index(client)
+
+    # Strip HTML from the source journal for the prompt.
+    session_text = strip_html(src_journal.get('entry', '') or '')
+    if not session_text.strip():
+        return {'ok': False, 'error': 'Source journal has no content.'}
+
+    # Build known-names list (all entities currently in the wiki).
+    known_names: list[str] = []
+    for entity_list_key in ('characters', 'locations'):
+        try:
+            entities = getattr(client, f'get_{entity_list_key}')()
+            known_names.extend(e.get('name', '') for e in entities if isinstance(e, dict))
+        except Exception:
+            pass
+
+    user_prompt = NEW_ENTITY_USER_PROMPT_TEMPLATE.format(
+        known_names='\n'.join(f'- {n}' for n in sorted(known_names)) or '(none yet)',
+        journal_name=src_journal.get('name') or 'Session note',
+        journal_date=src_journal.get('date') or src_journal.get('created_at', '') or '',
+        session_text=session_text,
+    )
+
+    try:
+        result = chat_json(NEW_ENTITY_SYSTEM_PROMPT, user_prompt, max_tokens=regen_max)
+    except LLMError as e:
+        return {'ok': False, 'error': f'LLM call failed: {e}'}
+    except Exception as e:
+        return {'ok': False, 'error': f'LLM call failed: {e}'}
+
+    # Find the matching entity suggestion in LLM output.
+    new_entities = result.get('new_entities', []) or []
+    candidate = next(
+        (ne for ne in new_entities if (ne.get('name') or '').strip().lower() == entity_name.lower()),
+        None,
+    )
+
+    if not candidate:
+        # LLM didn't suggest this entity — return the original draft.
+        if force:
+            return {
+                'ok': True,
+                'proposed_entry': proposal.get('draft_entry', ''),
+                'change_summary': '(forced regeneration - LLM did not re-suggest this entity)',
+                'uncertain': [],
+                'truncated': False,
+            }
+        return {
+            'ok': False,
+            'error': 'LLM no longer suggests this entity.',
+        }
+
+    draft_entry = (candidate.get('draft_entry') or '').strip()
+    if not draft_entry:
+        if force:
+            return {
+                'ok': True,
+                'proposed_entry': proposal.get('draft_entry', ''),
+                'change_summary': '(forced regeneration - empty LLM output)',
+                'uncertain': [],
+                'truncated': False,
+            }
+        return {'ok': False, 'error': 'LLM returned an empty draft.'}
+
+    is_truncated = False
+    if draft_entry:
+        last_char = draft_entry.rstrip()[-1:] if len(draft_entry) > 1 else ''
+        if last_char in (',', ':', ';', '(', '['):
+            is_truncated = True
+
+    return {
+        'ok': True,
+        'proposed_entry': draft_entry,
+        'change_summary': candidate.get('reason', ''),
+        'uncertain': [],
+        'truncated': is_truncated,
+    }
+
+
+def _regenerate_update(client, proposal, src_journal, regen_max, force=False, relation_tracker=None):
+    """Regenerate an update proposal by fetching fresh entity data and re-running the LLM."""
+    entity_id = proposal.get('entity_id')
+    local_id = proposal.get('entity_local_id')
+
+    if not entity_id:
+        return {
+            'ok': False,
+            'error': (
+                'This proposal lacks the data needed to regenerate. '
+                'Re-run sync_pipeline for fresh proposals.'
+            ),
+        }
 
     # --- Fetch fresh entity data (may have changed since original sync) ----
     try:
@@ -671,19 +832,13 @@ def regenerate_proposal(client, proposal, force=False):
         'entity_id': entity_data.get('entity_id'),
     }
 
-    # --- Compute 2× max_tokens for regeneration ---------------------------
-    regen_max = (
-        config.LLM_MAX_TOKENS * 2
-        if config.LLM_PROVIDER != 'gemini'
-        else config.GEMINI_MAX_TOKENS * 2
-    )
-
     # --- Build entity index for relation resolution ------------------------
     idx = build_entity_index(client)
 
     # --- Call the synopsis generator --------------------------------------
     result_proposal = build_synopsis_proposal(
         int(entity_id), entity, src_journal, idx, max_tokens=regen_max,
+        relation_tracker=relation_tracker,
     )
 
     # LLM connection/call error — surface the real message
