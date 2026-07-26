@@ -384,7 +384,10 @@ def create_app():
         except Exception as e:
             return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
 
-        result = synopsis_generator.regenerate_proposal(client, proposal, force=force)
+        tracker = queue_manager.get_tracker()
+        result = synopsis_generator.regenerate_proposal(
+            client, proposal, force=force, relation_tracker=tracker,
+        )
 
         if not result['ok']:
             # Map error types to HTTP status codes (mirrors original route)

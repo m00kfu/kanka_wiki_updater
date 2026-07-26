@@ -197,11 +197,20 @@ class RelationTypeTracker:
         scored.sort(key=lambda x: (-x[0], x[1]))
         return [s[1] for s in scored[:n]]
 
-    def get_sorted_labels(self, limit: int = 20) -> list[str]:
-        """Return known types sorted by usage frequency (most popular first)."""
+    def get_sorted_labels(self, limit=None) -> list[str]:
+        """Return known types sorted by usage frequency (most popular first).
+
+        Parameters
+        ----------
+        limit : int or None
+            Maximum number of labels to return.  ``None`` (default) returns all.
+        """
         if not self.known_types:
             return []
-        return sorted(self.known_types, key=lambda k: (-self.known_types[k], k))[:limit]
+        result = sorted(self.known_types, key=lambda k: (-self.known_types[k], k))
+        if limit is not None:
+            result = result[:limit]
+        return result
 
     # ------------------------------------------------------------------
     # Mutation

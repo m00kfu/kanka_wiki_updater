@@ -576,7 +576,7 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
     """
     # Build known-types list for the prompt
     if relation_tracker:
-        known_types_list = '\n'.join(f'  - {t}' for t in relation_tracker.get_sorted_labels(limit=15))
+        known_types_list = '\n'.join(f'  - {t}' for t in relation_tracker.get_sorted_labels())
     else:
         known_types_list = ''
 

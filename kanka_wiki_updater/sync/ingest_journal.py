@@ -60,6 +60,7 @@ try:
         propose_update,
         relation_summary,
     )
+    from ..sync.relation_types import RelationTypeTracker  # noqa: E402
 except ImportError:
     from kanka_wiki_updater.core import config, state
     from kanka_wiki_updater.core.kanka_client import KankaClient
@@ -79,6 +80,7 @@ except ImportError:
         propose_update,
         relation_summary,
     )
+    from kanka_wiki_updater.sync.relation_types import RelationTypeTracker  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +298,10 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
 
     # --- Phase 2: Process journals -------------------------------------------
     known_names = set(name_to_id.keys())
+
+    # Build a relation type tracker so the LLM knows about existing types.
+    relation_tracker = RelationTypeTracker()
+    relation_tracker.load()
     total_proposals = 0
     total_new_entities = 0
     total_journals_processed = 0
@@ -351,7 +357,7 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
                 started_eids.append(eid)
 
                 try:
-                    proposal = propose_update(eid, entity, journal, index)
+                    proposal = propose_update(eid, entity, journal, index, relation_tracker=relation_tracker)
                 except Exception as e:
                     print(f'      ! Error processing {entity["name"]}: {e}', file=sys.stderr)
                     proposal = {'_llm_error': str(e)}
