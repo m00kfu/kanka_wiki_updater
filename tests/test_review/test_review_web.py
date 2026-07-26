@@ -1317,8 +1317,8 @@ class TestKnownRelationTypesApi:
         resp = app_with_queue.get('/api/known-relation-types')
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['types'] == []
-        assert data['counts'] == {}
+        # After seeding, defaults are populated — verify at least one default type exists
+        assert len(data['types']) >= 1
 
     def test_add_known_type(self, app_with_queue):
         """POST /api/known-relation-types adds a type and returns ok."""

@@ -38,9 +38,12 @@ except ImportError:
 # Relation type tracker (shared across queue operations)
 # ---------------------------------------------------------------------------
 
-from ..sync.relation_types import RelationTypeTracker  # noqa: E402
+from ..sync.relation_types import RelationTypeTracker, ensure_seeded  # noqa: E402
 
+# Seed default relation types on first run (when persistence file is missing)
+ensure_seeded()
 _tracker = RelationTypeTracker()
+_tracker.load()  # load seeded or existing data from disk
 
 
 # ---------------------------------------------------------------------------

@@ -25,6 +25,105 @@ import os
 import sys
 from pathlib import Path
 
+# ---------------------------------------------------------------------------
+# Default relation types — seeded on first run when no persistence exists
+# ---------------------------------------------------------------------------
+
+DEFAULT_RELATION_TYPES: frozenset[str] = frozenset({
+    # Symmetric / bidirectional
+    'ally', 'allies', 'enemy', 'enemies', 'rival', 'rivals',
+    'nemesis', 'nemesises', 'friend', 'friends', 'foe', 'foes',
+    'opponent', 'opponents', 'comrade', 'comrades',
+    'sibling', 'siblings', 'spouse', 'spouses',
+    'partner', 'partners', 'coworker', 'coworkers',
+    'teammate', 'teammates',
+
+    # Asymmetric / inverse pairs (both directions seeded)
+    'parent', 'child', 'mother', 'father', 'son', 'daughter',
+    'brother', 'sister', 'grandparent', 'grandchild',
+    'uncle', 'aunt', 'nephew', 'niece',
+    'master', 'servant', 'employer', 'employee',
+    'teacher', 'student', 'mentor', 'mentee',
+    'guardian', 'ward',
+
+    # Additional common types
+    'lover', 'fiancee', 'crush', 'ex', 'betrothed',
+    'betrayer', 'traitor', 'assassin', 'kidnapper', 'slayer',
+    'apprentice', 'patron', 'client', 'healer', 'bodyguard',
+    'spy', 'informant', 'member of', 'leader of', 'founder',
+    'lieutenant', 'subordinate',
+    'blood oath', 'familiar', 'cursed by', 'blessed by',
+    'owes favor', 'indebted to', 'rescued by',
+})
+
+# ---------------------------------------------------------------------------
+# Symmetric relations & inverse mapping (used by reciprocal generation)
+# ---------------------------------------------------------------------------
+
+# Relations that are naturally bidirectional with the same label.
+SYMMETRIC_RELATIONS = frozenset({
+    'ally', 'allies', 'enemy', 'enemies', 'rival', 'rivals',
+    'nemesis', 'nemesises', 'friend', 'friends', 'foe', 'foes',
+    'opponent', 'opponents', 'comrade', 'comrades',
+    'sibling', 'siblings', 'spouse', 'spouses',
+    'partner', 'partners', 'coworker', 'coworkers',
+    'teammate', 'teammates',
+})
+
+# Inverse mapping for asymmetric relation pairs.
+# Key = label from owner→target; value = inverse label for target→owner.
+INVERSE_RELATIONS: dict[str, str] = {
+    # Family
+    'parent': 'child',
+    'child': 'parent',
+    'mother': 'son',       # simplified — doesn't distinguish son/daughter
+    'father': 'son',
+    'son': 'father',
+    'daughter': 'father',  # or could be 'parent' for gender-neutral
+    'brother': 'sibling',
+    'sister': 'sibling',
+    'grandparent': 'grandchild',
+    'grandchild': 'grandparent',
+    'uncle': 'nephew/niece',
+    'aunt': 'nephew/niece',
+    'nephew': 'uncle/aunt',
+    'niece': 'uncle/aunt',
+    # Power/authority
+    'master': 'servant',
+    'servant': 'master',
+    'employer': 'employee',
+    'employee': 'employer',
+    'teacher': 'student',
+    'student': 'teacher',
+    'mentor': 'mentee',
+    'mentee': 'mentor',
+    'guardian': 'ward',
+    'ward': 'guardian',
+    'captain': 'crew member',
+    # Other
+    'debtor': 'creditor',
+    'creditor': 'debtor',
+}
+
+
+def is_symmetric_relation(label: str) -> bool:
+    """Return True if *label* is a known symmetric relation type."""
+    return label.strip().lower() in SYMMETRIC_RELATIONS
+
+
+def get_inverse_label(label: str) -> str:
+    """Return the inverse label for an asymmetric relation.
+
+    Falls back to the same label (symmetric assumption) when no mapping exists.
+    This is a safe default — most relations are symmetric or near-symmetric.
+
+    Lookup is case-insensitive. When falling back to the original label,
+    its casing is preserved; mapped values are returned as stored (lowercase).
+    """
+    stripped = label.strip()
+    inverse = INVERSE_RELATIONS.get(stripped.lower(), stripped)
+    return inverse
+
 
 def _data_dir():
     """Return the data directory path."""
@@ -122,6 +221,18 @@ class RelationTypeTracker:
             if key:
                 self.known_types[key] = self.known_types.get(key, 0) + 1
 
+    def seed_defaults(self) -> bool:
+        """Seed known_types with DEFAULT_RELATION_TYPES if currently empty.
+
+        Returns True if seeding occurred, False if types were already present.
+        Does NOT call save() — caller decides when to persist.
+        """
+        if self.known_types:
+            return False  # already has data
+        for label in DEFAULT_RELATION_TYPES:
+            self.add_type(label)
+        return True
+
     # ------------------------------------------------------------------
     # Backward-compatible enrichment
     # ------------------------------------------------------------------
@@ -191,3 +302,23 @@ class RelationTypeTracker:
         import time as _time
         self._last_scraped_at = _time.time()
         self.save()
+
+
+def ensure_seeded(data_dir: str | None = None) -> bool:
+    """Seed default relation types only when the persistence file doesn't exist.
+
+    If the file exists (even if empty or {}), do nothing — respect that this
+    campaign has already been initialized and may have custom types.
+
+    Returns True if seeding was performed, False otherwise.
+    Safe to call multiple times — idempotent.
+    """
+    tracker = RelationTypeTracker(data_dir=data_dir)
+    persistence_path = os.path.join(tracker.data_dir, 'known_relation_types.json')
+    if not os.path.exists(persistence_path):
+        # File doesn't exist → seed defaults and save
+        tracker.seed_defaults()
+        tracker.save()
+        return True
+    # File exists (even empty) → leave as-is
+    return False

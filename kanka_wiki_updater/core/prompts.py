@@ -1,5 +1,7 @@
 """Prompt templates for the synopsis update task."""
 
+from kanka_wiki_updater.sync.default_attitudes import attitude_guidance_text  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Synopsis generation prompt (rules 1–9 + new-paragraph indices)
 # ---------------------------------------------------------------------------
@@ -84,7 +86,7 @@ CRITICAL FORMATTING RULES:
 # Relation extraction prompt (attitude deltas + relation_changes)
 # ---------------------------------------------------------------------------
 
-RELATION_SYSTEM_PROMPT = """You are a careful continuity editor for a tabletop RPG campaign wiki.
+_RELATION_SYSTEM_PROMPT_TEMPLATE = """You are a careful continuity editor for a tabletop RPG campaign wiki.
 Your task is to identify and evaluate relationship changes between the entity being updated
 and other characters/locations/organizations mentioned in new session notes.
 
@@ -98,15 +100,7 @@ Rules:
      - **-10**: Minor negative — insult, getting caught stealing something small, broken promise
      - **-15**: Moderate negative — betrayal of trust, major disagreement, public humiliation
      - **-30**: Major negative — attacking them, betraying a faction, stealing something valuable
-     - For **new relations** (action: create) with no prior attitude, use these suggested starting points as your baseline before applying any shift:
-       -80: captor of, mortal enemy, nemesis
-       -30: debtor, opponent, rival
-        0: business partner, employer, member of
-       +15: acquaintance, informant
-       +50: ally, friend, sibling
-       +85: devoted follower, spouse, sworn protector
-
-       Then output `attitude_delta` relative to that baseline.
+{ATTITUDE_GUIDANCE_PLACEHOLDER}
      If the session doesn't clearly affect this relationship, use `attitude_delta: 0`. The delta is applied to their current Kanka score (e.g., if they're at 30 and the delta is -15, the new score becomes 15).
  2. RELATION CHANGES: If the session notes mention new or changed relationships for this entity, include a
      "relation_changes" array in your JSON output. Each entry has:
@@ -118,10 +112,11 @@ Rules:
         "reason": "<brief explanation>"
      }
      KNOWN RELATION TYPES FOR THIS CAMPAIGN: {known_types_list}
-     - Prefer an existing type if one fits. If none fits, propose a new one — you'll be
-       able to explain why in the "reason" field.
+     - Prefer an existing type if one fits. If none fits, propose a new one.
      - When proposing something new, briefly justify it (e.g., "Blood Oath is distinct from
        Ally because it implies a magical binding, not just alignment").
+
+ 3. RECIPROCAL RELATIONS: You only need to extract relations in ONE direction (from the entity being updated TO others). The system will automatically generate reciprocal entries for you. Do NOT include both directions yourself — just output each relation once with action "create" or "update".
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 
@@ -138,6 +133,11 @@ JSON schema:
    ] — optional; omit or set to empty array if no relation changes are needed
 }
 """
+
+# Inject dynamic attitude guidance into the template at module load time.
+RELATION_SYSTEM_PROMPT = _RELATION_SYSTEM_PROMPT_TEMPLATE.replace(
+    '{ATTITUDE_GUIDANCE_PLACEHOLDER}', attitude_guidance_text()
+)
 
 USER_PROMPT_TEMPLATE = """ENTITY: {name} ({entity_kind})
 

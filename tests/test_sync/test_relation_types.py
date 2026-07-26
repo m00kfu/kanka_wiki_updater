@@ -8,7 +8,13 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from kanka_wiki_updater.sync.relation_types import RelationTypeTracker
+from kanka_wiki_updater.sync.relation_types import (
+    RelationTypeTracker,
+    is_symmetric_relation,
+    get_inverse_label,
+    DEFAULT_RELATION_TYPES,
+    ensure_seeded,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -355,3 +361,107 @@ def test_load_from_client_api_error_is_tolerated():
         t.load_from_client(mock_client)
 
         assert t.known_types == {'Sacred Site': 1}
+
+
+# ---------------------------------------------------------------------------
+# Symmetric relations & inverse mapping (Phase: reciprocal generation)
+# ---------------------------------------------------------------------------
+
+
+def test_is_symmetric_relation():
+    """Known symmetric types return True; asymmetric/unknown return False."""
+    assert is_symmetric_relation('Ally') is True
+    assert is_symmetric_relation('enemy') is True
+    assert is_symmetric_relation('Rival') is True
+    assert is_symmetric_relation('spouse') is True
+    # Asymmetric types return False
+    assert is_symmetric_relation('parent') is False
+    assert is_symmetric_relation('child') is False
+    assert is_symmetric_relation('mother') is False
+    # Unknown/empty returns False
+    assert is_symmetric_relation('Blood Oath') is False
+    assert is_symmetric_relation('') is False
+
+
+def test_get_inverse_label():
+    """Inverse mapping works for known pairs; unknown falls back to self."""
+    assert get_inverse_label('parent') == 'child'
+    assert get_inverse_label('child') == 'parent'
+    assert get_inverse_label('mother') == 'son'
+    assert get_inverse_label('father') == 'son'
+    # Symmetric types not in inverse map — fall through to same label default
+    assert get_inverse_label('ally') == 'ally'  # not in INVERSE_RELATIONS, defaults to self
+    # Unknown type falls back to same label (safe symmetric assumption)
+    assert get_inverse_label('Blood Oath') == 'Blood Oath'
+
+
+def test_get_inverse_label_case_insensitive():
+    """'PARENT', 'Parent', 'parent' all map to 'child'."""
+    assert get_inverse_label('PARENT') == 'child'
+    assert get_inverse_label('Child') == 'parent'
+
+
+# ---------------------------------------------------------------------------
+# Default seeding (Phase: default relation types)
+# ---------------------------------------------------------------------------
+
+
+def test_seed_defaults_populates_empty_tracker(tmp_path):
+    """seed_defaults() fills known_types when empty."""
+    t = RelationTypeTracker(data_dir=str(tmp_path))
+    assert t.seed_defaults() is True
+    assert len(t.known_types) == len(DEFAULT_RELATION_TYPES)
+
+
+def test_seed_defaults_noop_when_populated():
+    """seed_defaults() returns False and does nothing if types exist."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        t = RelationTypeTracker(data_dir=tmpdir)
+        t.add_type('Ally')
+        assert t.seed_defaults() is False
+
+
+def test_ensure_seeded_creates_persistence_file(tmp_path):
+    """ensure_seeded() saves to disk when file is missing."""
+    ensure_seeded(data_dir=str(tmp_path))
+    path = tmp_path / 'known_relation_types.json'
+    assert path.exists()
+    data = json.loads(path.read_text())
+    assert len(data['known_types']) == len(DEFAULT_RELATION_TYPES)
+
+
+def test_ensure_seeded_skips_existing_file():
+    """ensure_seeded() does nothing when file already exists."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, 'known_relation_types.json')
+        # Create empty file to simulate existing persistence
+        Path(path).write_text('{}')
+
+        result = ensure_seeded(data_dir=tmpdir)
+        assert result is False
+        data = json.loads(Path(path).read_text())
+        assert data == {}  # unchanged
+
+
+def test_ensure_seeded_idempotent():
+    """Calling ensure_seeded twice does not double-seed."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result1 = ensure_seeded(data_dir=tmpdir)
+        assert result1 is True
+
+        # Second call should be a no-op (file now exists)
+        result2 = ensure_seeded(data_dir=tmpdir)
+        assert result2 is False
+
+
+def test_attitude_guidance_text_format():
+    """attitude_guidance_text() returns non-empty, multi-line string."""
+    from kanka_wiki_updater.sync.default_attitudes import attitude_guidance_text
+    text = attitude_guidance_text()
+    assert isinstance(text, str)
+    assert len(text) > 50
+    # Should contain at least one baseline entry
+    assert '+15' in text or '-80' in text

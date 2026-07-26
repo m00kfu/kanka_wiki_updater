@@ -425,8 +425,8 @@ async function selectProposal(i) {
       if (result[j].entity_name === proposals[i].entity_name &&
           !result[j]._sync_placeholder) {
         proposals[i] = result[j];
-        renderSidebar();
         selectedIndex = i;
+        renderSidebar();
         if (editingField) cancelEdit();
         renderContent();
         showToast('Proposal loaded', 'success');
@@ -1276,9 +1276,17 @@ function loadProposals() {
       for (var pi = 0; pi < proposals.length; pi++) {
         if (proposals[pi]._sync_placeholder) {
           var pKey = proposals[pi].entity_name.toLowerCase();
-          if (serverMap[pKey] && serverMap[pKey].length > 0) {
-            // Use the first matching real proposal from the server
-            proposals[pi] = serverMap[pKey][0];
+          var pJournal = proposals[pi].source_journal;
+          if (serverMap[pKey]) {
+            // Find the server proposal that matches both name and journal
+            var match = null;
+            for (var sm = 0; sm < serverMap[pKey].length; sm++) {
+              if (serverMap[pKey][sm].source_journal === pJournal) {
+                match = serverMap[pKey][sm];
+                break;
+              }
+            }
+            proposals[pi] = match || serverMap[pKey][0];  // fallback to first
           }
         }
       }
@@ -1297,6 +1305,11 @@ function loadProposals() {
         }
         if (!exists) { proposals.push(data[si2]); }
       }
+
+      // Reset selection — the array may have shifted (new items inserted at front),
+      // so any stale selectedIndex would highlight the wrong proposal.
+      selectedIndex = null;
+
       updateStats();
       renderSidebar();
       renderContent();

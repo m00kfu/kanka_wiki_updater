@@ -7,6 +7,7 @@ These tests verify that build_synopsis_proposal correctly:
 4. Enriches proposals with _type_status and similar_types
 """
 
+import pytest
 import sys
 from pathlib import Path
 from unittest import mock
@@ -87,7 +88,8 @@ def test_parse_valid_relation_changes():
 
     assert result is not None
     rels = result['relation_changes']
-    assert len(rels) == 2
+    # 2 originals + 2 reciprocals (Ally and Rival are unknown types → symmetric)
+    assert len(rels) == 4
 
     # Bob is a new relation (no existing score), delta=15 → attitude=15
     bob_rel = next(r for r in rels if r['target_name'] == 'Bob')
@@ -98,6 +100,11 @@ def test_parse_valid_relation_changes():
     # Carol's existing score is 20, delta=-10 → attitude=10
     carol_rel = next(r for r in rels if r['target_name'] == 'Carol')
     assert carol_rel['attitude'] == 10
+
+    # Reciprocals also have computed attitudes (Alice ← Bob and Alice ← Carol)
+    alice_rels = [r for r in rels if r['target_name'] == 'Alice']
+    assert len(alice_rels) == 2
+    assert all(r['attitude'] in (10, 15) for r in alice_rels)
 
 
 def test_parse_no_relation_changes():
@@ -379,6 +386,21 @@ def test_unresolved_target_name_still_applies_delta():
 
     rc = result['relation_changes'][0]
     assert rc['attitude'] == 15  # applied from baseline 0; reviewer can fix typo in UI
+
+
+def test_prompt_includes_dynamic_attitude_guidance():
+    """RELATION_SYSTEM_PROMPT uses attitude_guidance_text() output."""
+    from kanka_wiki_updater.core.prompts import RELATION_SYSTEM_PROMPT
+    from kanka_wiki_updater.sync.default_attitudes import DEFAULT_ATTITUDES, attitude_guidance_text
+
+    guidance = attitude_guidance_text()
+    # The prompt should contain the dynamic guidance text
+    assert guidance in RELATION_SYSTEM_PROMPT
+    # And at least one baseline entry (keys converted: underscore → space)
+    for key in DEFAULT_ATTITUDES:
+        label = key.replace('_', ' ')
+        if label not in RELATION_SYSTEM_PROMPT:
+            pytest.fail(f"Expected attitude baseline '{label}' in RELATION_SYSTEM_PROMPT")
 
 
 def test_attitude_clamped_at_upper_bound():
