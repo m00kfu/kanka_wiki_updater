@@ -34,6 +34,14 @@ try:
 except ImportError:
     from kanka_wiki_updater.core import state
 
+# ---------------------------------------------------------------------------
+# Relation type tracker (shared across queue operations)
+# ---------------------------------------------------------------------------
+
+from ..sync.relation_types import RelationTypeTracker  # noqa: E402
+
+_tracker = RelationTypeTracker()
+
 
 # ---------------------------------------------------------------------------
 # File I/O
@@ -51,10 +59,16 @@ def _queue_path():
 def load_queue():
     """Load *pending_changes.json* and return the queue list.
 
+    After loading, all pending proposals are enriched with ``_type_status``
+    and ``similar_types`` fields on their relation changes (backward-compatible;
+    old proposals without these fields get them populated automatically).
+
     Returns an empty list when the file does not exist (same as
     :func:`state._load` default behaviour).
     """
-    return state._load(_queue_path(), [])
+    queue = state._load(_queue_path(), [])
+    _tracker.enrich_proposals(queue)
+    return queue
 
 
 def save_queue(queue):
@@ -64,6 +78,15 @@ def save_queue(queue):
     overwritten atomically (single write).
     """
     state._save(_queue_path(), queue)
+
+
+def get_tracker():
+    """Return the module-level RelationTypeTracker instance.
+
+    Callers can use this to add new types, check known labels, etc.
+    The tracker is lazily loaded from disk on first access via :func:`load_queue`.
+    """
+    return _tracker
 
 
 # ---------------------------------------------------------------------------
@@ -204,3 +227,21 @@ def update_relation_change(queue, index, target_name, **fields):
             rc.update(fields)
             return rc
     return None
+
+
+def add_known_relation_type(label: str) -> bool:
+    """Approve a new relation type and persist it.
+
+    Parameters
+    ----------
+    label : str
+        The relation type label to approve.
+
+    Returns
+    -------
+    bool
+        True if the type was added, False if empty/invalid.
+    """
+    _tracker.add_type(label)
+    _tracker.save()
+    return True

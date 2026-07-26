@@ -326,9 +326,32 @@ def create_app():
         queue_manager.save_queue(queue)
         return jsonify(result)
 
+    # ── Known relation types API ────────────────────────────────
+
+    @app.route('/api/known-relation-types')
+    def get_known_types():
+        """Return known relation types sorted by frequency."""
+        tracker = queue_manager.get_tracker()
+        return jsonify({
+            'types': tracker.get_sorted_labels(),
+            'counts': dict(tracker.known_types),
+        })
+
+    @app.route('/api/known-relation-types', methods=['POST'])
+    def add_known_type():
+        """Approve a new relation type."""
+        data = request.get_json()
+        label = (data.get('label') or '').strip()
+        if not label:
+            return jsonify({'error': 'No label provided'}), 400
+        queue_manager.add_known_relation_type(label)
+        # Reload the tracker so subsequent calls see the new type
+        tracker = queue_manager.get_tracker()
+        return jsonify({'ok': True, 'type': label})
+
     @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
     def regenerate_proposal_route(index):
-        """Re-run a truncated update proposal through the LLM with higher token limits."""
+        """Re-run a truncated update or new-entity proposal through the LLM with higher token limits."""
         try:
             queue = queue_manager.load_queue()
         except Exception as e:
@@ -341,20 +364,18 @@ def create_app():
             return jsonify({'error': 'Proposal not found'}), 404
 
         proposal = queue[index]
+        ptype = proposal.get('proposal_type', 'update')
         if _DEBUG:
             _debug(
                 'regenerate #{} type={} truncated={} entity_id={} journal_id={} source_journal={}'.format(
                     index,
-                    proposal.get('proposal_type'),
+                    ptype,
                     proposal.get('truncated'),
                     proposal.get('entity_id'),
                     proposal.get('_journal_id'),
                     proposal.get('source_journal'),
                 )
             )
-
-        if proposal.get('proposal_type') != 'update':
-            return jsonify({'error': 'Only update proposals can be regenerated'}), 400
 
         force = request.args.get('force', '0').lower() in ('1', 'true')
 
@@ -368,7 +389,7 @@ def create_app():
         if not result['ok']:
             # Map error types to HTTP status codes (mirrors original route)
             err = result['error'].lower()
-            if 'no meaningful change' in err:
+            if 'no meaningful change' in err or 'llm no longer suggests' in err:
                 code = 409
             elif ('lacks' in err or 'cannot fetch' in err or 'cannot contact' in err):
                 code = 400
@@ -379,11 +400,17 @@ def create_app():
             return jsonify({'ok': False, 'error': result['error']}), code
 
         # Merge the new proposal into the existing queue entry.
-        queue[index]['proposed_entry'] = result['proposed_entry']
-        queue[index]['change_summary'] = result.get('change_summary', '')
-        queue[index]['relation_changes'] = []
-        queue[index]['uncertain'] = result.get('uncertain', [])
-        queue[index]['truncated'] = False
+        if ptype == 'new_entity':
+            queue[index]['draft_entry'] = result['proposed_entry']
+            queue[index]['reason'] = result.get('change_summary', '')
+            queue[index]['uncertain'] = result.get('uncertain', [])
+            queue[index]['truncated'] = result.get('truncated', False)
+        else:
+            queue[index]['proposed_entry'] = result['proposed_entry']
+            queue[index]['change_summary'] = result.get('change_summary', '')
+            queue[index]['relation_changes'] = []
+            queue[index]['uncertain'] = result.get('uncertain', [])
+            queue[index]['truncated'] = False
 
         queue_manager.save_queue(queue)
         return jsonify({'ok': True, 'proposal': queue[index]})
