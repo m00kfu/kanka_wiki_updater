@@ -428,6 +428,69 @@ def _deduplicate_journal_tags(text):
 
 
 
+# ---------------------------------------------------------------------------
+# Attitude delta helpers (LLM-derived sentiment changes for relations)
+# ---------------------------------------------------------------------------
+
+
+def _rel_target(rel):
+    """Extract the target_id from a Relation model or dict.
+
+    NOTE: Duplicated from sync_engine.py — keep in sync if that module changes.
+          Extract to a shared utility if more callers are needed.
+    """
+    return getattr(rel, 'target_id', None) or (rel.get('target_id') if isinstance(rel, dict) else None)
+
+
+def _resolve_target_name(target_name: str, index: dict) -> int | None:
+    """Find an entity's ID by name using the entity index.
+
+    Used to look up the current attitude score for a relation target.
+    Case-insensitive exact match on entity name.
+    """
+    needle = target_name.strip().lower()
+    if not needle:
+        return None
+    for eid, data in index.items():
+        if (data.get('name') or '').strip().lower() == needle:
+            return eid
+    return None
+
+
+def _get_current_attitude(entity_relations: list, target_id: int) -> int | None:
+    """Find the current attitude score for a relation targeting *target_id*.
+
+    Returns ``None`` if no matching relation exists (new relationship).
+    """
+    for rel in entity_relations:
+        if _rel_target(rel) == target_id:
+            return rel.get('attitude')
+    return None
+
+
+def compute_new_attitude(current_score: int | None, delta: int) -> int:
+    """Add a sentiment delta to an existing Kanka attitude score and clamp.
+
+    Parameters
+    ----------
+    current_score : int or None
+        The entity's current attitude toward the target (Kanka scale −100…+100),
+        or ``None`` if no prior relation exists.
+    delta : int
+        The LLM-derived change to apply.
+
+    Returns
+    -------
+    int
+        The new clamped score in [−100, 100]. If *current_score* is None,
+        returns the delta as-is (clamped).
+    """
+    if current_score is None:
+        current_score = 0  # neutral baseline for new relations
+
+    return max(-100, min(100, current_score + delta))
+
+
 def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
                             relation_tracker=None):
     """Build a synopsis update proposal for an entity based on a single journal entry.
@@ -533,6 +596,28 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
             validated['_type_status'] = 'unknown'
             validated['similar_types'] = []
         validated_rels.append(validated)
+
+    # ── Apply attitude deltas from LLM output ────────────────────
+    if validated_rels:
+        for rc in validated_rels:
+            action = (rc.get('action') or '').strip().lower()
+            if action not in ('create', 'update'):
+                continue
+
+            delta = rc.pop('attitude_delta', None)  # transient field, remove from output
+            if delta is None:
+                continue  # LLM didn't provide a delta — leave attitude as-is (backward compat)
+
+            target_name = rc.get('target_name', '')
+            entity_relations = (entity.get('relations') or [])
+            target_id = _resolve_target_name(target_name, index)
+            current_score = _get_current_attitude(entity_relations, target_id) if target_id else None
+
+            # If target_name doesn't resolve but delta was provided:
+            # - For "create": apply delta from baseline 0 (new relation)
+            # - For "update": still apply it — the LLM may have misspelled the name;
+            #   the reviewer can correct it in the UI.
+            rc['attitude'] = compute_new_attitude(current_score, delta)
 
     return {
         'proposal_type': 'update',

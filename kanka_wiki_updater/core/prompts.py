@@ -56,13 +56,23 @@ Rules:
      where N is the 0-based index of that FIRST paragraph containing new info. Only include the first such index —
      do NOT list every paragraph with new material. If old content was preserved and only one paragraph added at
      the end, set this to [N] for that final paragraph's index. Omit if auto-inferred.
+ 10. ATTITUDE DELTA: For each relation change (create or update), estimate how this session should shift your opinion of them on Kanka's scale (-100 to +100). Provide only the *change* (delta), not an absolute value. Use these guidelines:
+     - **+25**: Major positive — saving a life, completing a quest together, major favor
+     - **+15**: Positive shift — friendly conversation, paying a bribe, successful cooperation
+     - **+5**: Slight positive nudge — polite exchange, minor helpful act
+     - **0**: Neutral — no clear directional change to the relationship (use this if unsure)
+     - **-5**: Slight negative — failed persuasion, minor slight, awkward interaction
+     - **-10**: Minor negative — insult, getting caught stealing something small, broken promise
+     - **-15**: Moderate negative — betrayal of trust, major disagreement, public humiliation
+     - **-30**: Major negative — attacking them, betraying a faction, stealing something valuable
+     If the session doesn't clearly affect this relationship, use `attitude_delta: 0`. The delta is applied to their current Kanka score (e.g., if they're at 30 and the delta is -15, the new score becomes 15).
  11. RELATION CHANGES: If the session notes mention new or changed relationships for this entity, include a
      "relation_changes" array in your JSON output. Each entry has:
      {
         "action": "create" | "update" | "delete",
         "target_name": "<entity name>",
         "relation": "<free-text relation label>",
-        "attitude": "<optional descriptor>",
+        "attitude_delta": <integer change to apply, e.g. 15 or -20>,
         "reason": "<brief explanation>"
      }
      KNOWN RELATION TYPES FOR THIS CAMPAIGN: {known_types_list}
@@ -87,7 +97,7 @@ JSON schema:
        "action": "create" | "update" | "delete",
        "target_name": "<entity name>",
        "relation": "<free-text relation label>",
-       "attitude": "<optional descriptor>",
+       "attitude_delta": <integer change to apply, e.g. 15 or -20>,
        "reason": "<brief explanation>"
      }
    ] — optional; omit or set to empty array if no relation changes are needed

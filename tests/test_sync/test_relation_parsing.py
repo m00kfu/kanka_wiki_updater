@@ -22,13 +22,14 @@ from kanka_wiki_updater.sync.synopsis_generator import build_synopsis_proposal
 # ---------------------------------------------------------------------------
 
 
-def _make_entity(name='Alice', kind='character', entry='', local_id=1, entity_id=1):
+def _make_entity(name='Alice', kind='character', entry='', local_id=1, entity_id=1, relations=None):
     return {
         'name': name,
         'kind': kind,
         'entry': entry,
         'local_id': local_id,
         'entity_id': entity_id,
+        'relations': relations or [],
     }
 
 
@@ -61,28 +62,42 @@ def _mock_llm_response(relation_changes=None):
 
 
 def test_parse_valid_relation_changes():
-    """Mock LLM returns relation_changes → validated correctly."""
+    """LLM returns attitude_delta → validated correctly, attitude is computed."""
     tracker = RelationTypeTracker()
 
     with mock.patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = _mock_llm_response([
-            {'action': 'create', 'target_name': 'Bob', 'relation': 'Ally'},
-            {'action': 'update', 'target_name': 'Carol', 'relation': 'Rival', 'attitude': 'hostile'},
+            {
+                'action': 'create', 'target_name': 'Bob', 'relation': 'Ally',
+                'attitude_delta': 15,
+            },
+            {
+                'action': 'update', 'target_name': 'Carol', 'relation': 'Rival',
+                'attitude_delta': -10,
+            },
         ])
 
-        entity = _make_entity()
+        entity = _make_entity(
+            relations=[{'target_id': 999, 'relation': 'Acquaintance', 'attitude': 20}]
+        )
         journal = _make_journal()
-        index = {}
+        index = {999: {'name': 'Carol'}}
 
         result = build_synopsis_proposal(1, entity, journal, index, relation_tracker=tracker)
 
     assert result is not None
     rels = result['relation_changes']
     assert len(rels) == 2
-    # Both are unknown since tracker is empty — but _type_status should be set
-    for rc in rels:
-        assert '_type_status' in rc
-        assert 'similar_types' in rc
+
+    # Bob is a new relation (no existing score), delta=15 → attitude=15
+    bob_rel = next(r for r in rels if r['target_name'] == 'Bob')
+    assert bob_rel['attitude'] == 15
+    assert isinstance(bob_rel['attitude'], int)
+    assert 'attitude_delta' not in bob_rel  # transient field, popped during processing
+
+    # Carol's existing score is 20, delta=-10 → attitude=10
+    carol_rel = next(r for r in rels if r['target_name'] == 'Carol')
+    assert carol_rel['attitude'] == 10
 
 
 def test_parse_no_relation_changes():
@@ -240,14 +255,14 @@ def test_prompt_without_tracker_has_placeholder():
 
 
 def test_relation_changes_preserves_extra_fields():
-    """attitude and reason fields from LLM are preserved."""
+    """attitude_delta and reason fields from LLM are handled correctly."""
     with mock.patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
         mock_chat.return_value = _mock_llm_response([
             {
                 'action': 'create',
                 'target_name': 'Bob',
                 'relation': 'Ally',
-                'attitude': 'friendly',
+                'attitude_delta': 15,
                 'reason': 'They helped Alice in battle.',
             },
         ])
@@ -261,8 +276,9 @@ def test_relation_changes_preserves_extra_fields():
     rc = result['relation_changes'][0]
     assert rc['action'] == 'create'
     assert rc['target_name'] == 'Bob'
-    assert rc['attitude'] == 'friendly'
+    assert isinstance(rc['attitude'], int) and -100 <= rc['attitude'] <= 100
     assert rc['reason'] == 'They helped Alice in battle.'
+    assert 'attitude_delta' not in rc  # transient field, removed during processing
 
 
 def test_empty_relation_label_treated_as_known():
@@ -317,3 +333,97 @@ def test_llm_error_returns_error_dict():
 
     assert result is not None
     assert result['_llm_error'] == 'Connection refused'
+
+
+def test_zero_delta_is_intentional_not_ignored():
+    """Delta of 0 means the LLM considered it and decided no change — attitude should be set."""
+    with mock.patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
+        mock_chat.return_value = _mock_llm_response([
+            {
+                'action': 'update',
+                'target_name': 'Carol',
+                'relation': 'Rival',
+                'attitude_delta': 0,  # intentional no-change
+            },
+        ])
+
+        entity = _make_entity(
+            relations=[{'target_id': 999, 'relation': 'Rival', 'attitude': -30}]
+        )
+        journal = _make_journal()
+        index = {999: {'name': 'Carol'}}
+
+        result = build_synopsis_proposal(1, entity, journal, index)
+
+    rc = result['relation_changes'][0]
+    assert rc['attitude'] == -30  # delta 0 applied: -30 + 0 = -30
+
+
+def test_unresolved_target_name_still_applies_delta():
+    """When target_name doesn't resolve (typo/hallucination), delta is still applied from baseline 0."""
+    with mock.patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
+        mock_chat.return_value = _mock_llm_response([
+            {
+                'action': 'create',
+                'target_name': 'Bobb',  # typo — doesn't match any entity in index
+                'relation': 'Ally',
+                'attitude_delta': 15,
+            },
+        ])
+
+        entity = _make_entity()
+        journal = _make_journal()
+        index = {}  # no "Bobb" or "Bob" in index
+
+        result = build_synopsis_proposal(1, entity, journal, index)
+
+    rc = result['relation_changes'][0]
+    assert rc['attitude'] == 15  # applied from baseline 0; reviewer can fix typo in UI
+
+
+def test_attitude_clamped_at_upper_bound():
+    """When current_score + delta > 100, clamp to 100."""
+    with mock.patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
+        mock_chat.return_value = _mock_llm_response([
+            {
+                'action': 'update',
+                'target_name': 'Carol',
+                'relation': 'Ally',
+                'attitude_delta': 25,
+            },
+        ])
+
+        entity = _make_entity(
+            relations=[{'target_id': 999, 'relation': 'Ally', 'attitude': 90}]
+        )
+        journal = _make_journal()
+        index = {999: {'name': 'Carol'}}
+
+        result = build_synopsis_proposal(1, entity, journal, index)
+
+    rc = result['relation_changes'][0]
+    assert rc['attitude'] == 100  # clamped from 115
+
+
+def test_attitude_clamped_at_lower_bound():
+    """When current_score + delta < -100, clamp to -100."""
+    with mock.patch('kanka_wiki_updater.sync.synopsis_generator.chat_json') as mock_chat:
+        mock_chat.return_value = _mock_llm_response([
+            {
+                'action': 'update',
+                'target_name': 'Carol',
+                'relation': 'Enemy',
+                'attitude_delta': -30,
+            },
+        ])
+
+        entity = _make_entity(
+            relations=[{'target_id': 999, 'relation': 'Enemy', 'attitude': -85}]
+        )
+        journal = _make_journal()
+        index = {999: {'name': 'Carol'}}
+
+        result = build_synopsis_proposal(1, entity, journal, index)
+
+    rc = result['relation_changes'][0]
+    assert rc['attitude'] == -100  # clamped from -115
