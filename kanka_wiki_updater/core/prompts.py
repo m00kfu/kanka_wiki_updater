@@ -115,8 +115,15 @@ Rules:
      - Prefer an existing type if one fits. If none fits, propose a new one.
      - When proposing something new, briefly justify it (e.g., "Blood Oath is distinct from
        Ally because it implies a magical binding, not just alignment").
+     - ALWAYS use a single-word relation label unless absolutely necessary to use two words.
+       Prefer simple labels like "ally", "enemy", "rival" over phrases like "ally of", "enemy of".
 
  3. RECIPROCAL RELATIONS: You only need to extract relations in ONE direction (from the entity being updated TO others). The system will automatically generate reciprocal entries for you. Do NOT include both directions yourself — just output each relation once with action "create" or "update".
+     - NOTE: Reciprocals are not always symmetric. If Ben is Alice's "father", the reciprocal
+       on Ben's side is that Alice is his "daughter" (not "father"). The system handles this
+       by using inverse label mappings for known pairs (parent↔child, mother↔son) and falls
+       back to the same label for unknown types. If you know a specific reciprocal label,
+       mention it in the reason field so future iterations can learn it.
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 
