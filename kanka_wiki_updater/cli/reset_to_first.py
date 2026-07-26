@@ -38,7 +38,10 @@ def _kind_map():
     }
 
 
-def main(dry_run: bool = False):
+def main(dry_run: bool = False, auto_confirm: bool = False):
+    if not Path(_QUEUE_FILE).exists():
+        print(colors.red('No pending changes file found. Run sync first.'))
+        return
     with open(_QUEUE_FILE, encoding='utf-8') as f:
         queue = json.load(f)
 
@@ -92,10 +95,11 @@ def main(dry_run: bool = False):
         # In dry-run mode, just show what would happen and exit.
         return
 
-    confirm = input(colors.cyan('\nReset all of these on Kanka? [y/n] ')).strip().lower()
-    if confirm != 'y':
-        print('Cancelled — nothing was changed.')
-        return
+    if not auto_confirm:
+        confirm = input(colors.cyan('\nReset all of these on Kanka? [y/n] ')).strip().lower()
+        if confirm != 'y':
+            print('Cancelled — nothing was changed.')
+            return
 
     client = KankaClient()
     kind_map = _kind_map()
@@ -127,6 +131,28 @@ def main(dry_run: bool = False):
         f'{colors.yellow(str(skip_count))} skipped, '
         f'{colors.red(str(fail_count))} failed.'
     )
+
+    if not dry_run and not auto_confirm:
+        confirm = input(colors.cyan('\nDelete stored data files? [y/n] ')).strip().lower()
+        if confirm == 'y':
+            _delete_state_files()
+
+
+def _delete_state_files():
+    """Remove all four state files from DATA_DIR. Silently skip any that don't exist."""
+    import os as _os
+
+    deleted = []
+    for filename in ('sync_state.json', 'pending_changes.json',
+                     'applied_log.json', 'processed_journals.json'):
+        path = config.DATA_DIR / filename
+        if _os.path.exists(path):
+            _os.remove(path)
+            deleted.append(filename)
+    if deleted:
+        print(colors.green(f'  Deleted {len(deleted)} state file(s): {", ".join(deleted)}'))
+    else:
+        print(colors.yellow('  No data files found to delete.'))
 
 
 if __name__ == '__main__':

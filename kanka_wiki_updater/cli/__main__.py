@@ -27,7 +27,15 @@ def main():
     rev_parser.set_defaults(func=_cmd_revert)
 
     # reset command
-    rst_parser = subparsers.add_parser('reset', help='Reset to first journal and re-sync everything')
+    rst_parser = subparsers.add_parser(
+        'reset', help='Reset to first journal and re-sync everything'
+    )
+    rst_parser.add_argument(
+        '-y', '--yes',
+        action='store_true',
+        dest='yes',
+        help='Auto-confirm all prompts (skip confirmation, delete data files)',
+    )
     rst_parser.set_defaults(func=_cmd_reset)
 
     args = parser.parse_args()
@@ -44,9 +52,10 @@ def _cmd_revert(_args):
     revert_main()
 
 
-def _cmd_reset(_args):
+def _cmd_reset(args):
     from kanka_wiki_updater.cli.reset_to_first import main as reset_main
-    reset_main()
+    auto_confirm = getattr(args, 'yes', False)
+    reset_main(auto_confirm=auto_confirm)
 
 
 if __name__ == '__main__':
