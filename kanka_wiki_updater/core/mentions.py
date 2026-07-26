@@ -240,6 +240,17 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
                 continue
 
             if SequenceMatcher(None, first_word, clean_word).ratio() >= threshold:
+                # For compound names, require at least one additional word from
+                # the entity name to appear nearby. This prevents "black" alone
+                # from fuzzy-matching into "Black Viper" when only that single
+                # adjective appears in the text.
+                if is_compound:
+                    remaining_words = set(w.lower() for w in word_parts[1:])
+                    search_window = min(len(words) - word_idx - 1, len(word_parts) + 2)
+                    nearby = [w.strip('.,!?;:\'"').lower() for w in words[word_idx + 1 : word_idx + search_window]]
+                    if not any(rw in remaining_words for rw in nearby):
+                        continue  # no additional name word found nearby
+
                 # Check context: are subsequent words part of another entity?
                 if is_compound:
                     following_words = [w.strip('.,!?;:\'"') for w in words[word_idx + 1 : word_idx + len(word_parts)]]
