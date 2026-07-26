@@ -7,6 +7,51 @@ let currentSyncJob = null; // {job_id, status}
 let syncEventSource = null; // EventSource reference for proper cleanup
 let _syncEnded = false;     // guard: prevent auto-reconnect after 'end' event
 
+// ── Relation type autocomplete state ───────────────────────
+var knownRelationTypes = [];   // global cache for autocomplete
+var similarTypesSet = new Set(); // union of all similar_types from enrichment
+
+(function initDatalist() {
+  var dl = document.createElement('datalist');
+  dl.id = 'relationTypeDatalist';
+  document.body.appendChild(dl);
+})();
+
+function populateTypeDatalist(types, allSimilar) {
+  var dl = document.getElementById('relationTypeDatalist');
+  if (!dl) return;
+  knownRelationTypes = types || [];
+  similarTypesSet = new Set();
+  (allSimilar || []).forEach(function(s) { if (s) similarTypesSet.add(s); });
+
+  var seen = {};
+  dl.innerHTML = '';
+  knownRelationTypes.forEach(function(t) {
+    dl.appendChild(makeOption(t));
+    seen[t] = true;
+  });
+  similarTypesSet.forEach(function(s) {
+    if (!seen[s]) { dl.appendChild(makeOption(s)); seen[s] = true; }
+  });
+}
+
+function makeOption(value) {
+  var opt = document.createElement('option');
+  opt.value = value.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return opt;
+}
+
+async function loadKnownTypes() {
+  try {
+    var result = await apiCall('/api/known-relation-types', 'GET');
+    if (result) {
+      populateTypeDatalist(result.types || [], result.similar_types || []);
+    }
+  } catch(e) {
+    /* empty datalist is fine — no race condition */
+  }
+}
+
 // ── Sync progress state (live entity tracking) ─────────────────────────────
 let syncEntities = {};   // key: "journal_name::entity_name" → {name, journal_name, status, error_message}
 let syncJournalOrder = []; // ordered array of journal names for rendering group order
@@ -174,10 +219,22 @@ function renderContent() {
     for (var rcIdx = 0; rcIdx < p.relation_changes.length; rcIdx++) {
       var rc = p.relation_changes[rcIdx];
       var actionClass = rc.action === 'create' ? 'rel-create' : rc.action === 'update' ? 'rel-update' : 'rel-delete';
+      var relAttrEsc = (rc.relation || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      var badgeHtml = '';
+      if (rc._type_status === 'new_suggested') {
+        badgeHtml = '<span class="badge-new-type" style="margin-left:4px;">NEW</span>';
+      }
+
       html += '<div class="relation-card" id="rel-' + rcIdx + '">' +
         '<div class="rel-header">' +
           '<span class="rel-action ' + actionClass + '">' + escapeJsHtml(rc.action) + '</span>' +
-          '<span class="rel-target">' + escapeJsHtml(p.entity_name) + ' --' + escapeJsHtml(rc.relation) + '--> ' + escapeJsHtml(rc.target_name) + '</span>' +
+          '<span class="rel-target">' +
+            escapeJsHtml(p.entity_name) + ' --' +
+            '<input type="text" class="rel-type-input" data-index="' + rcIdx + '" value="' + relAttrEsc + '" list="relationTypeDatalist">' +
+            badgeHtml +
+            '--> ' + escapeJsHtml(rc.target_name) +
+          '</span>' +
+          '<button class="btn rel-save-btn" data-index="' + rcIdx + '" style="display:none;padding:2px 8px;font-size:11px;">Save</button>' +
           '<button class="btn" onclick="deleteRelation(' + rcIdx + ')" style="padding:2px 8px;font-size:11px;margin-left:auto;">Delete</button>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text-dim)">Attitude: ' + escapeJsHtml(rc.attitude || 'N/A') + '</div>' +
@@ -189,7 +246,7 @@ function renderContent() {
     html += '<div class="add-relation-form">' +
       '<input type="text" id="newRelTarget" placeholder="Target name">' +
       '<select id="newRelAction"><option value="create">create</option><option value="update">update</option></select>' +
-      '<input type="text" id="newRelRelation" placeholder="Relation (e.g. ally)">' +
+      '<input type="text" id="newRelRelation" list="relationTypeDatalist" placeholder="Relation (e.g. ally)">' +
       '<input type="text" id="newRelAttitude" placeholder="Attitude">' +
       '<button onclick="addRelation()">Add</button></div>';
     html += '</div>';
@@ -208,6 +265,28 @@ function renderContent() {
   }
 
   content.innerHTML = html;
+
+  // ── Wire up relation type inputs (show Save on change) ───
+  var relInputs = content.querySelectorAll('.rel-type-input');
+  for (var i = 0; i < relInputs.length; i++) {
+    (function(input) {
+      var card = input.closest('.relation-card');
+      var saveBtn = card.querySelector('.rel-save-btn');
+
+      input.addEventListener('input', function() {
+        var origValue = input.defaultValue;
+        var currentVal = input.value.trim();
+        var isNewType = currentVal && !knownRelationTypes.includes(currentVal);
+        var hasChanges = currentVal !== origValue || isNewType;
+
+        saveBtn.style.display = hasChanges ? '' : 'none';
+      });
+
+      saveBtn.addEventListener('click', function() {
+        saveRelationEdit(parseInt(input.dataset.index, 10));
+      });
+    })(relInputs[i]);
+  }
 }
 
 function renderSyncContent(content) {
@@ -679,6 +758,48 @@ function cancelEdit() {
 
 // ── Relation management ───────────────────────────────────
 
+async function saveRelationEdit(idx) {
+  if (selectedIndex === null) return;
+  var p = proposals[selectedIndex];
+  var rc = p.relation_changes[idx];
+
+  // Read the edited value from the inline input
+  var input = document.querySelector('.rel-type-input[data-index="' + idx + '"]');
+  var newRelation = (input ? input.value : '').trim();
+
+  if (!newRelation) {
+    showToast('Relation type is required', 'error');
+    return;
+  }
+
+  // If this is a new type, register it first
+  if (!knownRelationTypes.includes(newRelation)) {
+    var createResult = await apiCall('/api/known-relation-types', 'POST', {label: newRelation});
+    if (!createResult || !createResult.ok) {
+      showToast('Failed to create relation type "' + newRelation + '"', 'error');
+      return;
+    }
+    // Refresh known types so the datalist updates immediately
+    await loadKnownTypes();
+  }
+
+  // Send update to backend (action='update' overwrites relation field)
+  var result = await apiCall('/api/proposals/' + selectedIndex + '/relation', 'POST', {
+    action: 'update',
+    target_name: rc.target_name,
+    relation: newRelation,
+    attitude: rc.attitude || '',
+    reason: rc.reason || ''
+  });
+
+  if (result && result.proposal) {
+    proposals[selectedIndex] = result.proposal;
+    renderSidebar();
+    renderContent();
+    showToast('Relation updated', 'success');
+  }
+}
+
 async function addRelation() {
   if (selectedIndex === null) return;
   var target = document.getElementById('newRelTarget').value.trim();
@@ -688,6 +809,21 @@ async function addRelation() {
 
   if (!target || !relation) { showToast('Target and relation are required', 'error'); return; }
 
+  // Auto-register new types (same logic as saveRelationEdit)
+  if (!knownRelationTypes.includes(relation)) {
+    var createResult = await apiCall('/api/known-relation-types', 'POST', {label: relation});
+    if (createResult && createResult.ok) {
+      knownRelationTypes.push(relation);
+      // Rebuild datalist option without full reload
+      var dl = document.getElementById('relationTypeDatalist');
+      if (dl) {
+        var opt = document.createElement('option');
+        opt.value = relation.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        dl.appendChild(opt);
+      }
+    }
+  }
+
   var result = await apiCall('/api/proposals/' + selectedIndex + '/relation', 'POST', {
     action: action, target_name: target, relation: relation, attitude: attitude, reason: ''
   });
@@ -696,6 +832,10 @@ async function addRelation() {
     renderSidebar();
     renderContent();
     showToast('Relation added', 'success');
+    // Clear form
+    document.getElementById('newRelTarget').value = '';
+    document.getElementById('newRelRelation').value = '';
+    document.getElementById('newRelAttitude').value = '';
   }
 }
 
@@ -711,6 +851,8 @@ async function deleteRelation(idx) {
     renderSidebar();
     renderContent();
     showToast('Relation deleted', 'success');
+    // Refresh known types in case this was the last use of a type
+    loadKnownTypes();
   }
 }
 
@@ -1117,6 +1259,8 @@ async function runSync() {
   });
 }
 
+// ── Proposal loading ────────────────────────────────────
+
 function loadProposals() {
   fetch('/api/proposals')
     .then(function(r){ return r.json(); })
@@ -1162,10 +1306,14 @@ function loadProposals() {
 
 // ── Init ──────────────────────────────────────────────────
 
-updateStats();
-renderSidebar();
-if (proposals.length > 0) { selectProposal(0); }
-else { document.getElementById('content').innerHTML = '<div class="empty-state"><h3>No pending proposals</h3>Run sync_pipeline first.</div>'; }
+async function initApp() {
+  await Promise.all([
+    loadKnownTypes().catch(function(){ /* empty datalist is fine */ }),
+    new Promise(function(resolve) { loadProposals(); resolve(); })
+  ]);
+}
+
+initApp();
 
 setInterval(updateStats, 5000);
 
