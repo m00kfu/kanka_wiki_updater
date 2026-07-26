@@ -119,13 +119,16 @@ Rules:
        Prefer simple labels like "ally", "enemy", "rival" over phrases like "ally of", "enemy of".
 
  3. RELATION DIRECTION: Output relations from the perspective of the entity being updated.
-     - If you KNOW the reciprocal relationship, include BOTH directions as separate entries:
-       e.g., if processing Alice and "Ben is Alice's father", output:
-         {"target_name": "Ben", "relation": "father", ...}   (Alice → Ben)
-         {"target_name": "Alice", "relation": "daughter", ...}  (Ben → Alice, on Ben's proposal)
-       The second entry will appear when processing Ben's journal. If you don't know the
-       reciprocal label yet, just output the one direction — it can be added later.
-     - Do NOT rely on the system to auto-generate reciprocals. Always include both directions
+     - ALWAYS output BOTH directions of a relationship in the SAME proposal when you know them.
+       Example — processing Alice, session says "Ben is Alice's father":
+         {"target_name": "Ben", "relation": "father", ...}    (Alice → Ben)
+         {"target_name": "Alice", "relation": "daughter", ...}  (suggestion for Ben's proposal)
+       The first entry creates the relation on Alice. The second is a suggestion that will
+       appear when processing Ben — include it now so both directions are captured in one pass.
+     - Use appropriate reciprocal labels: father↔daughter, mother↔son/daughter, parent↔child,
+       ally↔ally (symmetric), enemy↔enemy (symmetric). If unsure of the reciprocal label,
+       use a reasonable guess or just output the primary direction.
+     - Do NOT rely on any system to auto-generate reciprocals. Always include both directions
        yourself when known.
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
