@@ -408,7 +408,7 @@ def create_app():
         else:
             queue[index]['proposed_entry'] = result['proposed_entry']
             queue[index]['change_summary'] = result.get('change_summary', '')
-            queue[index]['relation_changes'] = []
+            queue[index]['relation_changes'] = result.get('relation_changes', [])
             queue[index]['uncertain'] = result.get('uncertain', [])
             queue[index]['truncated'] = False
 

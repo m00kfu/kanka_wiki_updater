@@ -40,6 +40,7 @@ from kanka_wiki_updater.core.mentions import (
 from kanka_wiki_updater.core.prompts import (
     NEW_ENTITY_SYSTEM_PROMPT,  # noqa: F401 -- re-exported for sync_pipeline consumers
     NEW_ENTITY_USER_PROMPT_TEMPLATE,  # noqa: F401 -- re-exported for sync_pipeline consumers
+    RELATION_SYSTEM_PROMPT,  # noqa: F401 -- re-exported for focused relation extraction
     SYSTEM_PROMPT,
     USER_PROMPT_TEMPLATE,
 )
@@ -496,7 +497,9 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
     """Build a synopsis update proposal for an entity based on a single journal entry.
 
     This is the shared core used by both ``sync_pipeline.propose_update()`` and
-    ``review_web.regenerate_proposal()``.
+    ``review_web.regenerate_proposal()``.  Makes **two** focused LLM calls:
+    one for synopsis editing (SYSTEM_PROMPT) and one for relation extraction
+    (RELATION_SYSTEM_PROMPT).
 
     Parameters
     ----------
@@ -538,8 +541,9 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
     if not isinstance(journal, dict):
         journal = dict(vars(journal))
 
+    # ── Call 1: Synopsis generation ────────────────────────────────
     try:
-        result = chat_json(SYSTEM_PROMPT, user_prompt, max_tokens=max_tokens)
+        synopsis_result = chat_json(SYSTEM_PROMPT, user_prompt, max_tokens=max_tokens)
     except LLMError as e:
         print(f'  ! LLM error for {entity["name"]}: {e}', file=sys.stderr)
         return {'_llm_error': str(e)}
@@ -548,7 +552,18 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
         print(f'  ! Error calling LLM for {entity["name"]}: {e}', file=sys.stderr)
         return {'_llm_error': str(e)}
 
-    raw_proposed = result.get('updated_entry', '') or entity['entry']
+    # ── Call 2: Relation extraction (independent of synopsis result) ─
+    try:
+        relation_result = chat_json(RELATION_SYSTEM_PROMPT, user_prompt, max_tokens=max_tokens)
+    except LLMError as e:
+        print(f'  ! LLM error for {entity["name"]} (relations): {e}', file=sys.stderr)
+        # Don't fail the whole proposal — relations are optional.
+        relation_result = {}
+    except Exception as e:
+        print(f'  ! Error calling LLM for {entity["name"]} (relations): {e}', file=sys.stderr)
+        relation_result = {}
+
+    raw_proposed = synopsis_result.get('updated_entry', '') or entity['entry']
     # The LLM handles all [journal:N|...] tag insertion and preservation via
     # its system-prompt rules (prompts.py Rule 7). Pass through as-is.
     proposed_text = _normalize_proposed(raw_proposed)
@@ -572,12 +587,12 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
     if no_text_change:
         return None  # model decided nothing meaningfully changed
 
-    result['truncated'] = result.get('truncated', False) or '[TRUNCATED:' in (result.get('change_summary', '') or '')
-    if is_potentially_truncated and not result['truncated']:
-        result['_info_loss_warning'] = True  # internal flag for review.py
+    synopsis_result['truncated'] = synopsis_result.get('truncated', False) or '[TRUNCATED:' in (synopsis_result.get('change_summary', '') or '')
+    if is_potentially_truncated and not synopsis_result['truncated']:
+        synopsis_result['_info_loss_warning'] = True  # internal flag for review.py
 
-    # Parse and validate relation_changes from LLM output
-    raw_rels = result.get('relation_changes') or []
+    # Parse and validate relation_changes from the *separate* relation LLM call
+    raw_rels = relation_result.get('relation_changes') or []
     validated_rels = []
     for rc in raw_rels:
         validated = dict(rc)
@@ -630,11 +645,11 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
         '_source_journal_url': _build_journal_url(journal['id']),
         'previous_entry': previous_text,
         'proposed_entry': proposed_text,
-        'change_summary': result.get('change_summary', ''),
+        'change_summary': synopsis_result.get('change_summary', ''),
         'relation_changes': validated_rels,
-        'uncertain': result.get('uncertain', []),
-        'truncated': result.get('truncated', False) or '[TRUNCATED:' in (result.get('change_summary', '') or ''),
-        '_info_loss_warning': is_potentially_truncated and not result['truncated'],
+        'uncertain': synopsis_result.get('uncertain', []),
+        'truncated': synopsis_result.get('truncated', False) or '[TRUNCATED:' in (synopsis_result.get('change_summary', '') or ''),
+        '_info_loss_warning': is_potentially_truncated and not synopsis_result['truncated'],
         'status': 'pending',
     }
 
@@ -951,6 +966,7 @@ def _regenerate_update(client, proposal, src_journal, regen_max, force=False, re
         'ok': True,
         'proposed_entry': result_proposal['proposed_entry'],
         'change_summary': result_proposal.get('change_summary', ''),
+        'relation_changes': result_proposal.get('relation_changes', []),
         'uncertain': result_proposal.get('uncertain', []),
         'truncated': False,  # regeneration resets truncated flag
     }
