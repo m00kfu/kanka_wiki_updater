@@ -371,21 +371,39 @@ def apply_proposal(client, proposal, entity_index_cache):
             # Only proceed with relations if we have a valid entity_id and no fatal errors
             fatal_errors = [e for e in errors if 'Cannot resolve' in e or 'Cannot find entity_id' in e]
             if not fatal_errors and 'entity_id' in locals():
-                _debug(f'  fetching existing relations for entity_id={entity_id}')
-                existing_relations = client.get_relations(entity_id)
-                _debug(f'  existing_relations ({len(existing_relations)} total):')
-                for ri, er in enumerate(existing_relations):
-                    rel_name = (
-                        er.get('relation') if isinstance(er, dict) else getattr(er, 'relation', None)
-                    )
-                    _debug(
-                        f'    [{ri}] target_id={_rel_target(er)!r} '
-                        f'owner_id={_rel_owner(er)!r} id={_rel_id(er)!r} relation={rel_name!r}'
-                    )
-
                 for rc in rel_changes:
                     target_name = rc['target_name']
                     action = (rc.get('action') or '').strip().lower()
+
+                    # Determine which entity to apply this relation on.
+                    # Reciprocal entries carry _reciprocal_target_name indicating the
+                    # entity that should own the relation (the original target of the
+                    # non-reciprocal entry).
+                    reciprocal_target = rc.get('_reciprocal_target_name')
+                    if reciprocal_target:
+                        apply_entity_id = _resolve(reciprocal_target)
+                        if not apply_entity_id:
+                            warnings.append(
+                                f"Skipped reciprocal relation -> {target_name}: "
+                                f"could not resolve target entity '{reciprocal_target}'"
+                            )
+                            continue
+                    else:
+                        apply_entity_id = entity_id
+
+                    _debug(f'  applying on entity_id={apply_entity_id} (reciprocal_target={reciprocal_target!r})')
+
+                    # Fetch existing relations for the entity this change applies to.
+                    existing_relations = client.get_relations(apply_entity_id)
+                    _debug(f'  existing_relations ({len(existing_relations)} total) on {apply_entity_id}:')
+                    for ri, er in enumerate(existing_relations):
+                        rel_name = (
+                            er.get('relation') if isinstance(er, dict) else getattr(er, 'relation', None)
+                        )
+                        _debug(
+                            f'    [{ri}] target_id={_rel_target(er)!r} '
+                            f'owner_id={_rel_owner(er)!r} id={_rel_id(er)!r} relation={rel_name!r}'
+                        )
 
                     if action == 'delete':
                         _debug(f'  DELETE relation -> {target_name}')
@@ -396,6 +414,13 @@ def apply_proposal(client, proposal, entity_index_cache):
                                 f'Skipped delete relation -> {target_name}: entity not found in Kanka.'
                             )
                             continue
+                        # Guard: skip deleting self-relations.
+                        if apply_entity_id == target_entity_id:
+                            details.append(
+                                f"Skipped delete relation -> {target_name}: "
+                                f"would delete a self-relation on entity {apply_entity_id}."
+                            )
+                            continue
 
                         existing = next(
                             (r for r in existing_relations if _rel_target(r) == target_entity_id), None
@@ -403,8 +428,8 @@ def apply_proposal(client, proposal, entity_index_cache):
                         _debug(f'    existing relation lookup: {existing is not None}')
                         if existing and _rel_id(existing):
                             rid = _rel_id(existing)
-                            _debug(f'    calling delete_relation eid={entity_id} rid={rid}')
-                            client.delete_relation(entity_id, rid)
+                            _debug(f'    calling delete_relation eid={apply_entity_id} rid={rid}')
+                            client.delete_relation(apply_entity_id, rid)
                             details.append(f'Deleted relation -> {target_name}')
                         elif existing:
                             errors.append(
@@ -448,7 +473,7 @@ def apply_proposal(client, proposal, entity_index_cache):
                         proposed_relation = rc.get('relation', '').strip().lower()
                         has_reverse_same_type = any(
                             _rel_owner(r) == target_entity_id
-                            and _rel_target(r) == entity_id
+                            and _rel_target(r) == apply_entity_id
                             and (r.get('relation') if isinstance(r, dict)
                                  else getattr(r, 'relation', '')).strip().lower() == proposed_relation
                             for r in existing_relations
@@ -461,14 +486,22 @@ def apply_proposal(client, proposal, entity_index_cache):
                                 f"and '{target_name}' (in the opposite direction — cannot create a duplicate link)."
                             )
 
+                        # Guard: skip if owner and target resolve to the same entity.
+                        if apply_entity_id == target_entity_id:
+                            details.append(
+                                f"Skipped {action} relation -> {target_name}: "
+                                f"would create a self-relation on entity {apply_entity_id}."
+                            )
+                            continue
+
                         elif action == 'create' or not existing:
-                            _debug(f'    create_relation eid={entity_id} tid={target_entity_id}')
+                            _debug(f'    create_relation eid={apply_entity_id} tid={target_entity_id}')
                             _debug(
                                 f'    relation_name={rc.get("relation")!r}, attitude={rc.get("attitude")!r}'
                             )
                             try:
                                 resp = client.create_relation(
-                                    entity_id, target_entity_id, rc['relation'], rc.get('attitude')
+                                    apply_entity_id, target_entity_id, rc['relation'], rc.get('attitude')
                                 )
                                 _debug(
                                     f'    create_relation response keys: '
@@ -494,12 +527,12 @@ def apply_proposal(client, proposal, entity_index_cache):
                         elif existing and _rel_id(existing):
                             rid = _rel_id(existing)
                             _debug(
-                                f'    update_relation eid={entity_id} rid={rid} '
+                                f'    update_relation eid={apply_entity_id} rid={rid} '
                                 f'rel={rc.get("relation")!r}'
                             )
                             try:
                                 client.update_relation(
-                                    entity_id,
+                                    apply_entity_id,
                                     _rel_id(existing),
                                     relation=rc['relation'],
                                     attitude=rc.get('attitude'),

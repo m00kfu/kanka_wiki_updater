@@ -225,11 +225,13 @@ function renderContent() {
         badgeHtml = '<span class="badge-new-type" style="margin-left:4px;">NEW</span>';
       }
 
+      // For reciprocal entries, show the correct direction: owner --> target
+      var displayOwner = rc._reciprocal_target_name || p.entity_name;
       html += '<div class="relation-card" id="rel-' + rcIdx + '">' +
         '<div class="rel-header">' +
           '<span class="rel-action ' + actionClass + '">' + escapeJsHtml(rc.action) + '</span>' +
           '<span class="rel-target">' +
-            escapeJsHtml(p.entity_name) + ' --' +
+            escapeJsHtml(displayOwner) + ' --' +
             '<input type="text" class="rel-type-input" data-index="' + rcIdx + '" value="' + relAttrEsc + '" list="relationTypeDatalist">' +
             badgeHtml +
             '--> ' + escapeJsHtml(rc.target_name) +

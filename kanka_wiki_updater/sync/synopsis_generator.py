@@ -475,6 +475,9 @@ def _generate_reciprocals(relation_changes: list[dict], owner_name: str) -> list
     For every entry in *relation_changes*, adds a mirror entry with owner/target swapped.
     Uses inverse label mapping for asymmetric types (parent<->child) and same label for symmetric/unknown.
 
+    Each reciprocal is marked with ``_reciprocal_target_name`` so downstream code knows which
+    entity to apply it on.  Self-relations (owner == target) are skipped.
+
     Returns a new list with original entries first, then their reciprocals appended.
     """
     from .relation_types import get_inverse_label  # avoid circular at module load
@@ -494,6 +497,11 @@ def _generate_reciprocals(relation_changes: list[dict], owner_name: str) -> list
             result.append(dict(rc))
             continue
 
+        # Skip reciprocal for self-relations (owner == target).
+        if target_name.lower() == owner_name.lower():
+            result.append(dict(rc))
+            continue
+
         # Determine the inverse label for the reciprocal direction.
         raw_inverse = get_inverse_label(relation_label)
         # Preserve capitalization style of the original relation label
@@ -503,7 +511,7 @@ def _generate_reciprocals(relation_changes: list[dict], owner_name: str) -> list
             inverse_label = raw_inverse
 
         reciprocal = {
-            'action': action,  # LLM says create -> reciprocal is also create (downstream converts to update if needed)
+            'action': action,
             'target_name': owner_name,  # the entity being updated becomes the target of the reciprocal
             'relation': inverse_label,
             'attitude_delta': rc.get('attitude_delta'),
@@ -513,6 +521,9 @@ def _generate_reciprocals(relation_changes: list[dict], owner_name: str) -> list
         # For attitude: reciprocals inherit the computed absolute attitude from the original.
         if 'attitude' in rc:
             reciprocal['attitude'] = rc['attitude']
+
+        # Mark which entity this reciprocal should be applied on (the original target).
+        reciprocal['_reciprocal_target_name'] = target_name
 
         result.append(dict(rc))  # original first
         result.append(reciprocal)  # then reciprocal
