@@ -225,8 +225,8 @@ function renderContent() {
         badgeHtml = '<span class="badge-new-type" style="margin-left:4px;">NEW</span>';
       }
 
-      // For reciprocal entries, show the correct direction: owner --> target
-      var displayOwner = rc._reciprocal_target_name || p.entity_name;
+      // Each relation change applies to the entity being updated.
+      var displayOwner = p.entity_name;
       html += '<div class="relation-card" id="rel-' + rcIdx + '">' +
         '<div class="rel-header">' +
           '<span class="rel-action ' + actionClass + '">' + escapeJsHtml(rc.action) + '</span>' +

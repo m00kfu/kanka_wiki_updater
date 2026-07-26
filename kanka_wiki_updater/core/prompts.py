@@ -118,12 +118,15 @@ Rules:
      - ALWAYS use a single-word relation label unless absolutely necessary to use two words.
        Prefer simple labels like "ally", "enemy", "rival" over phrases like "ally of", "enemy of".
 
- 3. RECIPROCAL RELATIONS: You only need to extract relations in ONE direction (from the entity being updated TO others). The system will automatically generate reciprocal entries for you. Do NOT include both directions yourself — just output each relation once with action "create" or "update".
-     - NOTE: Reciprocals are not always symmetric. If Ben is Alice's "father", the reciprocal
-       on Ben's side is that Alice is his "daughter" (not "father"). The system handles this
-       by using inverse label mappings for known pairs (parent↔child, mother↔son) and falls
-       back to the same label for unknown types. If you know a specific reciprocal label,
-       mention it in the reason field so future iterations can learn it.
+ 3. RELATION DIRECTION: Output relations from the perspective of the entity being updated.
+     - If you KNOW the reciprocal relationship, include BOTH directions as separate entries:
+       e.g., if processing Alice and "Ben is Alice's father", output:
+         {"target_name": "Ben", "relation": "father", ...}   (Alice → Ben)
+         {"target_name": "Alice", "relation": "daughter", ...}  (Ben → Alice, on Ben's proposal)
+       The second entry will appear when processing Ben's journal. If you don't know the
+       reciprocal label yet, just output the one direction — it can be added later.
+     - Do NOT rely on the system to auto-generate reciprocals. Always include both directions
+       yourself when known.
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 

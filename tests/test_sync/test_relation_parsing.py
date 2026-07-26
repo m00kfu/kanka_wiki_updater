@@ -88,8 +88,8 @@ def test_parse_valid_relation_changes():
 
     assert result is not None
     rels = result['relation_changes']
-    # 2 originals + 2 reciprocals (Ally and Rival are unknown types → symmetric)
-    assert len(rels) == 4
+    # 2 originals only — reciprocals are no longer auto-generated; the LLM should output both directions when known
+    assert len(rels) == 2
 
     # Bob is a new relation (no existing score), delta=15 → attitude=15
     bob_rel = next(r for r in rels if r['target_name'] == 'Bob')
@@ -100,11 +100,6 @@ def test_parse_valid_relation_changes():
     # Carol's existing score is 20, delta=-10 → attitude=10
     carol_rel = next(r for r in rels if r['target_name'] == 'Carol')
     assert carol_rel['attitude'] == 10
-
-    # Reciprocals also have computed attitudes (Alice ← Bob and Alice ← Carol)
-    alice_rels = [r for r in rels if r['target_name'] == 'Alice']
-    assert len(alice_rels) == 2
-    assert all(r['attitude'] in (10, 15) for r in alice_rels)
 
 
 def test_parse_no_relation_changes():

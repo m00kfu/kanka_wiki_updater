@@ -375,23 +375,7 @@ def apply_proposal(client, proposal, entity_index_cache):
                     target_name = rc['target_name']
                     action = (rc.get('action') or '').strip().lower()
 
-                    # Determine which entity to apply this relation on.
-                    # Reciprocal entries carry _reciprocal_target_name indicating the
-                    # entity that should own the relation (the original target of the
-                    # non-reciprocal entry).
-                    reciprocal_target = rc.get('_reciprocal_target_name')
-                    if reciprocal_target:
-                        apply_entity_id = _resolve(reciprocal_target)
-                        if not apply_entity_id:
-                            warnings.append(
-                                f"Skipped reciprocal relation -> {target_name}: "
-                                f"could not resolve target entity '{reciprocal_target}'"
-                            )
-                            continue
-                    else:
-                        apply_entity_id = entity_id
-
-                    _debug(f'  applying on entity_id={apply_entity_id} (reciprocal_target={reciprocal_target!r})')
+                    apply_entity_id = entity_id
 
                     # Fetch existing relations for the entity this change applies to.
                     existing_relations = client.get_relations(apply_entity_id)

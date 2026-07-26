@@ -470,65 +470,16 @@ def _get_current_attitude(entity_relations: list, target_id: int) -> int | None:
 
 
 def _generate_reciprocals(relation_changes: list[dict], owner_name: str) -> list[dict]:
-    """Generate reciprocal entries for each relation change.
+    """Pass through relation changes unchanged.
 
-    For every entry in *relation_changes*, adds a mirror entry with owner/target swapped.
-    Uses inverse label mapping for asymmetric types (parent<->child) and same label for symmetric/unknown.
+    Reciprocal generation is handled by the LLM directly — it should output both
+    directions of a relationship when known (e.g., "Ben → father → Alice" and
+    "Alice → daughter → Ben").  The system no longer auto-generates reciprocals
+    via inverse label mappings.
 
-    Each reciprocal is marked with ``_reciprocal_target_name`` so downstream code knows which
-    entity to apply it on.  Self-relations (owner == target) are skipped.
-
-    Returns a new list with original entries first, then their reciprocals appended.
+    Returns the input list unchanged (shallow copies).
     """
-    from .relation_types import get_inverse_label  # avoid circular at module load
-
-    result = []
-    for rc in relation_changes:
-        action = (rc.get('action') or '').strip().lower()
-        if action not in ('create', 'update'):
-            # Don't generate reciprocals for deletes.
-            result.append(dict(rc))
-            continue
-
-        target_name = rc.get('target_name', '')
-        relation_label = (rc.get('relation') or '').strip()
-
-        if not target_name or not relation_label:
-            result.append(dict(rc))
-            continue
-
-        # Skip reciprocal for self-relations (owner == target).
-        if target_name.lower() == owner_name.lower():
-            result.append(dict(rc))
-            continue
-
-        # Determine the inverse label for the reciprocal direction.
-        raw_inverse = get_inverse_label(relation_label)
-        # Preserve capitalization style of the original relation label
-        if len(relation_label) >= 1 and relation_label[0].isupper():
-            inverse_label = raw_inverse.title()
-        else:
-            inverse_label = raw_inverse
-
-        reciprocal = {
-            'action': action,
-            'target_name': owner_name,  # the entity being updated becomes the target of the reciprocal
-            'relation': inverse_label,
-            'attitude_delta': rc.get('attitude_delta'),
-            'reason': f'Reciprocal of: {rc.get("reason", "")}',
-        }
-
-        # For attitude: reciprocals inherit the computed absolute attitude from the original.
-        if 'attitude' in rc:
-            reciprocal['attitude'] = rc['attitude']
-
-        # Mark which entity this reciprocal should be applied on (the original target).
-        reciprocal['_reciprocal_target_name'] = target_name
-
-        result.append(dict(rc))  # original first
-        result.append(reciprocal)  # then reciprocal
-
-    return result
+    return [dict(rc) for rc in relation_changes]
 
 
 def compute_new_attitude(current_score: int | None, delta: int) -> int:
