@@ -286,17 +286,19 @@ def create_app():
                 return jsonify({'error': f"No relation to '{target_name}' found"}), 404
 
         elif action == 'update':
-            if (
-                queue_manager.update_relation_change(
-                    queue,
-                    index,
-                    target_name,
-                    relation=data.get('relation', ''),
-                    attitude=data.get('attitude', ''),
-                    reason=data.get('reason', ''),
-                )
-                is None
-            ):
+            update_fields = {
+                'relation': data.get('relation', ''),
+                'attitude': data.get('attitude', ''),
+                'reason': data.get('reason', ''),
+            }
+            new_target_name = data.get('target_name')
+            if new_target_name is not None and new_target_name != target_name:
+                update_fields['target_name'] = new_target_name
+            new_entity_id = data.get('target_entity_id')
+            if new_entity_id is not None:
+                update_fields['target_entity_id'] = new_entity_id
+
+            if queue_manager.update_relation_change(queue, index, target_name, **update_fields) is None:
                 return jsonify({'error': f"No relation to '{target_name}' found"}), 404
 
         else:
@@ -327,6 +329,29 @@ def create_app():
         return jsonify(result)
 
     # ── Known relation types API ────────────────────────────────
+
+    # ── Entity autocomplete API ───────────────────────────────
+
+    @app.route('/api/entities')
+    def get_entities():
+        """Return all known entities (characters, locations, organisations, creatures) for datalist autocomplete."""
+        client = KankaClient()
+        types_map = {
+            'characters': client.get_characters,
+            'locations': client.get_locations,
+            'organisations': client.get_organizations,
+            'creatures': client.get_creatures,
+        }
+        entities = []
+        for etype, fetch_fn in types_map.items():
+            try:
+                items = fetch_fn()
+                for item in (items or []):
+                    entities.append({'id': item.get('id'), 'name': item.get('name', '')})
+            except Exception as exc:
+                # Skip this type on failure — don't block others
+                print(f'[ENTITIES] Skipping {etype}: {exc}', file=sys.stderr, flush=True)
+        return jsonify({'entities': entities})
 
     @app.route('/api/known-relation-types')
     def get_known_types():

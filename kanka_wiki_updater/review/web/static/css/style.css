@@ -315,10 +315,24 @@ body {
   max-width: 200px;
 }
 
-.rel-target .rel-type-input:focus {
+.rel-target .rel-type-input:focus,
+.rel-target .rel-target-input:focus {
   border-color: var(--green);
   outline: none;
   background: #0a0b0e;
+}
+
+/* ── Inline editable relation target input ───────────── */
+.rel-target .rel-target-input {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: inherit;
+  font-weight: inherit;
+  min-width: 70px;
+  max-width: 200px;
 }
 
 /* Save button (hidden by default, shown on change) */

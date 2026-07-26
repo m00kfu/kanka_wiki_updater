@@ -216,7 +216,9 @@ def update_relation_change(queue, index, target_name, **fields):
     target_name : str
         The name of the entity whose relation entry to update.
     **fields
-        Key-value pairs to set (e.g. ``relation='rival'``, ``attitude='distrust'``).
+        Key-value pairs to set.  Supported keys include ``relation``,
+        ``attitude``, ``reason``, ``target_name`` (rename), and
+        ``target_entity_id`` (Kanka entity ID from datalist selection).
 
     Returns
     -------

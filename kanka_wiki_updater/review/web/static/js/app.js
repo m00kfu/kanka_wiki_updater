@@ -15,6 +15,17 @@ var similarTypesSet = new Set(); // union of all similar_types from enrichment
   var dl = document.createElement('datalist');
   dl.id = 'relationTypeDatalist';
   document.body.appendChild(dl);
+
+  // Entity datalists — one per type + combined
+  var types = ['characters', 'locations', 'organisations', 'creatures'];
+  types.forEach(function(t) {
+    var eDL = document.createElement('datalist');
+    eDL.id = t + 'EntityDatalist';
+    document.body.appendChild(eDL);
+  });
+  var allDL = document.createElement('datalist');
+  allDL.id = 'allEntityDatalist';
+  document.body.appendChild(allDL);
 })();
 
 function populateTypeDatalist(types, allSimilar) {
@@ -50,6 +61,28 @@ async function loadKnownTypes() {
   } catch(e) {
     /* empty datalist is fine — no race condition */
   }
+}
+
+function populateEntityDatalists(entities) {
+  var dl = document.getElementById('allEntityDatalist');
+  if (!dl) return;
+  dl.innerHTML = '';
+  entities.forEach(function(e) {
+    var opt = document.createElement('option');
+    opt.value = e.name.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    opt.setAttribute('data-entity-id', e.id);
+    dl.appendChild(opt);
+  });
+}
+
+function loadEntities() {
+  try {
+    apiCall('/api/entities', 'GET').then(function(result) {
+      if (result && result.entities) {
+        populateEntityDatalists(result.entities);
+      }
+    }).catch(function() { /* silent fail — plain text input still works */ });
+  } catch(e) { /* ignore */ }
 }
 
 // ── Sync progress state (live entity tracking) ─────────────────────────────
@@ -220,6 +253,7 @@ function renderContent() {
       var rc = p.relation_changes[rcIdx];
       var actionClass = rc.action === 'create' ? 'rel-create' : rc.action === 'update' ? 'rel-update' : 'rel-delete';
       var relAttrEsc = (rc.relation || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      var targetAttrEsc = (rc.target_name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
       var badgeHtml = '';
       if (rc._type_status === 'new_suggested') {
         badgeHtml = '<span class="badge-new-type" style="margin-left:4px;">NEW</span>';
@@ -234,7 +268,7 @@ function renderContent() {
             escapeJsHtml(displayOwner) + ' --' +
             '<input type="text" class="rel-type-input" data-index="' + rcIdx + '" value="' + relAttrEsc + '" list="relationTypeDatalist">' +
             badgeHtml +
-            '--> ' + escapeJsHtml(rc.target_name) +
+            '--> <input type="text" class="rel-target-input" data-index="' + rcIdx + '" value="' + targetAttrEsc + '" list="allEntityDatalist">' +
           '</span>' +
           '<button class="btn rel-save-btn" data-index="' + rcIdx + '" style="display:none;padding:2px 8px;font-size:11px;">Save</button>' +
           '<button class="btn" onclick="deleteRelation(' + rcIdx + ')" style="padding:2px 8px;font-size:11px;margin-left:auto;">Delete</button>' +
@@ -246,7 +280,7 @@ function renderContent() {
 
     // Add new relation form
     html += '<div class="add-relation-form">' +
-      '<input type="text" id="newRelTarget" placeholder="Target name">' +
+      '<input type="text" id="newRelTarget" list="allEntityDatalist" placeholder="Target name (select or type)">' +
       '<select id="newRelAction"><option value="create">create</option><option value="update">update</option></select>' +
       '<input type="text" id="newRelRelation" list="relationTypeDatalist" placeholder="Relation (e.g. ally)">' +
       '<input type="text" id="newRelAttitude" placeholder="Attitude">' +
@@ -274,15 +308,28 @@ function renderContent() {
     (function(input) {
       var card = input.closest('.relation-card');
       var saveBtn = card.querySelector('.rel-save-btn');
+      var targetInput = card.querySelector('.rel-target-input');
 
-      input.addEventListener('input', function() {
+      function checkChanges() {
         var origValue = input.defaultValue;
         var currentVal = input.value.trim();
         var isNewType = currentVal && !knownRelationTypes.includes(currentVal);
         var hasChanges = currentVal !== origValue || isNewType;
 
+        // Also check target changes
+        if (targetInput) {
+          var origTarget = targetInput.defaultValue;
+          var curTarget = targetInput.value.trim();
+          hasChanges = hasChanges || (curTarget !== origTarget);
+        }
+
         saveBtn.style.display = hasChanges ? '' : 'none';
-      });
+      }
+
+      input.addEventListener('input', checkChanges);
+      if (targetInput) {
+        targetInput.addEventListener('input', checkChanges);
+      }
 
       saveBtn.addEventListener('click', function() {
         saveRelationEdit(parseInt(input.dataset.index, 10));
@@ -785,10 +832,27 @@ async function saveRelationEdit(idx) {
     await loadKnownTypes();
   }
 
+  // Read target input and resolve entity ID from datalist
+  var relTargetInput = document.querySelector('.rel-target-input[data-index="' + idx + '"]');
+  var newTargetName = relTargetInput ? relTargetInput.value.trim() : rc.target_name;
+
+  // Get entity ID from selected datalist option
+  var entityId = null;
+  if (relTargetInput && relTargetInput.value) {
+    var options = document.getElementById('allEntityDatalist').options;
+    for (var i = 0; i < options.length; i++) {
+      if (options[i].value === relTargetInput.value.trim()) {
+        entityId = options[i].getAttribute('data-entity-id');
+        break;
+      }
+    }
+  }
+
   // Send update to backend (action='update' overwrites relation field)
   var result = await apiCall('/api/proposals/' + selectedIndex + '/relation', 'POST', {
     action: 'update',
-    target_name: rc.target_name,
+    target_name: newTargetName,
+    target_entity_id: entityId,
     relation: newRelation,
     attitude: rc.attitude || '',
     reason: rc.reason || ''
@@ -811,6 +875,16 @@ async function addRelation() {
 
   if (!target || !relation) { showToast('Target and relation are required', 'error'); return; }
 
+  // Resolve entity ID from datalist for the target name
+  var entityId = null;
+  var options = document.getElementById('allEntityDatalist').options;
+  for (var i = 0; i < options.length; i++) {
+    if (options[i].value === target) {
+      entityId = options[i].getAttribute('data-entity-id');
+      break;
+    }
+  }
+
   // Auto-register new types (same logic as saveRelationEdit)
   if (!knownRelationTypes.includes(relation)) {
     var createResult = await apiCall('/api/known-relation-types', 'POST', {label: relation});
@@ -827,7 +901,7 @@ async function addRelation() {
   }
 
   var result = await apiCall('/api/proposals/' + selectedIndex + '/relation', 'POST', {
-    action: action, target_name: target, relation: relation, attitude: attitude, reason: ''
+    action: action, target_name: target, target_entity_id: entityId, relation: relation, attitude: attitude, reason: ''
   });
   if (result && result.proposal) {
     proposals[selectedIndex] = result.proposal;
@@ -1326,6 +1400,7 @@ async function initApp() {
     loadKnownTypes().catch(function(){ /* empty datalist is fine */ }),
     new Promise(function(resolve) { loadProposals(); resolve(); })
   ]);
+  loadEntities(); // fire-and-forget, parallel with loadKnownTypes
 }
 
 initApp();
