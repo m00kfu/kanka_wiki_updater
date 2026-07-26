@@ -279,6 +279,7 @@ def create_app():
                 relation=data.get('relation', ''),
                 attitude=data.get('attitude', ''),
                 reason=data.get('reason', ''),
+                owner_name=data.get('owner_name', ''),
             )
 
         elif action == 'delete':

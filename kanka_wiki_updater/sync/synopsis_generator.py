@@ -470,16 +470,51 @@ def _get_current_attitude(entity_relations: list, target_id: int) -> int | None:
 
 
 def _generate_reciprocals(relation_changes: list[dict], owner_name: str) -> list[dict]:
-    """Pass through relation changes unchanged.
+    """Generate reciprocal entries for each relation change.
 
-    Reciprocal generation is handled by the LLM directly — it should output both
-    directions of a relationship when known (e.g., "Ben → father → Alice" and
-    "Alice → daughter → Ben").  The system no longer auto-generates reciprocals
-    via inverse label mappings.
+    For every entry in *relation_changes*, adds a mirror entry with owner/target swapped.
+    Uses inverse label mapping for asymmetric types (parent<->child) and same label for
+    symmetric/unknown.
 
-    Returns the input list unchanged (shallow copies).
+    Returns a new list with original entries first, then their reciprocals appended.
     """
-    return [dict(rc) for rc in relation_changes]
+    from .relation_types import get_inverse_label  # avoid circular at module load
+
+    result = []
+    for rc in relation_changes:
+        action = (rc.get('action') or '').strip().lower()
+        if action not in ('create', 'update'):
+            # Don't generate reciprocals for deletes.
+            result.append(dict(rc))
+            continue
+
+        target_name = rc.get('target_name', '')
+        relation_label = (rc.get('relation') or '').strip()
+
+        if not target_name or not relation_label:
+            result.append(dict(rc))
+            continue
+
+        # Determine the inverse label for the reciprocal direction.
+        inverse_label = get_inverse_label(relation_label)
+
+        reciprocal = {
+            'action': action,  # LLM says create -> reciprocal is also create (downstream converts to update if needed)
+            'target_name': owner_name,  # the entity being updated becomes the target of the reciprocal
+            'relation': inverse_label,
+            'owner_name': rc.get('target_name'),  # original target owns this reciprocal relation
+            'attitude_delta': rc.get('attitude_delta'),
+            'reason': f'Reciprocal of: {rc.get("reason", "")}',
+        }
+
+        # For attitude: reciprocals inherit the computed absolute attitude from the original.
+        if 'attitude' in rc:
+            reciprocal['attitude'] = rc['attitude']
+
+        result.append(dict(rc))  # original first
+        result.append(reciprocal)  # then reciprocal
+
+    return result
 
 
 def compute_new_attitude(current_score: int | None, delta: int) -> int:

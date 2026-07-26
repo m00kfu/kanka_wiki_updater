@@ -88,18 +88,29 @@ def test_parse_valid_relation_changes():
 
     assert result is not None
     rels = result['relation_changes']
-    # 2 originals only — reciprocals are no longer auto-generated; the LLM should output both directions when known
-    assert len(rels) == 2
+    # 4 entries: 2 originals + 2 reciprocals (auto-generated)
+    assert len(rels) == 4
 
-    # Bob is a new relation (no existing score), delta=15 → attitude=15
+    # Originals first, then reciprocals
     bob_rel = next(r for r in rels if r['target_name'] == 'Bob')
+    assert bob_rel['action'] == 'create'
     assert bob_rel['attitude'] == 15
     assert isinstance(bob_rel['attitude'], int)
+    assert 'owner_name' not in bob_rel  # originals have no owner_name (use proposal entity)
     assert 'attitude_delta' not in bob_rel  # transient field, popped during processing
 
-    # Carol's existing score is 20, delta=-10 → attitude=10
     carol_rel = next(r for r in rels if r['target_name'] == 'Carol')
+    assert carol_rel['action'] == 'update'
     assert carol_rel['attitude'] == 10
+
+    # Reciprocals have owner_name pointing to the original target
+    alice_from_bob = next(r for r in rels if r.get('owner_name') == 'Bob' and r['target_name'] == 'Alice')
+    assert alice_from_bob['action'] == 'create'
+    assert alice_from_bob['attitude'] == 15
+
+    alice_from_carol = next(r for r in rels if r.get('owner_name') == 'Carol' and r['target_name'] == 'Alice')
+    assert alice_from_carol['action'] == 'update'
+    assert alice_from_carol['attitude'] == 10
 
 
 def test_parse_no_relation_changes():

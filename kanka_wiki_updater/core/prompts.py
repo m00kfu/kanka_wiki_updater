@@ -118,18 +118,17 @@ Rules:
      - ALWAYS use a single-word relation label unless absolutely necessary to use two words.
        Prefer simple labels like "ally", "enemy", "rival" over phrases like "ally of", "enemy of".
 
- 3. RELATION DIRECTION: Output relations from the perspective of the entity being updated.
-     - ALWAYS output BOTH directions of a relationship in the SAME proposal when you know them.
-       Example — processing Alice, session says "Ben is Alice's father":
-         {"target_name": "Ben", "relation": "father", ...}    (Alice → Ben)
-         {"target_name": "Alice", "relation": "daughter", ...}  (suggestion for Ben's proposal)
-       The first entry creates the relation on Alice. The second is a suggestion that will
-       appear when processing Ben — include it now so both directions are captured in one pass.
-     - Use appropriate reciprocal labels: father↔daughter, mother↔son/daughter, parent↔child,
-       ally↔ally (symmetric), enemy↔enemy (symmetric). If unsure of the reciprocal label,
-       use a reasonable guess or just output the primary direction.
-     - Do NOT rely on any system to auto-generate reciprocals. Always include both directions
-       yourself when known.
+ 3. RELATION DIRECTION: Output each relationship from the perspective of the entity being updated.
+     **ALWAYS output BOTH directions of a known relationship in the same proposal.**
+     The system will generate reciprocals as a fallback, but you should provide them yourself
+     whenever possible — your suggestions include reasoning and context that auto-generation cannot.
+     - Example — processing Alice, session says "Ben is Alice's father":
+         {"target_name": "Ben", "relation": "father", ...}   (Alice has Ben as her father)
+         {"target_name": "Alice", "relation": "daughter", ...}  (suggestion for Ben's entry)
+       Output BOTH entries. The system will use your suggestion if present, and only auto-generate
+       a reciprocal when you did not provide one.
+     - Use appropriate labels: parent/child, mother/son, father/daughter, ally/ally (symmetric),
+       enemy/enemy (symmetric). For asymmetric pairs, output the correct inverse label yourself.
 
 FORMAT: Output MUST be valid JSON. Escape double quotes as \\" and backslashes as \\\\.
 

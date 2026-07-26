@@ -375,7 +375,20 @@ def apply_proposal(client, proposal, entity_index_cache):
                     target_name = rc['target_name']
                     action = (rc.get('action') or '').strip().lower()
 
-                    apply_entity_id = entity_id
+                    # Resolve the owner of this relation change.
+                    # For LLM-emitted entries, owner is the proposal's entity (entity_id).
+                    # For system-generated reciprocals, owner_name may be set to a different entity.
+                    rc_owner = rc.get('owner_name', '').strip()
+                    if rc_owner:
+                        apply_entity_id = _resolve(rc_owner)
+                        if not apply_entity_id:
+                            warnings.append(
+                                f"Skipped {action} relation -> {target_name}: "
+                                f"owner '{rc_owner}' not found in Kanka."
+                            )
+                            continue
+                    else:
+                        apply_entity_id = entity_id
 
                     # Fetch existing relations for the entity this change applies to.
                     existing_relations = client.get_relations(apply_entity_id)

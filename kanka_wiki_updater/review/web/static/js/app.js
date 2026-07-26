@@ -259,8 +259,9 @@ function renderContent() {
         badgeHtml = '<span class="badge-new-type" style="margin-left:4px;">NEW</span>';
       }
 
-      // Each relation change applies to the entity being updated.
-      var displayOwner = p.entity_name;
+      // Each relation change applies to its owner (entity being updated by default,
+      // or a different entity for system-generated reciprocals).
+      var displayOwner = rc.owner_name || p.entity_name;
       html += '<div class="relation-card" id="rel-' + rcIdx + '">' +
         '<div class="rel-header">' +
           '<span class="rel-action ' + actionClass + '">' + escapeJsHtml(rc.action) + '</span>' +
@@ -855,7 +856,8 @@ async function saveRelationEdit(idx) {
     target_entity_id: entityId,
     relation: newRelation,
     attitude: rc.attitude || '',
-    reason: rc.reason || ''
+    reason: rc.reason || '',
+    owner_name: rc.owner_name || ''  // preserve for reciprocals
   });
 
   if (result && result.proposal) {
@@ -901,7 +903,8 @@ async function addRelation() {
   }
 
   var result = await apiCall('/api/proposals/' + selectedIndex + '/relation', 'POST', {
-    action: action, target_name: target, target_entity_id: entityId, relation: relation, attitude: attitude, reason: ''
+    action: action, target_name: target, target_entity_id: entityId,
+    relation: relation, attitude: attitude, reason: '', owner_name: ''
   });
   if (result && result.proposal) {
     proposals[selectedIndex] = result.proposal;

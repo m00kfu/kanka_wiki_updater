@@ -154,7 +154,8 @@ def update_status(queue, index, status_value):
 # ---------------------------------------------------------------------------
 
 
-def add_relation_change(queue, index, action, target_name, relation='', attitude='', reason=''):
+def add_relation_change(queue, index, action, target_name, relation='', attitude='',
+                        reason='', owner_name=''):
     """Add a new relation change to the proposal's ``relation_changes`` list.
 
     Parameters
@@ -171,6 +172,9 @@ def add_relation_change(queue, index, action, target_name, relation='', attitude
         Optional attitude descriptor.
     reason : str
         Optional reason for the change.
+    owner_name : str
+        Optional name of the entity that owns this relation. When absent,
+        defaults to the proposal's entity (the one being updated).
 
     Returns
     -------
@@ -185,6 +189,7 @@ def add_relation_change(queue, index, action, target_name, relation='', attitude
         'relation': relation,
         'attitude': attitude,
         'reason': reason,
+        'owner_name': owner_name,
     }
     queue[index]['relation_changes'].append(entry)
     return entry
@@ -217,7 +222,8 @@ def update_relation_change(queue, index, target_name, **fields):
         The name of the entity whose relation entry to update.
     **fields
         Key-value pairs to set.  Supported keys include ``relation``,
-        ``attitude``, ``reason``, ``target_name`` (rename), and
+        ``attitude``, ``reason``, ``target_name`` (rename),
+        ``owner_name`` (for cross-entity relations / reciprocals), and
         ``target_entity_id`` (Kanka entity ID from datalist selection).
 
     Returns
