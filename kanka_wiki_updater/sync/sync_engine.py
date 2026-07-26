@@ -133,17 +133,47 @@ def resolve_entity(client, name, entity_index_cache):
         return eid
 
     # Substring fallback (case-insensitive)
-    candidates = [data['name'] for data in index.values() if needle in data['name'].lower()]
+    # Require at least 5 chars to avoid matching short words like "orders"
+    # against unrelated names. For multi-word needles all words must appear
+    # in order inside the candidate.
+    needle_words = needle.split()
+    candidates = []
+    for data in index.values():
+        lower_name = data['name'].lower()
+        if len(needle) < 5:
+            continue
+        if needle not in lower_name:
+            continue
+        # Multi-word: every word must appear in order (not just as a substring of another word)
+        if len(needle_words) > 1:
+            pos = -1
+            ok = True
+            for nw in needle_words:
+                idx = lower_name.find(nw, pos + 1)
+                if idx == -1:
+                    ok = False
+                    break
+                # Verify word boundary — the match must not be inside a longer word
+                before_ok = (idx == 0 or lower_name[idx - 1] in (' ', "'"))
+                after_idx = idx + len(nw)
+                after_ok = (after_idx >= len(lower_name) or lower_name[after_idx] in (' ', "'"))
+                if not (before_ok and after_ok):
+                    ok = False
+                    break
+                pos = after_idx
+            if not ok:
+                continue
+        candidates.append(data['name'])
     _debug(f"    substring candidates for '{name}': {candidates[:5]}")
     if len(candidates) == 1:
         eid = next(eid for eid, data in index.items() if data['name'] == candidates[0])
         _debug(f"    single substring match: '{candidates[0]}' -> eid={eid}")
         return eid
 
-    # Fuzzy fallback — try Levenshtein distance via difflib
+    # Fuzzy fallback — try Levenshtein distance via difflib (raised cutoff)
     entity_names = list(index.values())
     matches = difflib.get_close_matches(
-        needle, [d['name'].lower() for d in entity_names], n=5, cutoff=0.7
+        needle, [d['name'].lower() for d in entity_names], n=5, cutoff=0.8
     )
     _debug(f'    difflib candidates: {[d["name"] for d in entity_names[:10]]}')
     if matches:

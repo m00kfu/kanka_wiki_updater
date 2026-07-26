@@ -100,6 +100,24 @@ def _extends_into_known_name(matched_words, known_names):
     return False
 
 
+def _is_likely_plural(word):
+    """Return True if *word* looks like a regular English plural.
+
+    Covers -s, -es, and -ies patterns so we can reject fuzzy matches that
+    only differ by a trailing 's' (e.g. 'orders' vs 'Order').
+    """
+    w = word.lower()
+    if len(w) <= 2:
+        return False
+    if w.endswith('ies') and len(w) > 3:
+        return True
+    if w.endswith(('ss', 'sh', 'ch', 'x', 'z')):
+        return w.endswith('es')
+    if w.endswith('s') and not w.endswith('us') and not w.endswith('is'):
+        return True
+    return False
+
+
 def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
     """Catch plain-text mentions of known names that weren't @-linked.
 
@@ -115,6 +133,36 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
     rather than trusting this blindly."""
     text_lower = (text or '').lower()
     words = text_lower.split()
+
+    # Pre-compute exact-match character spans so fuzzy matches don't overlap.
+    # When "Cragmaw Castle" is an exact match in the text, we must not also
+    # fuzzy-match "castle" into "Castle Ward".
+    _exact_spans = []  # list of (start_char, end_char, entity_id)
+    for eid_check, name_check in names_by_entity_id.items():
+        pat = r'\b' + re.escape(name_check.lower()) + r'\b(?!\s*\')'
+        for m in re.finditer(pat, text_lower):
+            _exact_spans.append((m.start(), m.end(), eid_check))
+
+    def _find_word_char_pos(text_str, wrds, idx):
+        """Find the character start position of *idx*-th word in *text_str*."""
+        pos = 0
+        for i in range(idx + 1):
+            if i == idx:
+                return pos
+            # skip past this word and any trailing whitespace
+            while pos < len(text_str) and text_str[pos] != ' ':
+                pos += 1
+            while pos < len(text_str) and text_str[pos] == ' ':
+                pos += 1
+        return pos
+
+    def _span_covers_word(word_start_char):
+        """Return (True, owning_eid) if any exact-match span covers the given char offset."""
+        for s, e, eid in _exact_spans:
+            if s <= word_start_char < e:
+                return True, eid
+        return False, None
+
     found = set()
 
     # Build lowercase lookup of all known names for context checks.
@@ -177,6 +225,20 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
             elif "'s" in clean_word or "'" in clean_word:
                 continue  # possessive form -- skip to respect original exclusion
 
+            # Skip fuzzy matching when the text word is a likely English plural
+            # but the entity name's first word is singular (e.g. "orders" vs
+            # "Order").  This prevents common nouns from triggering false
+            # positives on unrelated entity names.
+            if _is_likely_plural(clean_word) and not _is_likely_plural(first_word):
+                continue
+
+            # Require the text word to be at least 4 characters for fuzzy
+            # matching. Three-character words produce noisy ratios that lead
+            # to false positives (e.g. "the" → "The").  Longer common nouns
+            # are still caught by the plural check above.
+            if len(clean_word) < 4:
+                continue
+
             if SequenceMatcher(None, first_word, clean_word).ratio() >= threshold:
                 # Check context: are subsequent words part of another entity?
                 if is_compound:
@@ -186,6 +248,23 @@ def fuzzy_name_matches(text, names_by_entity_id, threshold=0.84):
                         all_names_lower,
                     ):
                         continue  # another compound owns this region
+
+                # Skip if an exact match for a different entity already covers
+                # this position in the text (e.g. "cragmaw castle" should not
+                # also fuzzy-match into "Castle Ward").
+                word_char_start = _find_word_char_pos(text_lower, words, word_idx)
+                covered, covering_eid = _span_covers_word(word_char_start)
+                if covered and covering_eid is not None:
+                    # Only allow overlap when our name is very similar to the
+                    # owning entity's name (e.g. "Alic" vs "Alice").  This
+                    # prevents "Castle Ward" from matching where
+                    # "Cragmaw Castle" already has an exact match.
+                    covering_name = names_by_entity_id[covering_eid].lower()
+                    full_ratio = SequenceMatcher(None, name_lower, covering_name).ratio()
+                    if full_ratio < 0.7:
+                        continue  # this region is owned by a different entity
+                    # full_ratio >= 0.7 means our name is very similar to the
+                    # owning entity's — allow overlap (e.g. "Alic"/"Alice")
 
                 found.add(entity_id)
                 break
