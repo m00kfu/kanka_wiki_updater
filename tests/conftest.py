@@ -11,6 +11,17 @@ def mock_env():
     """Set minimal env vars for modules that require them."""
     os.environ.setdefault('KANKA_TOKEN', 'test-token')
     os.environ.setdefault('KANKA_CAMPAIGN_ID', '1')
+    # Force relation generation on in tests so existing behaviour is preserved.
+    # (the local .env file may have GENERATE_RELATIONS=0 for dev convenience).
+    # Config module reads env at import time, so we reload it here after
+    # setting the variable to ensure tests always run with relations enabled.
+    os.environ['GENERATE_RELATIONS'] = 'true'
+    import kanka_wiki_updater.core.config as config
+    _raw = os.environ.get('GENERATE_RELATIONS', '').strip()
+    if _raw:
+        config.GENERATE_RELATIONS = _raw.lower() not in ('false', '0', '')
+    else:
+        config.GENERATE_RELATIONS = True
     yield
 
 

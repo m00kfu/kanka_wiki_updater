@@ -601,15 +601,16 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
         return {'_llm_error': str(e)}
 
     # ── Call 2: Relation extraction (independent of synopsis result) ─
-    try:
-        relation_result = chat_json(RELATION_SYSTEM_PROMPT, user_prompt, max_tokens=max_tokens)
-    except LLMError as e:
-        print(f'  ! LLM error for {entity["name"]} (relations): {e}', file=sys.stderr)
-        # Don't fail the whole proposal — relations are optional.
-        relation_result = {}
-    except Exception as e:
-        print(f'  ! Error calling LLM for {entity["name"]} (relations): {e}', file=sys.stderr)
-        relation_result = {}
+    if config.GENERATE_RELATIONS:
+        try:
+            relation_result = chat_json(RELATION_SYSTEM_PROMPT, user_prompt, max_tokens=max_tokens)
+        except LLMError as e:
+            print(f'  ! LLM error for {entity["name"]} (relations): {e}', file=sys.stderr)
+            # Don't fail the whole proposal — relations are optional.
+            relation_result = {}
+        except Exception as e:
+            print(f'  ! Error calling LLM for {entity["name"]} (relations): {e}', file=sys.stderr)
+            relation_result = {}
 
     raw_proposed = synopsis_result.get('updated_entry', '') or entity['entry']
     # The LLM handles all [journal:N|...] tag insertion and preservation via
@@ -640,68 +641,71 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
         synopsis_result['_info_loss_warning'] = True  # internal flag for review.py
 
     # Parse and validate relation_changes from the *separate* relation LLM call
-    raw_rels = relation_result.get('relation_changes') or []
-    validated_rels = []
-    for rc in raw_rels:
-        validated = dict(rc)
-        if relation_tracker:
-            label = (rc.get('relation') or '').strip()
-            if label and relation_tracker.is_known(label):
-                validated['_type_status'] = 'known'
-                validated['similar_types'] = []
-            elif label:
-                validated['_type_status'] = 'new_suggested'
-                validated['similar_types'] = relation_tracker.suggest_similar(label)
-            else:
-                validated['_type_status'] = 'known'
-                validated['similar_types'] = []
-        else:
-            validated['_type_status'] = 'unknown'
-            validated['similar_types'] = []
-        validated_rels.append(validated)
-
-    # ── Apply attitude deltas from LLM output ────────────────────
-    if validated_rels:
-        for rc in validated_rels:
-            action = (rc.get('action') or '').strip().lower()
-            if action not in ('create', 'update'):
-                continue
-
-            delta = rc.pop('attitude_delta', None)  # transient field, remove from output
-            if delta is None:
-                continue  # LLM didn't provide a delta — leave attitude as-is (backward compat)
-
-            target_name = rc.get('target_name', '')
-            entity_relations = (entity.get('relations') or [])
-            target_id = _resolve_target_name(target_name, index)
-            current_score = _get_current_attitude(entity_relations, target_id) if target_id else None
-
-            # If target_name doesn't resolve but delta was provided:
-            # - For "create": apply delta from baseline 0 (new relation)
-            # - For "update": still apply it — the LLM may have misspelled the name;
-            #   the reviewer can correct it in the UI.
-            rc['attitude'] = compute_new_attitude(current_score, delta)
-
-    # -- Generate reciprocals for all relation changes -----------------
-    # For each owner->target relation, create a target->owner mirror entry.
-    # Asymmetric types (parent<->child) use inverse labels; symmetric/unknown use same label.
-    validated_rels = _generate_reciprocals(validated_rels, entity['name'])
-
-    # Enrich reciprocal entries with _type_status (they inherit from originals,
-    # but asymmetric inverses need their own lookup).
-    if relation_tracker:
-        for rc in validated_rels:
-            label = (rc.get('relation') or '').strip()
-            if '_type_status' not in rc:
+    if config.GENERATE_RELATIONS:
+        raw_rels = relation_result.get('relation_changes') or []
+        validated_rels = []
+        for rc in raw_rels:
+            validated = dict(rc)
+            if relation_tracker:
+                label = (rc.get('relation') or '').strip()
                 if label and relation_tracker.is_known(label):
-                    rc['_type_status'] = 'known'
-                    rc['similar_types'] = []
+                    validated['_type_status'] = 'known'
+                    validated['similar_types'] = []
                 elif label:
-                    rc['_type_status'] = 'new_suggested'
-                    rc['similar_types'] = relation_tracker.suggest_similar(label)
+                    validated['_type_status'] = 'new_suggested'
+                    validated['similar_types'] = relation_tracker.suggest_similar(label)
                 else:
-                    rc['_type_status'] = 'known'
-                    rc['similar_types'] = []
+                    validated['_type_status'] = 'known'
+                    validated['similar_types'] = []
+            else:
+                validated['_type_status'] = 'unknown'
+                validated['similar_types'] = []
+            validated_rels.append(validated)
+
+        # ── Apply attitude deltas from LLM output ────────────────────
+        if validated_rels:
+            for rc in validated_rels:
+                action = (rc.get('action') or '').strip().lower()
+                if action not in ('create', 'update'):
+                    continue
+
+                delta = rc.pop('attitude_delta', None)  # transient field, remove from output
+                if delta is None:
+                    continue  # LLM didn't provide a delta — leave attitude as-is (backward compat)
+
+                target_name = rc.get('target_name', '')
+                entity_relations = (entity.get('relations') or [])
+                target_id = _resolve_target_name(target_name, index)
+                current_score = _get_current_attitude(entity_relations, target_id) if target_id else None
+
+                # If target_name doesn't resolve but delta was provided:
+                # - For "create": apply delta from baseline 0 (new relation)
+                # - For "update": still apply it — the LLM may have misspelled the name;
+                #   the reviewer can correct it in the UI.
+                rc['attitude'] = compute_new_attitude(current_score, delta)
+
+        # -- Generate reciprocals for all relation changes -----------------
+        # For each owner->target relation, create a target->owner mirror entry.
+        # Asymmetric types (parent<->child) use inverse labels; symmetric/unknown use same label.
+        validated_rels = _generate_reciprocals(validated_rels, entity['name'])
+
+        # Enrich reciprocal entries with _type_status (they inherit from originals,
+        # but asymmetric inverses need their own lookup).
+        if relation_tracker:
+            for rc in validated_rels:
+                label = (rc.get('relation') or '').strip()
+                if '_type_status' not in rc:
+                    if label and relation_tracker.is_known(label):
+                        rc['_type_status'] = 'known'
+                        rc['similar_types'] = []
+                    elif label:
+                        rc['_type_status'] = 'new_suggested'
+                        rc['similar_types'] = relation_tracker.suggest_similar(label)
+                    else:
+                        rc['_type_status'] = 'known'
+                        rc['similar_types'] = []
+    else:
+        validated_rels = []
 
     return {
         'proposal_type': 'update',

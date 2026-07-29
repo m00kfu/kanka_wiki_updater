@@ -96,6 +96,14 @@ elif len(SESSION_JOURNAL_TYPES) > 1:
 else:
     JOURNAL_BATCH_LIMIT = None
 
+# Whether to generate relation suggestions during synopsis generation.
+# Set to "false" or "0" to skip relation extraction entirely (synopsis-only mode).
+_raw_relations = os.environ.get('GENERATE_RELATIONS', '').strip()
+if _raw_relations:
+    GENERATE_RELATIONS = _raw_relations.lower() not in ('false', '0', '')
+else:
+    GENERATE_RELATIONS = True  # backward-compatible default
+
 # Where persistent state (pending changes, sync progress, applied-log) lives.
 # Override with the DATA_DIR environment variable for a custom location.
 default_data_dir: Path = Path.home() / '.local' / 'share' / 'kanka_wiki_updater'
