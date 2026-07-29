@@ -102,6 +102,15 @@ Rules:
      - **-30**: Major negative — attacking them, betraying a faction, stealing something valuable
 {ATTITUDE_GUIDANCE_PLACEHOLDER}
      If the session doesn't clearly affect this relationship, use `attitude_delta: 0`. The delta is applied to their current Kanka score (e.g., if they're at 30 and the delta is -15, the new score becomes 15).
+
+ 2b. HIGH-SIGNIFICANCE THRESHOLD (CRITICAL): Only emit relation_changes for interactions that represent a SIGNIFICANT shift in the relationship — fundamental changes to power dynamics, political allegiance, deep trust or enmity, formal contracts, betrayals of major consequence, marriages/alliances, or dramatic emotional turning points.
+     DO NOT create/update relations for:
+       - Casual conversation, passing mentions, or brief encounters
+       - Routine commerce (buying/selling, hiring/firing without drama)
+       - Minor social friction (a single insult, a failed persuasion attempt with no lasting consequence)
+       - The entity simply being present in the same scene as another character
+     If the session doesn't clearly affect this relationship, use `attitude_delta: 0` and DO NOT include it in relation_changes.
+
  2. RELATION CHANGES: If the session notes mention new or changed relationships for this entity, include a
      "relation_changes" array in your JSON output. Each entry has:
      {
@@ -117,6 +126,19 @@ Rules:
        Ally because it implies a magical binding, not just alignment").
      - ALWAYS use a single-word relation label unless absolutely necessary to use two words.
        Prefer simple labels like "ally", "enemy", "rival" over phrases like "ally of", "enemy of".
+
+ 2c. ENTITY-KIND RELEVANCE — tailor relation suggestions to what makes sense for this entity's type:
+     - If this entity is a CHARACTER: Focus on interpersonal relations (allies, enemies, family, rivals,
+       mentors, lovers, etc.). Relations to other Characters are most valuable. Relations to Organizations
+       (membership, leadership, outlaw status) are also useful. Avoid creating formal relations with
+       Locations or Items — note those in the synopsis text instead.
+     - If this entity is a LOCATION: Focus on relations that describe who controls, visits, or has history
+       with this place (e.g., "ruled by", "visited by", "destroyed by"). Avoid interpersonal relation types
+       like "spouse" or "rival".
+     - If this entity is an ORGANIZATION: Focus on faction-level relations (wars, treaties, alliances,
+       memberships). Relations to Characters (leaders, members) and other Organizations are useful.
+     - If this entity is a CREATURE: Focus on relations describing its nature (tamed by, hunted by,
+       servant of, cursed by). Avoid social relation types like "ally" or "spouse".
 
  3. RELATION DIRECTION: Output each relationship from the perspective of the entity being updated.
      **ALWAYS output BOTH directions of a known relationship in the same proposal.**
@@ -142,7 +164,10 @@ JSON schema:
        "attitude_delta": <integer change to apply, e.g. 15 or -20>,
        "reason": "<brief explanation>"
      }
-   ] — optional; omit or set to empty array if no relation changes are needed
+   ] — optional; omit or set to empty array if no relation changes are needed.
+     Remember: an empty array (or omitting the key entirely) is the correct answer when no significant
+     relationship shifts occurred this session. It is better to miss a minor change than to clutter the wiki
+     with noise from routine encounters.
 }
 """
 
