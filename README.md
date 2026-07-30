@@ -99,12 +99,16 @@ giving the model a second chance to produce a complete response.
   better at structured output, or lower `temperature`. The web UI also supports regenerating truncated proposals (click the regenerate button to re-run through the LLM with 2× token budget).
 - **Sync cancellation**: during a sync run from the web UI, click "Cancel" to stop processing
   further journals. In-flight LLM calls will complete but subsequent journals won't start.
-- **Relation IDs**: Kanka's documented example response for listing
-  relations doesn't explicitly show an `id` field per relation (only
-  owner/target/label/attitude). If `update`/`delete` relation actions
-  misbehave in your testing, print a raw relation object from
-  `client.get_relations(...)` and adjust `sync/sync_engine.py` to whatever field
-  Kanka actually returns for the relation's own ID.
+- **Relation types**: the project ships with a built-in list of common
+  relation labels (`sync/relation_types.py`). On first run it seeds these
+  from defaults; approved new types are persisted in
+  `data/known_relation_types.json` and used for fuzzy matching when the LLM
+  proposes an unfamiliar label. The review UI highlights unknown types with
+  suggestions.
+- **Starting attitudes**: `sync/default_attitudes.py` provides suggested
+  starting attitude values (−80 to +85) per relation type, which guide the
+  LLM when creating brand-new relations. You can edit this file to adjust
+  baselines for your campaign.
 - **Rate limits**: Kanka allows 30 requests/minute (90/minute for
   subscribers). The client throttles to ~1 request every 2.1 seconds by
   default — lower `KANKA_REQUEST_INTERVAL` in `.env` if you're a subscriber

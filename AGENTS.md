@@ -42,7 +42,7 @@ pytest --cov=kanka_wiki_updater           # coverage report
 Tests live in `tests/` mirroring the package structure:
 - `test_core/` — config, kanka_client, mentions, progress, state, colors (pure functions tested first)
 - `test_llm/` — provider implementations
-- `test_sync/` — ingest callbacks, sync orchestrator, sync pipeline, relation conflicts, sync events
+- `test_sync/` — ingest callbacks, sync orchestrator, sync pipeline, relation conflicts, sync events, attitude helpers, relation types & parsing, reciprocals
 - `test_review/` — queue manager, review web routes
 - `test_cli/` — revert command
 
@@ -74,7 +74,9 @@ kanka_wiki_updater/
 │   ├── sync_orchestrator.py# Job lifecycle: start/cancel/status with per-entity progress
 │   ├── synopsis_generator.py # LLM-driven synopsis generation (used by ingest + review_web)
 │   ├── sync_events.py      # Event type constants for pipeline contract
-│   └── relation_conflicts.py  # Detect/resolve conflicts in proposed relations
+│   ├── relation_conflicts.py    # Detect/resolve conflicts in proposed relations
+│   ├── default_attitudes.py  # Starting attitude values per relation type (guideline for LLM prompts)
+│   └── relation_types.py       # Track known relation types, fuzzy matching, symmetric/inverse mappings
 ├── review/                 # Review & queue management
 │   ├── queue_manager.py    # Load/save pending_changes.json, edit proposal text/status/relation changes
 │   └── web/                # Flask web UI
@@ -95,7 +97,10 @@ kanka_wiki_updater/
 | `sync/ingest_journal.py` | **Ingest core:** entity index → fetch journals → identify entities → LLM per entity → queue proposals. Idempotent via processed-journal tracking. |
 | `sync/sync_engine.py` | Apply proposals to Kanka: wiki-link parsing, exact/fuzzy matching, new entity creation, synopsis updates, relation CRUD with reverse-direction conflict detection. |
 | `sync/sync_orchestrator.py` | Job lifecycle management: start/cancel/status APIs with per-entity progress tracking. Used by review_web Sync tab. |
-| `sync/synopsis_generator.py` | LLM-driven synopsis generation: prompt construction, response parsing, paragraph normalisation, journal-tag dedup/italics. Exports `build_synopsis_proposal()`, `propose_update()`, `build_entity_index()`. |
+| `sync/synopsis_generator.py`      | LLM-driven synopsis generation: prompt construction, response parsing, paragraph normalisation, journal-tag dedup/italics. Exports `build_synopsis_proposal()`, `propose_update()`, `build_entity_index()`.
+| `sync/relation_conflicts.py`    | Detect/resolve conflicts in proposed relations |
+| `sync/default_attitudes.py`     | Starting attitude values per relation type (guideline for LLM prompts) |
+| `sync/relation_types.py`        | Track known relation types, fuzzy matching, symmetric/inverse mappings |
 | `review/queue_manager.py` | Queue I/O and in-memory manipulation: load/save `pending_changes.json`, edit proposal text/status/relation changes. |
 | `review/web/__init__.py` | Flask app factory at http://127.0.0.1:5555 — Review tab (browse, filter, edit, approve/reject, regenerate) and Sync tab (SSE streaming, per-entity progress, cancel). |
 | `cli/revert.py` | Undoes the most recent unreverted batch in reverse order: relations + synopses first, new-entity deletions last. One-step undo only. |
