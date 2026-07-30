@@ -222,6 +222,15 @@ function renderContent() {
     html += '<div class="warning critical">&#9888; WARNING: The proposed synopsis (' + newLen + ' chars) is much shorter than the previous version (' + prevLen + ' chars). This likely means old content was summarized/condensed instead of preserved. Review carefully.</div>';
   }
 
+  // LLM error banner with regenerate button
+  if (p._llm_error) {
+    html += '<div class="warning critical" id="llmErrorWarning">' +
+      '&#9888; LLM call failed for this entity. The proposal could not be generated. ' +
+      '<button class="btn" onclick="regenerateProposal()" style="padding:4px 12px;font-size:12px;margin-left:12px;">Retry (regenerate)</button>' +
+      '<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:4px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;">' + escapeJsHtml(p._llm_error) + '</div>' +
+      '</div>';
+  }
+
   // ── Synopsis / draft editing area ─────────────────────────
   var synopsisHeading = p.proposal_type === 'new_entity' ? 'Draft Synopsis' : 'Synopsis';
   var toggleBtn = '';

@@ -486,7 +486,7 @@ def create_app():
                 error_msg = None
             elif not ok:
                 status = 'error'
-                error_msg = str(data) if data else 'LLM call failed'
+                error_msg = (data.get('_llm_error') or str(data)) if data else 'LLM call failed'
             else:
                 status = 'done'
                 error_msg = None

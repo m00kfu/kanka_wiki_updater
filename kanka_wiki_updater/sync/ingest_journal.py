@@ -371,8 +371,31 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
                     journal_entity_count += 1
                     entity_ok[eid] = True
                 elif isinstance(proposal, dict) and '_llm_error' in proposal:
-                    # LLM call failed — mark as error so the UI shows an
-                    # accurate status instead of staying on "processing".
+                    # LLM call failed — still queue a minimal proposal so the user
+                    # can retry it (regenerate) from the review UI instead of needing
+                    # to re-run the entire sync pipeline.
+                    error_proposal = {
+                        'proposal_type': 'update',
+                        'entity_id': eid,
+                        'entity_kind': entity['kind'],
+                        'entity_local_id': entity['local_id'],
+                        'entity_name': entity['name'],
+                        'source_journal': journal.get('name'),
+                        '_journal_id': journal['id'],
+                        '_source_journal_url': _build_journal_url(journal['id']),
+                        'previous_entry': entity['entry'] or '',
+                        'proposed_entry': '',
+                        'change_summary': '',
+                        'relation_changes': [],
+                        'uncertain': [],
+                        'truncated': False,
+                        '_llm_error': proposal['_llm_error'],
+                        'status': 'pending',
+                    }
+                    state.append_to_queue([error_proposal])
+                    total_proposals += 1
+                    cbs['proposal_queued'](error_proposal)
+                    journal_entity_count += 1
                     entity_ok[eid] = False
                     llm_result_data = proposal  # carries _llm_error key
                 else:

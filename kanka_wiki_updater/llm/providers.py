@@ -102,7 +102,20 @@ def _extract_json(text, finish_reason=None):
                 f'repair ({e2}). Output was:\n{text[:500]}'
             ) from e2
 
-    if not isinstance(result, dict):
+    if isinstance(result, list):
+        # Model returned an array instead of a single object.  This happens when the
+        # greedy {.*} regex captures across multiple JSON objects and repair_json
+        # reconstructs them as a list (common when the model outputs internal reasoning
+        # with multiple attempts).  Take the *last* element, which is typically the
+        # model's final/corrected version.
+        if result and isinstance(result[-1], dict):
+            result = result[-1]
+        else:
+            raise LLMError(
+                f'Model returned a JSON list with no usable dict element. '
+                f'Raw parsed value: {result!r}\nFull model output was:\n{text[:1000]}'
+            )
+    elif not isinstance(result, dict):
         raise LLMError(
             f'Model returned JSON of type {type(result).__name__} instead of a single object. '
             f'This usually means the model wrapped its output in an array or produced unexpected structure. '
