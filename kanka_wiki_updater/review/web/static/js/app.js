@@ -124,8 +124,11 @@ function saveTreeState() {
 
 function applyDefaultExpandState() {
   var expanded = getCurrentExpanded();
-  if (expanded.length > 0) return; // user has explicit state — respect it
   if (currentTab === 'new') {
+    // Always ensure every journal with a pending proposal is expanded in the NEW tab.
+    // This covers both first-load seeding and re-application on tab switches,
+    // guaranteeing newly added journal trees begin expanded regardless of which
+    // tab you were on when they arrived (via SSE or initial load).
     var visibleIndices = getVisibleIndices();
     for (var i = 0; i < visibleIndices.length; i++) {
       var jName = proposals[visibleIndices[i]].source_journal || 'Uncategorized';
@@ -260,6 +263,7 @@ function switchTab(tab) {
     treeState.per_tab[currentTab] = { expanded: [], selected_id: null };
   }
   treeState.per_tab[currentTab].selected_id = null;  // clear for new tab
+  applyDefaultExpandState();
   renderSidebar();
   renderContent();
 }
