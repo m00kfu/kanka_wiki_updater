@@ -464,6 +464,7 @@ def create_app():
             with _sync_lock:
                 entry = progress.get(key, {})
                 entry['status'] = 'processing'
+                entry['_processed'] = True
                 progress[key] = entry
             emitter.entity_progress('processing', name=entity_name, journal_name=journal_name)
 
@@ -521,14 +522,24 @@ def create_app():
             })
 
         def on_journal_completed(journal_name, entities_processed, suggestions_count):
-            keys_to_update = []
+            keys_to_done = []
+            keys_to_skip = []
             with _sync_lock:
                 for key in list(progress.keys()):
                     if key[0] == journal_name and progress[key]['status'] in ('pending', 'processing'):
-                        progress[key]['status'] = 'done'
-                        keys_to_update.append(key)
-            for key in keys_to_update:
+                        if progress[key].get('_processed'):
+                            # Entity went through the full pipeline — mark done.
+                            progress[key]['status'] = 'done'
+                            keys_to_done.append(key)
+                        else:
+                            # Discovered but never started processing
+                            # (e.g. new-entity candidate that was skipped).
+                            progress[key]['status'] = 'skipped'
+                            keys_to_skip.append(key)
+            for key in keys_to_done:
                 emitter.entity_progress('done', name=key[1], journal_name=journal_name)
+            for key in keys_to_skip:
+                emitter.entity_progress('skipped', name=key[1], journal_name=journal_name)
             emitter.entity_progress(
                 'journal_complete',
                 journal_name=journal_name,

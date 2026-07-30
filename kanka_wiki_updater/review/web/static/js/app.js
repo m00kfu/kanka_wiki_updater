@@ -702,10 +702,20 @@ async function approveAll() {
   var oldIndex = selectedIndex;
   showLoading('Approving all proposals...', 'This may take a moment while changes are synced to Kanka.');
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_all'})
-    .then(function(data) {
+    .then(async function(data) {
       hideLoading();
       if (!data) return;
       proposals[selectedIndex] = data.proposal;
+      // Refresh the full proposal list from server before advancing so the
+      // next item has complete data (proposed_entry, previous_entry, etc.)
+      // rather than stale local state that would render "No changes".
+      var fresh = await apiCall('/api/proposals', 'GET');
+      if (fresh) {
+        proposals.length = 0;
+        for (var i = 0; i < fresh.length; i++) {
+          proposals.push(fresh[i]);
+        }
+      }
       _advance(oldIndex);
       if (data.sync) {
         if (data.sync.warnings && data.sync.warnings.length > 0) {
@@ -728,10 +738,20 @@ async function approveSynopsisOnly() {
   var oldIndex = selectedIndex;
   showLoading('Syncing synopsis to Kanka...', 'Updating the wiki entry.');
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'approved_synopsis_only'})
-    .then(function(data) {
+    .then(async function(data) {
       hideLoading();
       if (!data) return;
       proposals[selectedIndex] = data.proposal;
+      // Refresh the full proposal list from server before advancing so the
+      // next item has complete data (proposed_entry, previous_entry, etc.)
+      // rather than stale local state that would render "No changes".
+      var fresh = await apiCall('/api/proposals', 'GET');
+      if (fresh) {
+        proposals.length = 0;
+        for (var i = 0; i < fresh.length; i++) {
+          proposals.push(fresh[i]);
+        }
+      }
       _advance(oldIndex);
       if (data.sync) {
         if (data.sync.warnings && data.sync.warnings.length > 0) {
@@ -753,7 +773,21 @@ async function rejectCurrent() {
   var oldIndex = selectedIndex;
   if (editingField) await saveEdit();
   apiCall('/api/proposals/' + selectedIndex + '/status', 'POST', {status: 'rejected'})
-    .then(function(data) { hideLoading(); if (data) { proposals[selectedIndex] = data.proposal; _advance(oldIndex); showToast('Rejected', 'error'); } });
+    .then(async function(data) {
+      hideLoading();
+      if (!data) return;
+      proposals[selectedIndex] = data.proposal;
+      // Refresh the full proposal list from server before advancing.
+      var fresh = await apiCall('/api/proposals', 'GET');
+      if (fresh) {
+        proposals.length = 0;
+        for (var i = 0; i < fresh.length; i++) {
+          proposals.push(fresh[i]);
+        }
+      }
+      _advance(oldIndex);
+      showToast('Rejected', 'error');
+    });
 }
 
 function _advance(fromIndex) {
@@ -1302,10 +1336,13 @@ async function runSync() {
       _sync_placeholder: true, // marks this as a live-insert placeholder
     };
 
-    // Avoid duplicate entries for the same entity
+    // Avoid duplicate entries for the same entity+journal combo.
+    // An entity can appear in multiple journals, each producing a separate
+    // proposal — so we deduplicate by (entity_name + source_journal).
     var found = false;
     for (var i2 = 0; i2 < proposals.length; i2++) {
-      if (proposals[i2].entity_name === data.name) {
+      if (proposals[i2].entity_name === data.name &&
+          proposals[i2].source_journal === placeholder.source_journal) {
         if (proposals[i2]._sync_placeholder) {
           // Update existing placeholder with fresh data
           Object.assign(proposals[i2], placeholder);
@@ -1328,7 +1365,27 @@ async function runSync() {
     try { data = JSON.parse(e.data); } catch (_) { return; }
     if (data.status) {
       currentSyncJob.status = data.status;
-      _renderSyncContent();
+      // Always stop the timer on terminal status — guards against the
+      // 'end' event not arriving (e.g. dropped connection).
+      if (data.status in { completed: 1, error: 1, cancelled: 1 }) {
+        stopElapsedTimer();
+      }
+      // Do NOT call _renderSyncContent() for terminal statuses here.
+      // The 'end' event fires after all buffered entity_progress events
+      // have been emitted, so we wait until then to re-render with
+      // complete data. Just update the badge in-place.
+      if (data.status !== 'running') {
+        var header = document.querySelector('.sync-header');
+        if (header) {
+          var badge = header.querySelector('.sync-status-badge');
+          if (badge) {
+            badge.className = 'sync-status-badge ' + data.status;
+            badge.innerHTML = '<span class="badge-dot"></span> ' + data.status.toUpperCase();
+          }
+        }
+      } else {
+        _renderSyncContent();
+      }
     }
   });
 
