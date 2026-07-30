@@ -1473,14 +1473,18 @@ async function runSync() {
     }
     if (!found) {
       proposals.push(placeholder);
-      // Auto-expand the journal group for newly added proposals on the 'new' tab
-      if (currentTab === 'new') {
-        var jName = placeholder.source_journal || 'Syncing...';
-        var expanded = getCurrentExpanded();
-        if (expanded.indexOf(jName) === -1) {
-          expanded.push(jName);
-          saveTreeState();
-        }
+      // Auto-expand the journal group in the 'new' tab regardless of which
+      // tab is currently active — so when the user switches to 'New', the
+      // journal tree is already expanded.
+      var jName = placeholder.source_journal || 'Syncing...';
+      var newExpanded = (treeState.per_tab.new && Array.isArray(treeState.per_tab.new.expanded))
+        ? treeState.per_tab.new.expanded : [];
+      if (newExpanded.indexOf(jName) === -1) {
+        newExpanded.push(jName);
+        // Save directly to the 'new' tab's state
+        apiCall('/api/tree-state', 'POST', {
+          per_tab: { new: { expanded: newExpanded } }
+        }).catch(function() {});
       }
     }
 
@@ -1595,6 +1599,21 @@ function loadProposals() {
         }
       }
       if (!exists) { proposals.push(proposalsData[si2]); }
+    }
+
+    // Auto-expand journal groups for pending proposals on the 'new' tab.
+    // This ensures newly-synced proposals appear under an expanded journal,
+    // even after loadProposals() resets treeState from the server.
+    if (currentTab === 'new') {
+      var expanded = getCurrentExpanded();
+      for (var pi3 = 0; pi3 < proposals.length; pi3++) {
+        var p2 = proposals[pi3];
+        if (p2.status !== 'pending') continue;
+        var jName2 = p2.source_journal || 'Uncategorized';
+        if (expanded.indexOf(jName2) === -1) {
+          expanded.push(jName2);
+        }
+      }
     }
 
     // Restore selection by stable ID from current tab's state (not raw index)
