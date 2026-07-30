@@ -1178,18 +1178,19 @@ function _addJournalGroup(journalName) {
 }
 
 function _renderSyncContent() {
-  var prevElapsed = '';
-  if (currentSyncJob && currentSyncJob.started_at) {
-    var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
-    var mins = Math.floor(elapsed / 60);
-    var secs = elapsed % 60;
-    prevElapsed = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
-  }
   renderSyncContent(document.getElementById('content'));
-  // Restore the elapsed time immediately — innerHTML rebuild wipes it.
-  var el = document.getElementById('syncElapsed');
-  if (el && prevElapsed) {
-    el.textContent = prevElapsed;
+
+  // Always compute and display current elapsed time — never rely on a stale
+  // snapshot. This covers both the initial tab switch (where no interval has
+  // fired yet) and any gap between SSE events while waiting for the LLM.
+  if (currentSyncJob && currentSyncJob.started_at) {
+    var el = document.getElementById('syncElapsed');
+    if (el) {
+      var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
+      var mins = Math.floor(elapsed / 60);
+      var secs = elapsed % 60;
+      el.textContent = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
+    }
   }
 }
 
