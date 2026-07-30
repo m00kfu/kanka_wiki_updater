@@ -1579,38 +1579,24 @@ function loadProposals() {
       serverMap[key].push(proposalsData[si]);
     }
 
-    // Replace placeholders with real server data, keep non-placeholders as-is
+    // Replace ALL matching proposals with fresh server data (not just
+    // placeholders).  This ensures that entries rendered from the initial
+    // Jinja payload — which may be missing fields populated later by the
+    // LLM pipeline — get updated to their complete form.
     for (var pi = 0; pi < proposals.length; pi++) {
-      if (proposals[pi]._sync_placeholder) {
-        var pKey = proposals[pi].entity_name.toLowerCase();
-        var pJournal = proposals[pi].source_journal;
-        if (serverMap[pKey]) {
-          // Find the server proposal that matches both name and journal
-          var match = null;
-          for (var sm = 0; sm < serverMap[pKey].length; sm++) {
-            if (serverMap[pKey][sm].source_journal === pJournal) {
-              match = serverMap[pKey][sm];
-              break;
-            }
+      var pKey = proposals[pi].entity_name.toLowerCase();
+      var pJournal = proposals[pi].source_journal;
+      if (serverMap[pKey]) {
+        // Find the server proposal that matches both name and journal
+        var match = null;
+        for (var sm = 0; sm < serverMap[pKey].length; sm++) {
+          if (serverMap[pKey][sm].source_journal === pJournal) {
+            match = serverMap[pKey][sm];
+            break;
           }
-          proposals[pi] = match || serverMap[pKey][0];  // fallback to first
         }
+        proposals[pi] = match || serverMap[pKey][0];  // fallback to first
       }
-    }
-
-    // Add any server proposals not already represented in the list
-    for (var si2 = 0; si2 < proposalsData.length; si2++) {
-      var sName = proposalsData[si2].entity_name;
-      var sJournal = proposalsData[si2].source_journal;
-      var exists = false;
-      for (var ei = 0; ei < proposals.length; ei++) {
-        if (proposals[ei].entity_name === sName &&
-            proposals[ei].source_journal === sJournal) {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists) { proposals.push(proposalsData[si2]); }
     }
 
     // Auto-expand journal groups for pending proposals on the 'new' tab.
