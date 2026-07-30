@@ -61,8 +61,8 @@ class TestDefaultCallbacks:
         # proposal_queued(proposal_dict)
         assert cbs['proposal_queued']({'type': 'update'}) is None
 
-        # new_entity_suggestion(suggestion_dict)
-        assert cbs['new_entity_suggestion']({'entity_name': 'NewGuy'}) is None
+        # new_entity_suggestion(suggestion_dict, journal_name)
+        assert cbs['new_entity_suggestion']({'entity_name': 'NewGuy'}, 'Session 1') is None
 
         # journal_completed(journal_name, entities_processed, suggestions_count)
         assert cbs['journal_completed']('Session 1', 2, 1) is None

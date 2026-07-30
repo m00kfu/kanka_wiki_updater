@@ -351,7 +351,11 @@ function renderContent() {
     html += '<textarea class="synopsis-editor" id="synopsisEditor">' + escapeHtmlForTextarea(stripHtml(currentText || '')) + '</textarea>';
   } else {
     if (p.proposal_type === 'new_entity') {
-      html += '<div class="diff-line" style="cursor:pointer;padding:16px;min-height:60px;" onclick="startEdit(\'synopsis\')">' + renderJournalLinks(p.draft_entry || '(none)') + '</div>';
+      var hasDraft = !!(p.draft_entry && p.draft_entry.trim());
+      html += '<div class="diff-line" style="cursor:pointer;padding:16px;min-height:60px;" onclick="startEdit(\'synopsis\')">' + renderJournalLinks(hasDraft ? p.draft_entry : '(none)') + '</div>';
+      if (!hasDraft) {
+        html += '<button class="btn" style="font-size:11px;padding:4px 12px;margin-top:8px;" onclick="regenerateProposal()">&#8635; Generate Synopsis</button>';
+      }
       html += '<div style="padding:4px 14px;font-size:11px;color:var(--text-dim)">Click to edit</div>';
     } else if (diffViewMode === 'side-by-side') {
       html += renderSideBySideDiff(p.previous_entry, p.proposed_entry);
@@ -1109,7 +1113,8 @@ async function deleteRelation(idx) {
 async function regenerateProposal() {
   if (selectedIndex === null) return;
   var p = proposals[selectedIndex];
-  if (!p || p.proposal_type !== 'update') { showToast('Only update proposals can be regenerated', 'error'); return; }
+  if (!p) { showToast('No proposal selected', 'error'); return; }
+  if (p.proposal_type !== 'update' && p.proposal_type !== 'new_entity') { showToast('Only update and new-entity proposals can be regenerated', 'error'); return; }
 
   showLoading('Regenerating proposal...', 'Contacting LLM for fresh output — this may take a moment.');
 

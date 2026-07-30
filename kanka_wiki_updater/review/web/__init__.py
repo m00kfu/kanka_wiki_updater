@@ -550,7 +550,17 @@ def create_app():
                 'status': 'pending',
             })
 
-        def on_new_entity_suggestion(suggestion):
+        def on_new_entity_suggestion(suggestion, journal_name):
+            # New entities are "done" as soon as they're queued — no LLM
+            # synopsis step like existing entities.  Mark them done here so
+            # the UI shows ✓ immediately instead of waiting for the journal
+            # to finish processing all its other entities.
+            key = (journal_name, suggestion.get('entity_name', ''))
+            with _sync_lock:
+                entry = progress.get(key, {})
+                entry['status'] = 'done'
+                entry['_new_entity_queued'] = True
+                progress[key] = entry
             emitter.proposal_pushed({
                 'type': suggestion.get('proposal_type', 'new_entity'),
                 'name': suggestion.get('entity_name', ''),
@@ -564,15 +574,14 @@ def create_app():
             with _sync_lock:
                 for key in list(progress.keys()):
                     if key[0] == journal_name and progress[key]['status'] in ('pending', 'processing'):
-                        if progress[key].get('_processed'):
-                            # Entity went through the full pipeline — mark done.
-                            progress[key]['status'] = 'done'
-                            keys_to_done.append(key)
-                        else:
-                            # Discovered but never started processing
-                            # (e.g. new-entity candidate that was skipped).
-                            progress[key]['status'] = 'skipped'
-                            keys_to_skip.append(key)
+                        entry = progress[key]
+                        # Any entity that was discovered (via
+                        # journal_entities_discovered) and either went through
+                        # the full pipeline (_processed), was queued as a new-
+                        # entity suggestion (_new_entity_queued), or simply
+                        # finished processing without an explicit error is done.
+                        entry['status'] = 'done'
+                        keys_to_done.append(key)
             for key in keys_to_done:
                 emitter.entity_progress('done', name=key[1], journal_name=journal_name)
             for key in keys_to_skip:

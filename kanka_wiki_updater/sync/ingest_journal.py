@@ -13,7 +13,7 @@ Usage — programmatic:
         'entity_started': lambda e, j: print(f'Processing {e}...'),
         'llm_result':     lambda e, j, ok, data: ... ,
         'proposal_queued': lambda p: ...,
-        'new_entity_suggestion': lambda s: ...,
+        'new_entity_suggestion': lambda s, jn: ...,
         'journal_completed': lambda j, n_entities, n_suggetsions: ...,
     }
     run_ingest(callbacks=callbacks)
@@ -93,7 +93,7 @@ def _default_callbacks():
         'entity_started': lambda entity_name, journal_name: None,
         'llm_result': lambda entity_name, journal_name, ok, data: None,
         'proposal_queued': lambda proposal_dict: None,
-        'new_entity_suggestion': lambda suggestion_dict: None,
+        'new_entity_suggestion': lambda suggestion_dict, journal_name: None,
         'journal_completed': lambda journal_name, entities_processed, suggestions_count: None,
         'sync_started': lambda total_journals, total_entities_estimate: None,
         'sync_completed': lambda total_proposals, total_new_entities: None,
@@ -329,11 +329,13 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
         started_eids: list[int] = []
 
         # --- Discover entities for this journal (fast, no LLM) ---------------
+        # New-entity names first so they appear before existing updates
+        # both in the sync progress display and in the proposal queue.
         entity_names_for_journal = []
-        for eid in mentioned:
-            entity_names_for_journal.append(index[eid]['name'])
         for candidate in new_candidates:
             entity_names_for_journal.append(candidate['entity_name'])
+        for eid in mentioned:
+            entity_names_for_journal.append(index[eid]['name'])
 
         if total_units > 0:
             print(f'      {journal.get("name")}')
@@ -345,6 +347,19 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
 
             # Track per-entity success/failure for individual status emission
             entity_ok = {}
+
+            # New-entity scanning (first, so they appear before updates in the queue)
+            if new_candidates and not cancelled_during_journal:
+                print(
+                    f'      + {len(new_candidates)} new entity suggestion(s): '
+                    + ', '.join(f'{c["entity_name"]} ({c["suggested_type"]})' for c in new_candidates)
+                )
+                journal_name = journal.get('name', '')
+                for candidate in new_candidates:
+                    state.append_to_queue([candidate])
+                    known_names.add(candidate['entity_name'])
+                    total_new_entities += 1
+                    cbs['new_entity_suggestion'](candidate, journal_name)
 
             for eid in mentioned:
                 try:
@@ -419,18 +434,6 @@ def run_ingest(client=None, callbacks=None, limit=None, cancelled_event=None):
                           f"'{journal.get('name', '')}'.")
                     cancelled_during_journal = True
                     break
-
-            # New-entity scanning (skip if cancelled mid-journal)
-            if new_candidates and not cancelled_during_journal:
-                print(
-                    f'      + {len(new_candidates)} new entity suggestion(s): '
-                    + ', '.join(f'{c["entity_name"]} ({c["suggested_type"]})' for c in new_candidates)
-                )
-                for candidate in new_candidates:
-                    state.append_to_queue([candidate])
-                    known_names.add(candidate['entity_name'])
-                    total_new_entities += 1
-                    cbs['new_entity_suggestion'](candidate)
 
             total_entities_processed += journal_entity_count + (len(new_candidates) if new_candidates else 0)
 
