@@ -43,7 +43,13 @@ def main(dry_run: bool = False, auto_confirm: bool = False):
         print(colors.red('No pending changes file found. Run sync first.'))
         return
     with open(_QUEUE_FILE, encoding='utf-8') as f:
-        queue = json.load(f)
+        raw = json.load(f)
+
+    # Handle both wrapped format { proposals: [...] } and legacy plain array.
+    if isinstance(raw, dict):
+        queue = raw.get('proposals', [])
+    else:
+        queue = raw
 
     # Deduplicate by entity name — first occurrence wins (earliest in file order).
     seen = {}
@@ -145,7 +151,7 @@ def _delete_state_files():
     deleted = []
     for filename in ('sync_state.json', 'pending_changes.json',
                      'applied_log.json', 'processed_journals.json'):
-        path = config.DATA_DIR / filename
+        path = Path(config.DATA_DIR) / filename
         if _os.path.exists(path):
             _os.remove(path)
             deleted.append(filename)
