@@ -1,5 +1,7 @@
 let selectedIndex = null;
 let currentTab = 'new'; // default tab
+let treeState = { per_tab: {} }; // per-tab expand + last selection (stable ID)
+var saveTreeTimeout = null;
 let editingField = null; // 'synopsis' or 'name' for new entities
 let editingOriginal = ''; // original text when entering edit mode (for escape-to-cancel)
 let diffViewMode = 'unified'; // or 'side-by-side'
@@ -99,6 +101,67 @@ function getVisibleIndices() {
   }
 }
 
+// ── Tree state helpers ───────────────────────────────────
+
+function getCurrentExpanded() {
+  var pt = treeState.per_tab[currentTab];
+  return pt && Array.isArray(pt.expanded) ? pt.expanded : [];
+}
+
+function getCurrentSelectedId() {
+  var pt = treeState.per_tab[currentTab];
+  return pt ? pt.selected_id : null;
+}
+
+function saveTreeState() {
+  if (saveTreeTimeout) clearTimeout(saveTreeTimeout);
+  saveTreeTimeout = setTimeout(function() {
+    apiCall('/api/tree-state', 'POST', {
+      per_tab: { [currentTab]: { expanded: getCurrentExpanded(), selected_id: getCurrentSelectedId() } }
+    }).catch(function() {});
+  }, 500);
+}
+
+function applyDefaultExpandState() {
+  var expanded = getCurrentExpanded();
+  if (expanded.length > 0) return; // user has explicit state — respect it
+  if (currentTab === 'new') {
+    var visibleIndices = getVisibleIndices();
+    for (var i = 0; i < visibleIndices.length; i++) {
+      var jName = proposals[visibleIndices[i]].source_journal || 'Uncategorized';
+      if (expanded.indexOf(jName) === -1) {
+        expanded.push(jName);
+      }
+    }
+  }
+  // reviewed and sync: stay collapsed — do nothing
+}
+
+function getJournalGroups(visibleIndices) {
+  var groups = {};
+  var order = [];
+  for (var i = 0; i < visibleIndices.length; i++) {
+    var idx = visibleIndices[i];
+    var p = proposals[idx];
+    var key = p.source_journal || 'Uncategorized';
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(idx);
+  }
+  return { groups: groups, order: order };
+}
+
+function toggleJournalGroup(journalName) {
+  var expanded = getCurrentExpanded();
+  var idx = expanded.indexOf(journalName);
+  if (idx === -1) {
+    expanded.push(journalName);
+  } else {
+    expanded.splice(idx, 1);
+  }
+  saveTreeState();
+  renderSidebar();
+}
+
 function updateStats() {
   const pending = getPending();
   const applied = proposals.filter(p => p.status === 'applied').length;
@@ -111,50 +174,89 @@ function updateStats() {
 }
 
 function renderSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  let html = '<div class="tab-bar" id="tabBar">' +
+  var sidebar = document.getElementById('sidebar');
+  var html = '<div class="tab-bar" id="tabBar">' +
     '<button class="tab-btn ' + (currentTab === "new" ? "active" : "inactive") + '" data-tab="new" onclick="switchTab(\'new\')">New</button>' +
     '<button class="tab-btn ' + (currentTab === "reviewed" ? "active" : "inactive") + '" data-tab="reviewed" onclick="switchTab(\'reviewed\')">Reviewed</button>' +
     '<button class="tab-btn ' + (currentTab === "sync" ? "active" : "inactive") + '" data-tab="sync" onclick="switchTab(\'sync\')">Sync</button>' +
     '</div>';
   html += '<div class="sidebar-list">';
 
-  let pending = proposals.filter(p => p.status === 'pending');
+  var pending = proposals.filter(function(p) { return p.status === 'pending'; });
   if (currentTab === 'new') {
     // New entities first, then updates — preserve insertion order within each group
-    pending.sort((a, b) => {
-      const aNew = a.proposal_type === 'new_entity' ? 0 : 1;
-      const bNew = b.proposal_type === 'new_entity' ? 0 : 1;
+    pending.sort(function(a, b) {
+      var aNew = a.proposal_type === 'new_entity' ? 0 : 1;
+      var bNew = b.proposal_type === 'new_entity' ? 0 : 1;
       return aNew - bNew;
     });
   }
 
-  const filtered = currentTab === 'new' ? pending : proposals.filter(p => p.status !== 'pending');
+  var filtered = currentTab === 'new' ? pending : proposals.filter(function(p) { return p.status !== 'pending'; });
 
-  for (let f = 0; f < filtered.length; f++) {
-    const origIdx = proposals.indexOf(filtered[f]);
-    var isActive = origIdx === selectedIndex ? ' active' : '';
-    var kind = filtered[f].proposal_type === 'new_entity' ? 'NEW' : 'UPD';
-    var badgeClass = filtered[f].proposal_type === 'new_entity' ? 'badge-new' : 'badge-upd';
-    var statusBadge = '';
-    if (filtered[f].status === 'applied') { statusBadge = '<span style="color:var(--green);font-weight:700;">&#10003;</span>'; }
-    else if (filtered[f].status === 'rejected') { statusBadge = '<span style="color:var(--red);font-weight:700;">&#10007;</span>'; }
-    var placeholderClass = (filtered[f]._sync_placeholder) ? ' sync-placeholder' : '';
-
-    html += '<div class="proposal-item' + isActive + placeholderClass + '" onclick="selectProposal(' + origIdx + ')">' +
-      '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + escapeJsHtml(filtered[f].entity_name) + statusBadge + '</div>' +
-      '<div class="meta">' + escapeJsHtml(filtered[f].source_journal || '') + '</div></div>';
+  // Build visible indices from filtered list (preserving original array positions)
+  var visibleIndices = [];
+  for (var fi = 0; fi < filtered.length; fi++) {
+    visibleIndices.push(proposals.indexOf(filtered[fi]));
   }
 
-  html += '</div>';
+  // Group by journal
+  var grouped = getJournalGroups(visibleIndices);
+  var currentExpanded = getCurrentExpanded();
+
+  for (var gi = 0; gi < grouped.order.length; gi++) {
+    var jName = grouped.order[gi];
+    var childIndices = grouped.groups[jName];
+    var isExpanded = currentExpanded.indexOf(jName) !== -1;
+    var collapseClass = isExpanded ? '' : ' collapsed';
+
+    html += '<div class="tree-journal-group' + collapseClass + '">';
+    html += '<div class="tree-journal-header" onclick="toggleJournalGroup(\'' + escapeJs(jName) + '\')">';
+    html += '<span class="group-toggle">' + (isExpanded ? '&#9660;' : '&#9654;') + '</span>';
+    html += '<span class="group-name">' + escapeJsHtml(jName) + '</span>';
+    html += '<span class="group-count">(' + childIndices.length + ')</span>';
+    html += '</div>';
+
+    // Child proposals — only rendered when expanded
+    if (isExpanded) {
+      html += '<ul class="journal-children">';
+      for (var ci = 0; ci < childIndices.length; ci++) {
+        var cIdx = childIndices[ci];
+        var p = proposals[cIdx];
+        var isActive = (cIdx === selectedIndex) ? ' active' : '';
+        var kind = p.proposal_type === 'new_entity' ? 'NEW' : 'UPD';
+        var badgeClass = p.proposal_type === 'new_entity' ? 'badge-new' : 'badge-upd';
+        var statusBadge = '';
+        if (p.status === 'applied') { statusBadge = '<span style="color:var(--green);font-weight:700;">&#10003;</span>'; }
+        else if (p.status === 'rejected') { statusBadge = '<span style="color:var(--red);font-weight:700;">&#10007;</span>'; }
+        var placeholderClass = p._sync_placeholder ? ' sync-placeholder' : '';
+
+        html += '<li class="proposal-item' + isActive + placeholderClass + '" onclick="selectProposal(' + cIdx + ')">' +
+          '<div class="name"><span class="badge ' + badgeClass + '">' + kind + '</span>' + escapeJsHtml(p.entity_name) + statusBadge + '</div>' +
+          '<div class="meta">' + (p.proposal_type === 'new_entity' ? p.suggested_type : p.entity_kind || '') + '</div></li>';
+      }
+      html += '</ul>';
+    }
+
+    html += '</div>'; // close tree-journal-group
+  }
+
+  if (visibleIndices.length === 0) {
+    html += '<div class="empty-state" style="padding:40px 16px;text-align:center;color:var(--text-dim);">No proposals in this tab.</div>';
+  }
+
+  html += '</div>'; // close sidebar-list
   sidebar.innerHTML = html;
 }
 
 function switchTab(tab) {
   if (tab === currentTab) return;
   if (editingField) cancelEdit();
+  // Save current tab's selection before switching
+  saveTreeState();
   currentTab = tab;
   selectedIndex = null;
+  treeState.per_tab[currentTab].selected_id = null;  // clear for new tab
   renderSidebar();
   renderContent();
 }
@@ -497,7 +599,17 @@ async function selectProposal(i) {
     hideLoading();
   }
 
+  // Set selection and auto-expand the containing journal group
   selectedIndex = i;
+  var p = proposals[i];
+  var jName = p.source_journal || 'Uncategorized';
+  treeState.per_tab[currentTab].selected_id = jName + '::' + p.entity_name;  // stable identifier per tab
+  var expanded = getCurrentExpanded();
+  if (expanded.indexOf(jName) === -1) {
+    expanded.push(jName);
+  }
+  saveTreeState();
+
   if (editingField) cancelEdit();
   renderSidebar();
   renderContent();
@@ -717,6 +829,7 @@ async function approveAll() {
         }
       }
       _advance(oldIndex);
+      saveTreeState();  // persist current expand state alongside new proposal data
       if (data.sync) {
         if (data.sync.warnings && data.sync.warnings.length > 0) {
           showToast('Synced with warnings: ' + data.sync.message, 'warning');
@@ -753,6 +866,7 @@ async function approveSynopsisOnly() {
         }
       }
       _advance(oldIndex);
+      saveTreeState();  // persist current expand state alongside new proposal data
       if (data.sync) {
         if (data.sync.warnings && data.sync.warnings.length > 0) {
           showToast('Synopsis synced with warnings: ' + data.sync.message, 'warning');
@@ -786,6 +900,7 @@ async function rejectCurrent() {
         }
       }
       _advance(oldIndex);
+      saveTreeState();  // persist current expand state alongside new proposal data
       showToast('Rejected', 'error');
     });
 }
@@ -839,6 +954,7 @@ async function saveEdit() {
       editingField = null;
       renderSidebar();
       renderContent();
+      saveTreeState();  // persist state alongside edited proposal
       showToast('Changes saved', 'success');
     }
   }
@@ -907,6 +1023,7 @@ async function saveRelationEdit(idx) {
     proposals[selectedIndex] = result.proposal;
     renderSidebar();
     renderContent();
+    saveTreeState();  // persist state alongside updated relation
     showToast('Relation updated', 'success');
   }
 }
@@ -953,6 +1070,7 @@ async function addRelation() {
     proposals[selectedIndex] = result.proposal;
     renderSidebar();
     renderContent();
+    saveTreeState();  // persist state alongside added relation
     showToast('Relation added', 'success');
     // Clear form
     document.getElementById('newRelTarget').value = '';
@@ -972,6 +1090,7 @@ async function deleteRelation(idx) {
     proposals[selectedIndex] = result.proposal;
     renderSidebar();
     renderContent();
+    saveTreeState();  // persist state alongside deleted relation
     showToast('Relation deleted', 'success');
     // Refresh known types in case this was the last use of a type
     loadKnownTypes();
@@ -995,6 +1114,7 @@ async function regenerateProposal() {
     proposals[selectedIndex] = result.proposal;
     renderSidebar();
     renderContent();
+    saveTreeState();  // persist state alongside regenerated proposal
     showToast('Regeneration successful — proposal updated with fresh LLM output.', 'success');
   } else {
     var msg = result.error || 'Regeneration failed';
@@ -1420,59 +1540,86 @@ async function runSync() {
 // ── Proposal loading ────────────────────────────────────
 
 function loadProposals() {
-  fetch('/api/proposals')
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      var serverMap = {};
-      for (var si = 0; si < data.length; si++) {
-        var key = data[si].entity_name.toLowerCase();
-        if (!serverMap[key]) { serverMap[key] = []; }
-        serverMap[key].push(data[si]);
-      }
+  Promise.all([
+    fetch('/api/proposals').then(function(r){ return r.json(); }),
+    fetch('/api/tree-state').then(function(r){ return r.json(); }).catch(function(){ return { per_tab: {} }; })
+  ]).then(function(results) {
+    var proposalsData = results[0];
+    treeState = results[1] || { per_tab: {} };
 
-      // Replace placeholders with real server data, keep non-placeholders as-is
-      for (var pi = 0; pi < proposals.length; pi++) {
-        if (proposals[pi]._sync_placeholder) {
-          var pKey = proposals[pi].entity_name.toLowerCase();
-          var pJournal = proposals[pi].source_journal;
-          if (serverMap[pKey]) {
-            // Find the server proposal that matches both name and journal
-            var match = null;
-            for (var sm = 0; sm < serverMap[pKey].length; sm++) {
-              if (serverMap[pKey][sm].source_journal === pJournal) {
-                match = serverMap[pKey][sm];
-                break;
-              }
+    var serverMap = {};
+    for (var si = 0; si < proposalsData.length; si++) {
+      var key = proposalsData[si].entity_name.toLowerCase();
+      if (!serverMap[key]) { serverMap[key] = []; }
+      serverMap[key].push(proposalsData[si]);
+    }
+
+    // Replace placeholders with real server data, keep non-placeholders as-is
+    for (var pi = 0; pi < proposals.length; pi++) {
+      if (proposals[pi]._sync_placeholder) {
+        var pKey = proposals[pi].entity_name.toLowerCase();
+        var pJournal = proposals[pi].source_journal;
+        if (serverMap[pKey]) {
+          // Find the server proposal that matches both name and journal
+          var match = null;
+          for (var sm = 0; sm < serverMap[pKey].length; sm++) {
+            if (serverMap[pKey][sm].source_journal === pJournal) {
+              match = serverMap[pKey][sm];
+              break;
             }
-            proposals[pi] = match || serverMap[pKey][0];  // fallback to first
           }
+          proposals[pi] = match || serverMap[pKey][0];  // fallback to first
         }
       }
+    }
 
-      // Add any server proposals not already represented in the list
-      for (var si2 = 0; si2 < data.length; si2++) {
-        var sName = data[si2].entity_name;
-        var sJournal = data[si2].source_journal;
-        var exists = false;
-        for (var ei = 0; ei < proposals.length; ei++) {
-          if (proposals[ei].entity_name === sName &&
-              proposals[ei].source_journal === sJournal) {
-            exists = true;
-            break;
-          }
+    // Add any server proposals not already represented in the list
+    for (var si2 = 0; si2 < proposalsData.length; si2++) {
+      var sName = proposalsData[si2].entity_name;
+      var sJournal = proposalsData[si2].source_journal;
+      var exists = false;
+      for (var ei = 0; ei < proposals.length; ei++) {
+        if (proposals[ei].entity_name === sName &&
+            proposals[ei].source_journal === sJournal) {
+          exists = true;
+          break;
         }
-        if (!exists) { proposals.push(data[si2]); }
       }
+      if (!exists) { proposals.push(proposalsData[si2]); }
+    }
 
-      // Reset selection — the array may have shifted (new items inserted at front),
-      // so any stale selectedIndex would highlight the wrong proposal.
+    // Restore selection by stable ID from current tab's state (not raw index)
+    selectedIndex = null;
+    var savedSelectedId = getCurrentSelectedId();
+    if (savedSelectedId !== null) {
+      for (var i = 0; i < proposals.length; i++) {
+        var p = proposals[i];
+        var jName = p.source_journal || 'Uncategorized';
+        var id = jName + '::' + p.entity_name;
+        if (id === savedSelectedId) {
+          selectedIndex = i;
+          break;
+        }
+      }
+    }
+
+    // Visibility check: if restored selection points to a proposal not visible in this tab, clear it
+    var visIndices = getVisibleIndices();
+    if (selectedIndex !== null && visIndices.indexOf(selectedIndex) === -1) {
       selectedIndex = null;
+      if (treeState.per_tab[currentTab]) {
+        treeState.per_tab[currentTab].selected_id = null;
+        saveTreeState();
+      }
+    }
 
-      updateStats();
-      renderSidebar();
-      renderContent();
-    })
-    .catch(function() { /* silently ignore — keep current state */ });
+    applyDefaultExpandState();
+
+    updateStats();
+    renderSidebar();
+    renderContent();
+  })
+  .catch(function() { /* silently ignore — keep current state */ });
 }
 
 // ── Init ──────────────────────────────────────────────────

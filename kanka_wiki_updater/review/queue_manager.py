@@ -60,27 +60,34 @@ def _queue_path():
 
 
 def load_queue():
-    """Load *pending_changes.json* and return the queue list.
+    """Load *pending_changes.json* and return the full wrapped object.
 
     After loading, all pending proposals are enriched with ``_type_status``
     and ``similar_types`` fields on their relation changes (backward-compatible;
     old proposals without these fields get them populated automatically).
 
-    Returns an empty list when the file does not exist (same as
-    :func:`state._load` default behaviour).
+    Returns
+    -------
+    dict
+        { 'proposals': [...], '_tree_state': {...} }
     """
-    queue = state._load(_queue_path(), [])
-    _tracker.enrich_proposals(queue)
-    return queue
+    data = state._load(_queue_path(), {'proposals': [], '_tree_state': {'per_tab': {}}})
+    _tracker.enrich_proposals(data['proposals'])
+    return data
 
 
-def save_queue(queue):
-    """Persist *queue* to *pending_changes.json*.
+def save_queue(data):
+    """Persist *data* to *pending_changes.json*.
 
-    The queue is serialised as pretty-printed JSON.  Any previous content is
-    overwritten atomically (single write).
+    Accepts either the new wrapped format { proposals: [...], _tree_state: {...} }
+    or a plain list for backward compatibility.  When called with a plain list,
+    existing ``_tree_state`` is preserved so that every write path keeps the file
+    in the wrapped shape.
     """
-    state._save(_queue_path(), queue)
+    if isinstance(data, list):
+        current = load_queue()
+        data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
+    state._save(_queue_path(), data)
 
 
 def get_tracker():

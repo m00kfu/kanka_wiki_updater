@@ -778,3 +778,93 @@ kbd {
 }
 .proposal-item    { animation: fadeUp .2s ease both; }
 .diff-container   { animation: fadeUp .25s ease both; }
+
+/* ── Collapsible tree sidebar styles ─────────────────── */
+
+.tree-journal-group {
+  border-bottom: 1px solid var(--border);
+}
+
+.tree-journal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  transition: background-color .15s ease, color .15s ease;
+}
+.tree-journal-header:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.group-toggle {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
+  font-size: 10px;
+  text-align: center;
+  transition: transform .15s ease;
+  color: var(--text-muted);
+}
+
+.group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: clamp(0.813rem, 0.75rem + 0.2vw, var(--fs-sm)); /* ~13–14px fluid */
+}
+
+.group-count {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tree-journal-group.collapsed .tree-journal-header .group-toggle::before {
+  content: '\25B6'; /* right-pointing triangle */
+}
+.tree-journal-group:not(.collapsed) .tree-journal-header .group-toggle::before {
+  content: '\25BC'; /* down-pointing triangle */
+}
+
+/* Hide children when collapsed — CSS-only toggle via class */
+.tree-journal-group.collapsed > ul.journal-children {
+  display: none;
+}
+
+ul.journal-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Slight indent for child proposals inside a journal group */
+ul.journal-children .proposal-item {
+  padding-left: 28px !important;
+  border-left-width: 1px;
+  font-size: clamp(0.813rem, 0.75rem + 0.2vw, var(--fs-sm)); /* ~13–14px fluid */
+}
+
+/* Subtle vertical guide line for nested items */
+ul.journal-children .proposal-item::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  opacity: .4;
+}
+
+/* Active state for selected item inside a group */
+ul.journal-children .proposal-item.active {
+  border-left-color: var(--amber);
+  background: rgba(196,136,58,.06);
+}

@@ -19,10 +19,54 @@ PROCESSED_FILE = os.path.join(config.DATA_DIR, 'processed_journals.json')
 
 
 def _load(path, default):
+    """Load JSON from *path*, applying backward-compat wrapping for the old
+    plain-array format.  Returns the new wrapped shape::
+
+        { 'proposals': [...], '_tree_state': { 'per_tab': {...} } }
+
+    If the file is missing, empty, or corrupted a fresh default is returned."""
     if not os.path.exists(path):
         return default
-    with open(path, encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f'[WARN] Failed to load {path}: {exc}. Starting fresh.')
+        return default
+
+    # Backward compat: old format is a plain list → auto-wrap it.
+    if isinstance(data, list):
+        print(f'[MIGRATE] pending_changes.json was an array — auto-wrapping.')
+        data = {'proposals': data}
+
+    # Ensure _tree_state exists and has per-tab keys for all three tabs.
+    ts = data.get('_tree_state')
+    if not isinstance(ts, dict):
+        print(f'[MIGRATE] pending_changes.json missing/invalid _tree_state — adding defaults.')
+        ts = {'per_tab': {}}
+        data['_tree_state'] = ts
+
+    # Support legacy flat 'expanded' / 'selected_id' keys inside _tree_state.
+    if 'per_tab' not in ts or not isinstance(ts.get('per_tab'), dict):
+        print(f'[MIGRATE] _tree_state missing/invalid per_tab — migrating from old format.')
+        legacy_expanded = ts.pop('expanded', [])
+        legacy_selected_id = ts.pop('selected_id', None)
+        ts['per_tab'] = {
+            'new': {'expanded': legacy_expanded, 'selected_id': legacy_selected_id},
+            'reviewed': {'expanded': [], 'selected_id': None},
+            'sync': {'expanded': [], 'selected_id': None},
+        }
+    else:
+        for tab in ('new', 'reviewed', 'sync'):
+            if tab not in ts['per_tab'] or not isinstance(ts['per_tab'][tab], dict):
+                print(f'[MIGRATE] _tree_state.per_tab.{tab} missing — adding default.')
+                ts['per_tab'][tab] = {'expanded': [], 'selected_id': None}
+            else:
+                if 'selected_id' not in ts['per_tab'][tab]:
+                    print(f'[MIGRATE] _tree_state.per_tab.{tab} missing selected_id — adding default.')
+                    ts['per_tab'][tab]['selected_id'] = None
+
+    return data
 
 
 def _save(path, data):
@@ -39,17 +83,29 @@ def set_last_sync(value):
 
 
 def load_queue():
-    return _load(QUEUE_FILE, [])
+    """Return the full wrapped object: { proposals: [...], _tree_state: {...} }."""
+    default = {'proposals': [], '_tree_state': {'per_tab': {}}}
+    return _load(QUEUE_FILE, default)
 
 
-def save_queue(queue):
-    _save(QUEUE_FILE, queue)
+def save_queue(data):
+    """Persist *data* to *pending_changes.json*.
+
+    Accepts either the new wrapped format { proposals: [...], _tree_state: {...} }
+    or a plain list for backward compatibility (legacy callers).
+    When called with a plain list, existing _tree_state is preserved so that
+    every write path keeps the file in the wrapped shape.
+    """
+    if isinstance(data, list):
+        current = load_queue()
+        data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
+    _save(QUEUE_FILE, data)
 
 
 def append_to_queue(items):
-    queue = load_queue()
-    queue.extend(items)
-    save_queue(queue)
+    data = load_queue()
+    data['proposals'].extend(items)
+    save_queue(data)
 
 
 def log_applied_batch(entries):
