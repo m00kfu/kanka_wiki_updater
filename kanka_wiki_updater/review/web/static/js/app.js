@@ -1181,6 +1181,19 @@ function _addJournalGroup(journalName) {
 
 function _renderSyncContent() {
   renderSyncContent(document.getElementById('content'));
+
+  // Always compute and display current elapsed time after rendering.
+  // This covers tab switches (where RAF may have been paused) and any gap
+  // between SSE events while waiting for the LLM.
+  if (currentSyncJob && currentSyncJob.started_at) {
+    var el = document.getElementById('syncElapsed');
+    if (el) {
+      var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
+      var mins = Math.floor(elapsed / 60);
+      var secs = elapsed % 60;
+      el.textContent = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
+    }
+  }
 }
 
 async function runSync() {
