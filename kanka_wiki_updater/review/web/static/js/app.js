@@ -1124,14 +1124,14 @@ function reviewNewProposals() {
   renderContent();
 }
 
-// ── Elapsed time timer (requestAnimationFrame loop) ───────
+// ── Elapsed time timer (setInterval, runs continuously) ───
 
-var _rafId = null;
+var _elapsedInterval = null;
 
 function startElapsedTimer() {
-  if (_rafId) return; // already running
+  if (_elapsedInterval) return; // already running
   function tick() {
-    if (!currentSyncJob || !currentSyncJob.started_at) { _rafId = null; return; }
+    if (!currentSyncJob || !currentSyncJob.started_at) { clearInterval(_elapsedInterval); _elapsedInterval = null; return; }
     var el = document.getElementById('syncElapsed');
     if (el) {
       var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
@@ -1139,15 +1139,14 @@ function startElapsedTimer() {
       var secs = elapsed % 60;
       el.textContent = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
     }
-    _rafId = requestAnimationFrame(tick);
   }
-  _rafId = requestAnimationFrame(tick);
+  _elapsedInterval = setInterval(tick, 1000);
 }
 
 function stopElapsedTimer() {
-  if (_rafId) {
-    cancelAnimationFrame(_rafId);
-    _rafId = null;
+  if (_elapsedInterval) {
+    clearInterval(_elapsedInterval);
+    _elapsedInterval = null;
   }
 }
 
@@ -1240,7 +1239,6 @@ async function runSync() {
         if (data && data.jobs && data.jobs.length > 0) {
           var job = data.jobs[0];
           currentSyncJob.status = job.status;
-          stopElapsedTimer();
           _renderSyncContent();
         }
       })
