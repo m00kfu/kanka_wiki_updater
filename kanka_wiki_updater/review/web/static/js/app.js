@@ -165,7 +165,7 @@ function renderContent() {
     if (currentTab !== 'sync') {
       content.innerHTML = '<div class="empty-state"><h3>No proposal selected</h3>Select one from the sidebar.</div>';
     }
-    renderSyncContent(content);
+    _renderSyncContent();
     return;
   }
 
