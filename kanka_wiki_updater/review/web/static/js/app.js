@@ -275,6 +275,27 @@ function renderContent() {
     return;
   }
 
+  // Resolve any _sync_placeholder before rendering detail — ensures real data
+  // appears immediately on load/insertion instead of a blank placeholder card.
+  if (proposals[selectedIndex] && proposals[selectedIndex]._sync_placeholder) {
+    var selIdx = selectedIndex;
+    showLoading('Resolving proposal...', 'Fetching full data for: ' + proposals[selIdx].entity_name);
+    apiCall('/api/proposals', 'GET').then(function(result) {
+      hideLoading();
+      if (!result || !Array.isArray(result)) return;
+      // Find the resolved (non-placeholder) proposal matching name and journal
+      for (var ri = 0; ri < result.length; ri++) {
+        if (result[ri].entity_name === proposals[selIdx].entity_name &&
+            !result[ri]._sync_placeholder) {
+          proposals[selIdx] = result[ri];
+          renderContent(); // re-render with full data
+          break;
+        }
+      }
+    }).catch(function() { hideLoading(); });
+    return; // wait for resolution before rendering detail
+  }
+
   var p = proposals[selectedIndex];
   var html = '';
 
