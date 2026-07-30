@@ -1124,28 +1124,30 @@ function reviewNewProposals() {
   renderContent();
 }
 
-// ── Elapsed time timer ────────────────────────────────────
+// ── Elapsed time timer (requestAnimationFrame loop) ───────
 
-var _elapsedInterval = null;
+var _rafId = null;
 
 function startElapsedTimer() {
-  if (_elapsedInterval) clearInterval(_elapsedInterval);
-  _elapsedInterval = setInterval(function() {
-    if (!currentSyncJob || !currentSyncJob.started_at) return;
-    var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
+  if (_rafId) return; // already running
+  function tick() {
+    if (!currentSyncJob || !currentSyncJob.started_at) { _rafId = null; return; }
     var el = document.getElementById('syncElapsed');
     if (el) {
+      var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
       var mins = Math.floor(elapsed / 60);
       var secs = elapsed % 60;
       el.textContent = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
     }
-  }, 1000);
+    _rafId = requestAnimationFrame(tick);
+  }
+  _rafId = requestAnimationFrame(tick);
 }
 
 function stopElapsedTimer() {
-  if (_elapsedInterval) {
-    clearInterval(_elapsedInterval);
-    _elapsedInterval = null;
+  if (_rafId) {
+    cancelAnimationFrame(_rafId);
+    _rafId = null;
   }
 }
 
@@ -1179,21 +1181,6 @@ function _addJournalGroup(journalName) {
 
 function _renderSyncContent() {
   renderSyncContent(document.getElementById('content'));
-
-  // Always compute and display current elapsed time after rendering.
-  // This is the primary updater — called by SSE events (entity_progress,
-  // status_change) and tab switches. Combined with startElapsedTimer's
-  // external interval as backup for gaps between SSE events, this ensures
-  // the timer never freezes during LLM processing waits.
-  if (currentSyncJob && currentSyncJob.started_at) {
-    var el = document.getElementById('syncElapsed');
-    if (el) {
-      var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
-      var mins = Math.floor(elapsed / 60);
-      var secs = elapsed % 60;
-      el.textContent = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
-    }
-  }
 }
 
 async function runSync() {
