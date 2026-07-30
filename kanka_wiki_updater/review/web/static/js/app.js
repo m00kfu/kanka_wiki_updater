@@ -1473,6 +1473,15 @@ async function runSync() {
     }
     if (!found) {
       proposals.push(placeholder);
+      // Auto-expand the journal group for newly added proposals on the 'new' tab
+      if (currentTab === 'new') {
+        var jName = placeholder.source_journal || 'Syncing...';
+        var expanded = getCurrentExpanded();
+        if (expanded.indexOf(jName) === -1) {
+          expanded.push(jName);
+          saveTreeState();
+        }
+      }
     }
 
     updateStats();
