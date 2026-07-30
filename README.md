@@ -65,9 +65,12 @@ generate proposals, and queue them for review. It only looks at journals updated
 (tracked in `sync_state.json` in the data directory), so it's safe to run repeatedly without
 reprocessing old notes.
 
-The web review UI (`review_web`) offers a tabbed interface with:
-- **Review tab** — browse, filter (by status/type), edit proposals inline, and approve/reject
-- **Sync tab** — run the sync pipeline from the browser with live SSE output streaming and cancel support
+The web review UI (`review_web`) offers a three-tab interface:
+- **New** — new-entity suggestions reviewed first (so approving one makes it available as a relation target for subsequent proposals), then pending updates
+- **Reviewed** — applied and rejected proposals, with diff view (unified or side-by-side)
+- **Sync** — run the sync pipeline from the browser with live SSE output streaming, per-entity progress tracking, and cancel support
+
+Keyboard shortcuts: `n`/`p` navigate proposals, `e` edit synopsis, `a` approve all, `s` approve synopsis only, `r` reject, `g` regenerate, `q` close tab.
 
 If a review run published something you didn't mean to (or you just want
 to compare before/after), `revert` will show you exactly what that run
@@ -77,7 +80,10 @@ the top of `revert.py` for the exact rules and limitations.
 
 The web review UI includes a **regenerate** button on truncated or uncertain
 proposals that re-runs them through the LLM with double the token budget,
-giving the model a second chance to produce a complete response.
+giving the model a second chance to produce a complete response. You can also
+toggle between unified and side-by-side diff views for update proposals, edit
+relation types inline (with autocomplete against known types), and approve
+proposals as "Synopsis Only" (syncs just the synopsis without relation changes).
 
 ## Notes & things worth tuning
 

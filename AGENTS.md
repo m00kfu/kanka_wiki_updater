@@ -102,7 +102,7 @@ kanka_wiki_updater/
 | `sync/default_attitudes.py`     | Starting attitude values per relation type (guideline for LLM prompts) |
 | `sync/relation_types.py`        | Track known relation types, fuzzy matching, symmetric/inverse mappings |
 | `review/queue_manager.py` | Queue I/O and in-memory manipulation: load/save `pending_changes.json`, edit proposal text/status/relation changes. |
-| `review/web/__init__.py` | Flask app factory at http://127.0.0.1:5555 — Review tab (browse, filter, edit, approve/reject, regenerate) and Sync tab (SSE streaming, per-entity progress, cancel). |
+| `review/web/__init__.py` | Flask app factory at http://127.0.0.1:5555 — three tabs: New (pending new-entities first, then updates), Reviewed (applied/rejected with unified/side-by-side diff), Sync (SSE streaming, per-entity progress, cancel). Supports inline editing, relation type autocomplete, regenerate, and synopsis-only approval. |
 | `cli/revert.py` | Undoes the most recent unreverted batch in reverse order: relations + synopses first, new-entity deletions last. One-step undo only. |
 | `cli/reset_to_first.py` | Nuclear undo: resets all entities to their earliest recorded `previous_entry`. |
 | `core/state.py` | Plain JSON state files under `data/`: sync cursor, pending queue, applied-log (with run_id/revert flag), processed journal IDs. |
