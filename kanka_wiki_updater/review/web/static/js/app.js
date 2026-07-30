@@ -1178,7 +1178,19 @@ function _addJournalGroup(journalName) {
 }
 
 function _renderSyncContent() {
+  var prevElapsed = '';
+  if (currentSyncJob && currentSyncJob.started_at) {
+    var elapsed = Math.floor((Date.now() - currentSyncJob.started_at) / 1000);
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    prevElapsed = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
+  }
   renderSyncContent(document.getElementById('content'));
+  // Restore the elapsed time immediately — innerHTML rebuild wipes it.
+  var el = document.getElementById('syncElapsed');
+  if (el && prevElapsed) {
+    el.textContent = prevElapsed;
+  }
 }
 
 async function runSync() {
