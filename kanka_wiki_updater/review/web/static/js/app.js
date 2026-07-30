@@ -1180,9 +1180,11 @@ function _addJournalGroup(journalName) {
 function _renderSyncContent() {
   renderSyncContent(document.getElementById('content'));
 
-  // Always compute and display current elapsed time — never rely on a stale
-  // snapshot. This covers both the initial tab switch (where no interval has
-  // fired yet) and any gap between SSE events while waiting for the LLM.
+  // Always compute and display current elapsed time after rendering.
+  // This is the primary updater — called by SSE events (entity_progress,
+  // status_change) and tab switches. Combined with startElapsedTimer's
+  // external interval as backup for gaps between SSE events, this ensures
+  // the timer never freezes during LLM processing waits.
   if (currentSyncJob && currentSyncJob.started_at) {
     var el = document.getElementById('syncElapsed');
     if (el) {
