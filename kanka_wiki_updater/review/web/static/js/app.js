@@ -256,6 +256,9 @@ function switchTab(tab) {
   saveTreeState();
   currentTab = tab;
   selectedIndex = null;
+  if (!treeState.per_tab[currentTab]) {
+    treeState.per_tab[currentTab] = { expanded: [], selected_id: null };
+  }
   treeState.per_tab[currentTab].selected_id = null;  // clear for new tab
   renderSidebar();
   renderContent();
@@ -266,8 +269,9 @@ function renderContent() {
   if (selectedIndex === null || selectedIndex >= proposals.length) {
     if (currentTab !== 'sync') {
       content.innerHTML = '<div class="empty-state"><h3>No proposal selected</h3>Select one from the sidebar.</div>';
+    } else {
+      _renderSyncContent();
     }
-    _renderSyncContent();
     return;
   }
 
@@ -603,6 +607,9 @@ async function selectProposal(i) {
   selectedIndex = i;
   var p = proposals[i];
   var jName = p.source_journal || 'Uncategorized';
+  if (!treeState.per_tab[currentTab]) {
+    treeState.per_tab[currentTab] = { expanded: [], selected_id: null };
+  }
   treeState.per_tab[currentTab].selected_id = jName + '::' + p.entity_name;  // stable identifier per tab
   var expanded = getCurrentExpanded();
   if (expanded.indexOf(jName) === -1) {
