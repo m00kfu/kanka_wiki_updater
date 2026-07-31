@@ -388,16 +388,17 @@ def create_app():
     @app.route('/api/proposals/<int:index>/regenerate', methods=['POST'])
     def regenerate_proposal_route(index):
         """Re-run a truncated update or new-entity proposal through the LLM with higher token limits."""
-        try:
-            data = queue_manager.load_queue()
-        except Exception as e:
-            print(f'[REGEN] ERROR loading queue: {e}', file=sys.stderr, flush=True)
-            import traceback
-
-            traceback.print_exc(file=sys.stderr)
-            return jsonify({'error': str(e)}), 500
-
         with _state._queue_lock:
+            # Load inside the lock so load-modify-save is atomic — prevents
+            # clobbering proposals appended by an in-flight sync between load and save.
+            try:
+                data = queue_manager.load_queue()
+            except Exception as e:
+                print(f'[REGEN] ERROR loading queue: {e}', file=sys.stderr, flush=True)
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)
+                return jsonify({'error': str(e)}), 500
             queue = data['proposals']
             if index >= len(queue):
                 return jsonify({'error': 'Proposal not found'}), 404
@@ -556,6 +557,7 @@ def create_app():
                 'kind': proposal.get('entity_kind', ''),
                 'suggested_type': proposal.get('suggested_type', ''),
                 'status': 'pending',
+                'journal': proposal.get('source_journal', ''),
             })
 
         def on_new_entity_suggestion(suggestion, journal_name):
@@ -575,6 +577,7 @@ def create_app():
                 'kind': suggestion.get('suggested_type', ''),
                 'suggested_type': suggestion.get('suggested_type', ''),
                 'status': 'pending',
+                'journal': journal_name,
             })
 
         def on_journal_completed(journal_name, entities_processed, suggestions_count):

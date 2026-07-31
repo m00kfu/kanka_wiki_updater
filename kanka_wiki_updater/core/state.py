@@ -95,9 +95,26 @@ def _load(path, default):
 
 
 def _save(path, data):
-    """Write *data* as JSON to *path*."""
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    """Write *data* as JSON to *path* atomically.
+
+    Writes to a temporary file in the same directory then uses ``os.replace``
+    for an atomic rename.  This eliminates torn reads for unlocked readers
+    (GET /api/proposals, / index, /api/tree-state) — fixes transient "vanishing"
+    during sync writes.
+    """
+    tmp = path + '.tmp'
+    try:
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        # Clean up temp file on failure; fall back to direct write.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def get_last_sync():
@@ -139,8 +156,8 @@ def update_queue(modifier):
         _save(QUEUE_FILE, data)
 
 
-def save_queue(data):
-    """Persist *data* to *pending_changes.json*.
+def save_queue(data, path=None):
+    """Persist *data* to *pending_changes.json* (or *path* if given).
 
     Accepts either the new wrapped format { proposals: [...], _tree_state: {...} }
     or a plain list for backward compatibility (legacy callers).
@@ -150,18 +167,16 @@ def save_queue(data):
     NOTE: this function acquires the queue lock around its internal load+save
     to prevent lost updates from concurrent writers.
     """
-    def _modifier(data):
-        if isinstance(data, list):
-            # Reconstruct with current tree state
-            pass  # handled below in caller context
+    if path is None:
+        path = QUEUE_FILE
 
     with _queue_lock:
-        current = load_queue()
+        current = _load(path, {'proposals': [], '_tree_state': {'per_tab': {}}})
         if isinstance(data, list):
             final_data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
         else:
             final_data = data
-        _save(QUEUE_FILE, final_data)
+        _save(path, final_data)
 
 
 def append_to_queue(items):

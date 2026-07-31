@@ -2,6 +2,7 @@ let selectedIndex = null;
 let currentTab = 'new'; // default tab
 let treeState = { per_tab: {} }; // per-tab expand + last selection (stable ID)
 var saveTreeTimeout = null;
+var treeStateVersion = 0; // bumped by loadProposals to prevent stale saveTreeState writes
 let editingField = null; // 'synopsis' or 'name' for new entities
 let editingOriginal = ''; // original text when entering edit mode (for escape-to-cancel)
 let diffViewMode = 'unified'; // or 'side-by-side'
@@ -115,7 +116,11 @@ function getCurrentSelectedId() {
 
 function saveTreeState() {
   if (saveTreeTimeout) clearTimeout(saveTreeTimeout);
+  var snapshotVersion = treeStateVersion; // capture current version
   saveTreeTimeout = setTimeout(function() {
+    // Skip the POST if loadProposals() refetched since this timer was scheduled.
+    // A stale write could overwrite the new selection with a pre-replacement id.
+    if (treeStateVersion !== snapshotVersion) return;
     apiCall('/api/tree-state', 'POST', {
       per_tab: { [currentTab]: { expanded: getCurrentExpanded(), selected_id: getCurrentSelectedId() } }
     }).catch(function() {});
@@ -284,16 +289,34 @@ function renderContent() {
   if (proposals[selectedIndex] && proposals[selectedIndex]._sync_placeholder) {
     var selIdx = selectedIndex;
     showLoading('Resolving proposal...', 'Fetching full data for: ' + proposals[selIdx].entity_name);
+
+    // Determine the real journal for matching (same logic as selectProposal).
+    var placeholderJournal = proposals[selIdx].source_journal;
+    var realJournalForMatch = placeholderJournal;
+    if (realJournalForMatch === 'Syncing...') {
+      for (var sk in syncEntities) {
+        if (syncEntities[sk]._meta) continue;
+        if (syncEntities[sk].name === proposals[selIdx].entity_name && syncEntities[sk].journal_name) {
+          realJournalForMatch = syncEntities[sk].journal_name;
+          break;
+        }
+      }
+    }
+
     apiCall('/api/proposals', 'GET').then(function(result) {
       hideLoading();
       if (!result || !Array.isArray(result)) return;
-      // Find the resolved (non-placeholder) proposal matching name and journal
+      // Find the resolved (non-placeholder) proposal matching name + journal.
       for (var ri = 0; ri < result.length; ri++) {
         if (result[ri].entity_name === proposals[selIdx].entity_name &&
             !result[ri]._sync_placeholder) {
-          proposals[selIdx] = result[ri];
-          renderContent(); // re-render with full data
-          break;
+          var matchJournal = result[ri].source_journal || '';
+          if ((realJournalForMatch && matchJournal === realJournalForMatch) ||
+              (!realJournalForMatch && matchJournal === placeholderJournal)) {
+            proposals[selIdx] = result[ri];
+            renderContent(); // re-render with full data
+            return;
+          }
         }
       }
     }).catch(function() { hideLoading(); });
@@ -614,22 +637,48 @@ async function selectProposal(i) {
     hideLoading();
     if (!result) return;
 
-    // Find the resolved proposal in the server response
-    for (var j = 0; j < result.length; j++) {
-      if (result[j].entity_name === proposals[i].entity_name &&
-          !result[j]._sync_placeholder) {
-        proposals[i] = result[j];
-        selectedIndex = i;
-        renderSidebar();
-        if (editingField) cancelEdit();
-        renderContent();
-        showToast('Proposal loaded', 'success');
-        return;
+    // Determine the real journal for matching:
+    // 1. If already resolved (not 'Syncing...'), use it directly.
+    // 2. Otherwise, look up via syncEntities (entity_progress events).
+    var placeholderJournal = proposals[i].source_journal;
+    var realJournalForMatch = placeholderJournal;
+    if (realJournalForMatch === 'Syncing...') {
+      for (var sk in syncEntities) {
+        if (syncEntities[sk]._meta) continue;
+        if (syncEntities[sk].name === proposals[i].entity_name && syncEntities[sk].journal_name) {
+          realJournalForMatch = syncEntities[sk].journal_name;
+          break;
+        }
       }
     }
 
-    // If not found yet, the sync may still be running — just show it as placeholder
-    hideLoading();
+    // Find the resolved proposal in the server response, matching name + journal.
+    for (var j = 0; j < result.length; j++) {
+      if (result[j].entity_name === proposals[i].entity_name &&
+          !result[j]._sync_placeholder) {
+        var matchJournal = result[j].source_journal || '';
+        // Match by the resolved real journal when possible.
+        if ((realJournalForMatch && matchJournal === realJournalForMatch) ||
+            (!realJournalForMatch && matchJournal === placeholderJournal)) {
+          proposals[i] = result[j];
+          selectedIndex = i;
+          renderSidebar();
+          if (editingField) cancelEdit();
+          renderContent();
+          showToast('Proposal loaded', 'success');
+          return;
+        }
+      }
+    }
+
+    // If not found yet, the sync may still be running — keep placeholder selected.
+    // Do NOT fall through to a wrong-journal match.  The saved selection id
+    // uses the resolved journal so it will match once the real data arrives.
+    selectedIndex = i;
+    renderSidebar();
+    if (editingField) cancelEdit();
+    renderContent();
+    return;
   }
 
   // Set selection and auto-expand the containing journal group
@@ -1454,14 +1503,16 @@ async function runSync() {
       error_message: data.error_message || null,
     };
 
-    // Also update matching placeholder in proposals sidebar with real journal name
+    // Also update matching placeholder in proposals sidebar with real journal name.
+    // Run when source_journal is 'Syncing...' OR when it's still a _sync_placeholder
+    // (idempotent — won't re-set if already correct).
     for (var pi = 0; pi < proposals.length; pi++) {
-      if (proposals[pi]._sync_placeholder &&
-          proposals[pi].entity_name === data.name &&
-          proposals[pi].source_journal === 'Syncing...') {
-        proposals[pi].source_journal = data.journal_name;
-        break;
-      }
+      if (!proposals[pi]._sync_placeholder) continue;
+      if (proposals[pi].entity_name !== data.name) continue;
+      // Only update when the journal differs from what we already have.
+      if (proposals[pi].source_journal === data.journal_name) break; // already correct
+      proposals[pi].source_journal = data.journal_name;
+      break;
     }
 
     _renderSyncContent();
@@ -1473,13 +1524,16 @@ async function runSync() {
     try { data = JSON.parse(e.data); } catch (_) { return; }
     if (!data.name || !data.type) return;
 
-    // Look up real journal name from syncEntities (set by entity_progress events)
-    var realJournal = '';
-    for (var sk in syncEntities) {
-      if (syncEntities[sk]._meta) continue;
-      if (syncEntities[sk].name === data.name && syncEntities[sk].journal_name) {
-        realJournal = syncEntities[sk].journal_name;
-        break;
+    // Prefer the journal from the SSE event payload (set by Phase 1 backend fix).
+    // Fall back to syncEntities lookup (entity_progress events), then 'Syncing...'.
+    var realJournal = data.journal || '';
+    if (!realJournal) {
+      for (var sk in syncEntities) {
+        if (syncEntities[sk]._meta) continue;
+        if (syncEntities[sk].name === data.name && syncEntities[sk].journal_name) {
+          realJournal = syncEntities[sk].journal_name;
+          break;
+        }
       }
     }
 
@@ -1591,12 +1645,25 @@ async function runSync() {
 // ── Proposal loading ────────────────────────────────────
 
 function loadProposals() {
+  treeStateVersion++; // bump so saveTreeState can detect a refetch in progress
   Promise.all([
     fetch('/api/proposals').then(function(r){ return r.json(); }),
     fetch('/api/tree-state').then(function(r){ return r.json(); }).catch(function(){ return { per_tab: {} }; })
   ]).then(function(results) {
     var proposalsData = results[0];
     treeState = results[1] || { per_tab: {} };
+
+    // Resolve a placeholder's real journal via syncEntities.
+    function resolvePlaceholderJournal(p) {
+      if (p.source_journal !== 'Syncing...') return p.source_journal;
+      for (var sk in syncEntities) {
+        if (syncEntities[sk]._meta) continue;
+        if (syncEntities[sk].name === p.entity_name && syncEntities[sk].journal_name) {
+          return syncEntities[sk].journal_name;
+        }
+      }
+      return 'Syncing...';
+    }
 
     var serverMap = {};
     for (var si = 0; si < proposalsData.length; si++) {
@@ -1611,17 +1678,25 @@ function loadProposals() {
     // LLM pipeline — get updated to their complete form.
     for (var pi = 0; pi < proposals.length; pi++) {
       var pKey = proposals[pi].entity_name.toLowerCase();
-      var pJournal = proposals[pi].source_journal;
+      var resolvedJournal = resolvePlaceholderJournal(proposals[pi]);
       if (serverMap[pKey]) {
-        // Find the server proposal that matches both name and journal
+        // Find the server proposal that matches both name and journal.
         var match = null;
         for (var sm = 0; sm < serverMap[pKey].length; sm++) {
-          if (serverMap[pKey][sm].source_journal === pJournal) {
+          if (serverMap[pKey][sm].source_journal === resolvedJournal) {
             match = serverMap[pKey][sm];
             break;
           }
         }
-        proposals[pi] = match || serverMap[pKey][0];  // fallback to first
+        // For placeholder entries, do NOT fall back to a wrong-journal copy.
+        // If no exact journal match exists the server may still be catching up
+        // (SSE lags behind disk writes); keep the placeholder in place.
+        if (proposals[pi]._sync_placeholder) {
+          if (match) proposals[pi] = match;
+          // else: keep placeholder — it will resolve when data arrives.
+        } else {
+          proposals[pi] = match || serverMap[pKey][0];  // fallback to first for non-placeholders
+        }
       }
     }
 
@@ -1640,7 +1715,9 @@ function loadProposals() {
       }
     }
 
-    // Restore selection by stable ID from current tab's state (not raw index)
+    // Restore selection by stable ID from current tab's state (not raw index).
+    // If the saved ID used 'Syncing...' as journal, try resolving via
+    // syncEntities so we still find the proposal after it was replaced.
     selectedIndex = null;
     var savedSelectedId = getCurrentSelectedId();
     if (savedSelectedId !== null) {
@@ -1651,6 +1728,21 @@ function loadProposals() {
         if (id === savedSelectedId) {
           selectedIndex = i;
           break;
+        }
+      }
+      // Fallback: try resolving the journal part of savedSelectedId via
+      // syncEntities in case it was saved with 'Syncing...' before Phase 1 data arrived.
+      if (selectedIndex === null && savedSelectedId.indexOf('::') !== -1) {
+        var savedParts = savedSelectedId.split('::');
+        var savedEntityName = savedParts.pop();
+        var savedJournalPart = savedParts.join('::');
+        for (var i2 = 0; i2 < proposals.length; i2++) {
+          if (proposals[i2].entity_name !== savedEntityName) continue;
+          var rj = resolvePlaceholderJournal(proposals[i2]);
+          if ((savedJournalPart === 'Syncing...' && rj !== 'Uncategorized') || savedJournalPart === rj) {
+            selectedIndex = i2;
+            break;
+          }
         }
       }
     }

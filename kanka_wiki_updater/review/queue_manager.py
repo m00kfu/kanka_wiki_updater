@@ -77,17 +77,20 @@ def load_queue():
 
 
 def save_queue(data):
-    """Persist *data* to *pending_changes.json*.
+    """Persist *data* to ``pending_changes.json``.
 
     Accepts either the new wrapped format { proposals: [...], _tree_state: {...} }
     or a plain list for backward compatibility.  When called with a plain list,
     existing ``_tree_state`` is preserved so that every write path keeps the file
     in the wrapped shape.
+
+    Uses :func:`state.save_queue` (which acquires the queue lock) to prevent
+    lost updates from concurrent writers.
     """
     if isinstance(data, list):
         current = load_queue()
         data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
-    state._save(_queue_path(), data)
+    state.save_queue(data, path=_queue_path())
 
 
 def get_tracker():
