@@ -5,12 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def mock_state():
-    with patch('kanka_wiki_updater.cli.revert.state') as mock:
-        mock.get_last_applied_batch.return_value = None
-        yield mock
-
 
 class TestRevertRelationResult:
     @patch('kanka_wiki_updater.cli.revert.KankaClient')
@@ -174,67 +168,106 @@ class TestRevertNewEntityEntry:
 
 
 class TestMainFlow:
-    @patch('kanka_wiki_updater.cli.revert.KankaClient')
-    def test_no_batch_prints_message(self, MockClient):
+    """Test the main() CLI flow using a real DB."""
+
+    def test_no_batch_prints_message(self, state_db):
         from kanka_wiki_updater.core import state as state_mod
 
-        state_mod.get_last_applied_batch.return_value = None
+        assert state_mod.get_last_applied_batch() is None
 
-        with patch('builtins.input', return_value='n'):
-            from kanka_wiki_updater.cli.revert import main
+        with patch('builtins.input', return_value='n'), \
+             patch('kanka_wiki_updater.cli.revert.KankaClient') as MockClient:
+                from kanka_wiki_updater.cli.revert import main
 
-            main()
-
-    @patch('kanka_wiki_updater.cli.revert.KankaClient')
-    def test_user_cancel_does_nothing(self, MockClient):
-        from kanka_wiki_updater.core import state as state_mod
-
-        state_mod.get_last_applied_batch.return_value = {
-            'run_id': 'abc123',
-            'entries': [
-                {
-                    'proposal_type': 'update',
-                    'entity_name': 'Alice',
-                    'entity_kind': 'character',
-                    'entity_local_id': 1,
-                    'previous_entry': 'Old',
-                    'source_journal': 'S1',
-                },
-            ],
-        }
-
-        with patch('builtins.input', return_value='n'):
-            from kanka_wiki_updater.cli.revert import main
-
-            main()
+                main()
 
         MockClient.return_value.update_entity_entry.assert_not_called()
 
-    @patch('kanka_wiki_updater.cli.revert.KankaClient')
-    def test_reverts_updates_before_new_entities(self, MockClient):
+    def test_user_cancel_does_nothing(self, state_db):
         from kanka_wiki_updater.core import state as state_mod
 
-        state_mod.get_last_applied_batch.return_value = {
-            'run_id': 'abc123',
-            'entries': [
-                {
-                    'proposal_type': 'new_entity',
-                    'entity_name': 'Bob',
-                    'created_kind': 'character',
-                    'created_local_id': 999,
-                },
-                {
-                    'proposal_type': 'update',
-                    'entity_name': 'Alice',
-                    'entity_kind': 'character',
-                    'entity_local_id': 1,
-                    'previous_entry': 'Old',
-                    'source_journal': 'S1',
-                },
-            ],
-        }
+        batch_entries = [
+            {
+                'proposal_type': 'update',
+                'entity_name': 'Alice',
+                'entity_kind': 'character',
+                'entity_local_id': 1,
+                'previous_entry': 'Old',
+                'source_journal': 'S1',
+            },
+        ]
+        state_mod.log_applied_batch(batch_entries)
 
-        with patch('builtins.input', return_value='y'):
-            from kanka_wiki_updater.cli.revert import main
+        with patch('builtins.input', return_value='n'), \
+             patch('kanka_wiki_updater.cli.revert.KankaClient') as MockClient:
+                from kanka_wiki_updater.cli.revert import main
 
-            main()
+                main()
+
+        MockClient.return_value.update_entity_entry.assert_not_called()
+
+    def test_reverts_updates_before_new_entities(self, state_db):
+        from kanka_wiki_updater.core import state as state_mod
+
+        batch_entries = [
+            {
+                'proposal_type': 'new_entity',
+                'entity_name': 'Bob',
+                'created_kind': 'character',
+                'created_local_id': 999,
+            },
+            {
+                'proposal_type': 'update',
+                'entity_name': 'Alice',
+                'entity_kind': 'character',
+                'entity_local_id': 1,
+                'previous_entry': 'Old',
+                'source_journal': 'S1',
+            },
+        ]
+        state_mod.log_applied_batch(batch_entries)
+
+        # Verify batch is stored and retrievable
+        batch = state_mod.get_last_applied_batch()
+        assert batch is not None
+        assert len(batch['entries']) == 2
+
+        with patch('builtins.input', return_value='y'), \
+             patch('kanka_wiki_updater.cli.revert.KankaClient') as MockClient:
+                client_inst = MagicMock()
+                MockClient.return_value = client_inst
+
+                from kanka_wiki_updater.cli.revert import main
+
+                main()
+
+        # After revert, the batch should be marked reverted (get_last_applied_batch returns None)
+        assert state_mod.get_last_applied_batch() is None
+
+    def test_revert_marks_batch_as_reverted(self, state_db):
+        """After revert, get_last_applied_batch should return None for a single-batch scenario."""
+        from kanka_wiki_updater.core import state as state_mod
+
+        batch_entries = [
+            {
+                'proposal_type': 'update',
+                'entity_name': 'Alice',
+                'entity_kind': 'character',
+                'entity_local_id': 1,
+                'previous_entry': 'Old',
+                'source_journal': 'S1',
+            },
+        ]
+        state_mod.log_applied_batch(batch_entries)
+
+        with patch('builtins.input', return_value='y'), \
+             patch('kanka_wiki_updater.cli.revert.KankaClient') as MockClient:
+                client_inst = MagicMock()
+                MockClient.return_value = client_inst
+
+                from kanka_wiki_updater.cli.revert import main
+
+                main()
+
+        # After revert, the batch should be marked reverted
+        assert state_mod.get_last_applied_batch() is None

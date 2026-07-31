@@ -2,28 +2,21 @@
 
 This module provides :class:`RelationTypeTracker` — a lightweight, persistent
 store for relation labels scraped from Kanka or approved by humans during review.
-It is used to:
-
-* Validate LLM-proposed relation labels against known types.
-* Suggest similar existing types when the LLM proposes something new.
-* Enrich queued proposals with ``_type_status`` and ``similar_types`` for the
-  review UI (backward-compatible — old proposals without enrichment still work).
+Persistence is via the shared SQLite database (``kanka_wiki_updater.db``).
 
 Usage
 -----
     tracker = RelationTypeTracker(data_dir='data')
-    tracker.load()                       # load from disk (or empty)
+    tracker.load()                       # load from DB (or empty)
     tracker.add_type('Blood Oath')       # after human approval
-    tracker.save()                       # persist to disk
+    tracker.save()                       # persist to DB
 """
 
 from __future__ import annotations
 
 import difflib
-import json
 import os
 import sys
-from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Default relation types — seeded on first run when no persistence exists
@@ -128,7 +121,7 @@ def get_inverse_label(label: str) -> str:
 def _data_dir():
     """Return the data directory path."""
     try:
-        from .core import config as pkg_config  # noqa: F401
+        from .core import config as pkg_config
         return pkg_config.DATA_DIR
     except ImportError:
         import kanka_wiki_updater.core.config as pkg_config  # type: ignore[import-not-found, no-redef]
@@ -138,40 +131,92 @@ def _data_dir():
 class RelationTypeTracker:
     """Tracks known relation types per campaign."""
 
-    _PERSISTENCE_FILE = 'known_relation_types.json'
-
     def __init__(self, data_dir: str | None = None):
         self.known_types: dict[str, int] = {}  # label -> count
         self.data_dir = data_dir or _data_dir()
         self._last_scraped_at: float | None = None
 
     # ------------------------------------------------------------------
-    # Persistence
+    # Persistence (SQLite)
     # ------------------------------------------------------------------
 
-    def _path(self) -> str:
-        return os.path.join(self.data_dir, self._PERSISTENCE_FILE)
+    def _import_db(self):
+        """Lazy-import the core db module."""
+        try:
+            from ..core import db as core_db  # type: ignore[import-not-found]
+        except ImportError:
+            import kanka_wiki_updater.core.db as core_db  # type: ignore[import-not-found, no-redef]
+        return core_db
+
+    def _db_path(self) -> str:
+        """Return the path to the SQLite DB for this tracker's data_dir."""
+        return os.path.join(self.data_dir, 'kanka_wiki_updater.db')
+
+    def _with_data_dir(self):
+        """Temporarily set config.DATA_DIR to self.data_dir and init/close helpers.
+
+        Returns a (core_db, saved_data_dir) tuple so the caller can restore it.
+        """
+        core_db = self._import_db()
+        try:
+            from ..core import config as pkg_config
+        except ImportError:
+            import kanka_wiki_updater.core.config as pkg_config  # type: ignore[import-not-found, no-redef]
+        saved_data_dir = pkg_config.DATA_DIR
+        pkg_config.DATA_DIR = self.data_dir
+        return core_db, pkg_config, saved_data_dir
+
+    def _restore_data_dir(self, config_module, saved_data_dir):
+        """Restore the original DATA_DIR after a DB operation."""
+        try:
+            from ..core import db as core_db  # type: ignore[import-not-found]
+        except ImportError:
+            import kanka_wiki_updater.core.db as core_db  # type: ignore[import-not-found, no-redef]
+        config_module.DATA_DIR = saved_data_dir
+        core_db.close_all()
 
     def load(self) -> None:
-        """Load from persistent file. Falls back to empty set if missing."""
-        path = self._path()
+        """Load from SQLite. Falls back to empty set on errors."""
+        core_db, config_mod, saved_dd = self._with_data_dir()
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            self.known_types = {str(k): int(v) for k, v in (data.get('known_types') or {}).items()}
-            self._last_scraped_at = data.get('last_scraped_at')
-        except (FileNotFoundError, json.JSONDecodeError):
+            # Ensure tables exist (creates DB if missing)
+            core_db.init_db()
+            conn = core_db.connect()
+            for row in conn.execute(
+                'SELECT label, count FROM known_relation_types'
+            ):
+                self.known_types[row['label']] = row['count']
+            meta_row = conn.execute(
+                'SELECT value FROM meta WHERE key = ?', ('last_scraped_at',)
+            ).fetchone()
+            if meta_row:
+                self._last_scraped_at = float(meta_row['value'])
+        except Exception:  # sqlite3.DatabaseError, OSError, etc.
             pass
+        finally:
+            self._restore_data_dir(config_mod, saved_dd)
 
     def save(self) -> None:
-        """Persist known_types + metadata to disk."""
-        os.makedirs(self.data_dir, exist_ok=True)
-        data = {
-            'known_types': self.known_types,
-            'last_scraped_at': self._last_scraped_at,
-        }
-        with open(self._path(), 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        """Persist known_types + metadata to SQLite."""
+        core_db, config_mod, saved_dd = self._with_data_dir()
+        try:
+            # Ensure tables exist (creates DB if missing)
+            core_db.init_db()
+            with core_db.transaction() as conn:
+                # Delete-and-insert is simplest for this small table
+                conn.execute('DELETE FROM known_relation_types')
+                for label, count in self.known_types.items():
+                    conn.execute(
+                        'INSERT INTO known_relation_types (label, count) VALUES (?, ?)',
+                        (label, count),
+                    )
+                if self._last_scraped_at is not None:
+                    conn.execute(
+                        'INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)',
+                        ('last_scraped_at', str(self._last_scraped_at)),
+                    )
+        finally:
+            self._restore_data_dir(config_mod, saved_dd)
 
     # ------------------------------------------------------------------
     # Lookup & suggestion
@@ -192,7 +237,7 @@ class RelationTypeTracker:
         scored: list[tuple[float, str]] = []
         for k in self.known_types:
             ratio = difflib.SequenceMatcher(None, needle, k.lower()).ratio()
-            if ratio > 0.6 and not (k.lower() == needle):
+            if ratio > 0.6 and k.lower() != needle:
                 scored.append((ratio, k))
         scored.sort(key=lambda x: (-x[0], x[1]))
         return [s[1] for s in scored[:n]]
@@ -265,10 +310,7 @@ class RelationTypeTracker:
 
                 enriched = dict(rc)
                 label = (rc.get('relation') or '').strip()
-                if not label:
-                    enriched['_type_status'] = 'known'
-                    enriched['similar_types'] = []
-                elif self.is_known(label):
+                if not label or self.is_known(label):
                     enriched['_type_status'] = 'known'
                     enriched['similar_types'] = []
                 else:
@@ -314,20 +356,26 @@ class RelationTypeTracker:
 
 
 def ensure_seeded(data_dir: str | None = None) -> bool:
-    """Seed default relation types only when the persistence file doesn't exist.
+    """Seed default relation types only when the DB table is empty.
 
-    If the file exists (even if empty or {}), do nothing — respect that this
-    campaign has already been initialized and may have custom types.
+    If the table has rows, do nothing — respect that this campaign may have
+    custom types.  A fresh install (table doesn't exist or has zero rows)
+    gets seeded.
 
     Returns True if seeding was performed, False otherwise.
     Safe to call multiple times — idempotent.
     """
     tracker = RelationTypeTracker(data_dir=data_dir)
-    persistence_path = os.path.join(tracker.data_dir, 'known_relation_types.json')
-    if not os.path.exists(persistence_path):
-        # File doesn't exist → seed defaults and save
-        tracker.seed_defaults()
-        tracker.save()
-        return True
-    # File exists (even empty) → leave as-is
-    return False
+    core_db, config_mod, saved_dd = tracker._with_data_dir()
+    try:
+        # init_db creates the table; after that it always exists
+        core_db.init_db()
+        conn = core_db.connect()
+        count_row = conn.execute('SELECT COUNT(*) AS c FROM known_relation_types').fetchone()
+        if count_row['c'] == 0:
+            tracker.seed_defaults()
+            tracker.save()
+            return True
+        return False
+    finally:
+        tracker._restore_data_dir(config_mod, saved_dd)

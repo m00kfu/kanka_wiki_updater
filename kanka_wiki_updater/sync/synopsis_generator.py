@@ -568,7 +568,7 @@ def build_synopsis_proposal(entity_id, entity, journal, index, max_tokens=None,
     Returns
     -------
     dict or None
-        A proposal dict ready to be queued in ``pending_changes.json``, or
+        A proposal dict ready to be queued, or
         ``None`` when no meaningful change was detected.
     """
     # Build known-types list for the prompt

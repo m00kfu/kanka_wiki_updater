@@ -1,6 +1,6 @@
 """Queue I/O and in-memory manipulation for pending changes.
 
-This module owns all read/write operations on ``pending_changes.json`` as well
+This module owns all read/write operations on the state database as well
 as in-place data manipulation (editing proposal text, updating status, managing
 relation changes).  It is importable standalone — no Flask or CLI dependencies.
 
@@ -12,7 +12,6 @@ All functions are pure (load/save excepted) and operate on a queue list
 returned by :func:`load_queue`.
 """
 
-import os as _os
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -24,10 +23,6 @@ if __name__ == '__main__' and __package__ is None:
     if _sys_path_0 not in __import__('sys').path:
         __import__('sys').path.insert(0, _sys_path_0)
 
-try:
-    from ..core import config as pkg_config
-except ImportError:
-    from kanka_wiki_updater.core import config as pkg_config
 
 try:
     from ..core import state
@@ -40,27 +35,31 @@ except ImportError:
 
 from ..sync.relation_types import RelationTypeTracker, ensure_seeded  # noqa: E402
 
-# Seed default relation types on first run (when persistence file is missing)
-ensure_seeded()
-_tracker = RelationTypeTracker()
-_tracker.load()  # load seeded or existing data from disk
+# Seed default relation types on first run (when persistence file is missing).
+# Wrapped in try/except so module import doesn't fail when the DB isn't
+# ready yet (e.g. during test collection before fixtures run).
+_tracker: RelationTypeTracker | None = None
+
+
+def _get_tracker():
+    """Lazily create and return a tracker that picks up the current DATA_DIR."""
+    global _tracker
+    if _tracker is None:
+        try:
+            ensure_seeded()
+            _tracker = RelationTypeTracker()  # reads config.DATA_DIR at call time
+            _tracker.load()
+        except Exception:
+            _tracker = RelationTypeTracker()
+    return _tracker
 
 
 # ---------------------------------------------------------------------------
 # File I/O
 # ---------------------------------------------------------------------------
 
-def _queue_path():
-    """Compute the path to pending_changes.json at call time.
-
-    This allows tests to override ``config.DATA_DIR`` after module import
-    without needing to reload queue_manager.
-    """
-    return _os.path.join(pkg_config.DATA_DIR, 'pending_changes.json')
-
-
 def load_queue():
-    """Load *pending_changes.json* and return the full wrapped object.
+    """Load the queue from SQLite and return the full wrapped object.
 
     After loading, all pending proposals are enriched with ``_type_status``
     and ``similar_types`` fields on their relation changes (backward-compatible;
@@ -71,26 +70,26 @@ def load_queue():
     dict
         { 'proposals': [...], '_tree_state': {...} }
     """
-    data = state._load(_queue_path(), {'proposals': [], '_tree_state': {'per_tab': {}}})
-    _tracker.enrich_proposals(data['proposals'])
+    data = state.load_queue()
+    _get_tracker().enrich_proposals(data['proposals'])
     return data
 
 
 def save_queue(data):
-    """Persist *data* to ``pending_changes.json``.
+    """Persist *data* to the SQLite database.
 
     Accepts either the new wrapped format { proposals: [...], _tree_state: {...} }
     or a plain list for backward compatibility.  When called with a plain list,
-    existing ``_tree_state`` is preserved so that every write path keeps the file
+    existing ``_tree_state`` is preserved so that every write path keeps the data
     in the wrapped shape.
 
-    Uses :func:`state.save_queue` (which acquires the queue lock) to prevent
-    lost updates from concurrent writers.
+    Uses :func:`state.save_queue` (which wraps everything in a transaction) to
+    prevent lost updates from concurrent writers.
     """
     if isinstance(data, list):
         current = load_queue()
         data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
-    state.save_queue(data, path=_queue_path())
+    state.save_queue(data)
 
 
 def get_tracker():
@@ -99,7 +98,7 @@ def get_tracker():
     Callers can use this to add new types, check known labels, etc.
     The tracker is lazily loaded from disk on first access via :func:`load_queue`.
     """
-    return _tracker
+    return _get_tracker()
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +262,6 @@ def add_known_relation_type(label: str) -> bool:
     bool
         True if the type was added, False if empty/invalid.
     """
-    _tracker.add_type(label)
-    _tracker.save()
+    _get_tracker().add_type(label)
+    _get_tracker().save()
     return True

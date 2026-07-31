@@ -240,7 +240,7 @@ def apply_proposal(client, proposal, entity_index_cache):
     client : KankaClient
         An authenticated API client.
     proposal : dict
-        A pending-change proposal entry (as stored in ``pending_changes.json``).
+        A queue proposal entry.
     entity_index_cache : dict | tuple
         Entity resolution cache — see :func:`resolve_entity`.  Must be an empty
         dict to trigger a fresh index build, or a ``(index, name_map)`` tuple.

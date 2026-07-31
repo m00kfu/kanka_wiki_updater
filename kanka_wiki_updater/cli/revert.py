@@ -16,8 +16,6 @@ Limitations:
     automatically.
   - The journal(s) behind a reverted batch stay marked as "processed", so
     re-running sync_pipeline won't regenerate these proposals on its own.
-    If you want them reconsidered, remove the relevant journal ID(s) from
-    data/processed_journals.json first.
 
 Usage:
     python -m kanka_wiki_updater.cli.revert

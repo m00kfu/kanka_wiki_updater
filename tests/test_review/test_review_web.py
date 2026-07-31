@@ -7,9 +7,13 @@ import pytest
 
 # Reusable helper: load queue from temp file (avoids importing _load_queue which was extracted)
 def _load_queue_from_file():
-    """Load the current queue using queue_manager (business logic extraction)."""
+    """Load the current queue proposals list.
+
+    Returns just the proposals list for backward compatibility with tests that
+    index into it directly (e.g. ``queue[1]['status']``).
+    """
     from kanka_wiki_updater.review.queue_manager import load_queue as _lmq
-    return _lmq()
+    return _lmq()['proposals']
 
 
 
@@ -120,8 +124,8 @@ class TestApiProposalStatus:
         )
         assert resp.status_code == 400
 
-    def test_status_persists_to_file(self, app_with_queue):
-        """After approving, the queue file on disk reflects the change."""
+    def test_status_persists_to_db(self, app_with_queue):
+        """After approving, the SQLite queue reflects the status change."""
         import types
         from unittest import mock
 
@@ -414,11 +418,9 @@ class TestNewlineEscaping:
                 'status': 'pending',
             }
         ]
-        queue_file = tmp_path / 'pending_changes.json'
-        with open(queue_file, 'w') as f:
-            json_mod.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
-        import kanka_wiki_updater.core.config as config
         from kanka_wiki_updater.review.web import create_app
 
         original_data_dir = config.DATA_DIR
@@ -640,6 +642,62 @@ class TestStatusWithSync:
             mock_client.update_entity_entry.assert_called_once()
 
 
+class TestLogAppliedBatch:
+    """Verify that the approve route calls log_applied_batch."""
+
+    def test_approve_calls_log_applied_batch(self, app_with_queue):
+        """Approving a proposal should call _state.log_applied_batch once."""
+        import types
+        from unittest import mock as umock
+
+        mock_client = umock.MagicMock()
+        mock_client.get_relations.return_value = []
+
+        with (
+            umock.patch('kanka_wiki_updater.review.web.KankaClient', return_value=mock_client),
+            umock.patch(
+                'kanka_wiki_updater.sync.sync_engine.build_entity_index',
+                side_effect=lambda c: {
+                    42: {'name': 'Kael Ironfist'},
+                    99: {'name': 'Vexara the Veiled'},
+                },
+            ),
+            umock.patch.object(
+                __import__('kanka_wiki_updater.review.web', fromlist=['_state'])._state,
+                'log_applied_batch',
+            ) as mock_log,
+        ):
+            resp = app_with_queue.post(
+                '/api/proposals/1/status',
+                json={'status': 'approved_all'},
+            )
+
+        assert resp.status_code == 200
+        mock_log.assert_called_once()
+        # The logged entry should contain the proposal dict
+        call_args = mock_log.call_args[0][0]
+        assert len(call_args) == 1
+        assert call_args[0]['entity_name'] == 'Kael Ironfist'
+
+    def test_reject_does_not_call_log_applied_batch(self, app_with_queue):
+        """Rejecting a proposal should NOT call log_applied_batch."""
+        from unittest import mock as umock
+
+        with (
+            umock.patch.object(
+                __import__('kanka_wiki_updater.review.web', fromlist=['_state'])._state,
+                'log_applied_batch',
+            ) as mock_log,
+        ):
+            resp = app_with_queue.post(
+                '/api/proposals/0/status',
+                json={'status': 'rejected'},
+            )
+
+        assert resp.status_code == 200
+        mock_log.assert_not_called()
+
+
 class TestApiProposalRegenerate:
     """Tests for the /api/proposals/<index>/regenerate endpoint."""
 
@@ -679,11 +737,8 @@ class TestApiProposalRegenerate:
         queue[1].pop('_journal_id', None)
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         from unittest import mock as umock
 
@@ -706,11 +761,8 @@ class TestApiProposalRegenerate:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
 
@@ -751,11 +803,8 @@ class TestApiProposalRegenerate:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
 
@@ -798,11 +847,8 @@ class TestApiProposalRegenerate:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
 
@@ -847,11 +893,8 @@ class TestApiProposalRegenerate:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(
             id=789, entity_id=123456, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
@@ -899,11 +942,8 @@ class TestApiProposalRegenerate:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(
             id=789, entity_id=123456, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
@@ -956,11 +996,8 @@ class TestApiProposalRegenerate:
         queue[1]['_journal_id'] = 789
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(
             id=789, name='Session 5', date='', created_at='', entry='<p>Old synopsis.</p>'
@@ -1009,11 +1046,8 @@ class TestRegenerateApiErrors:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_client = umock.MagicMock()
         mock_client.get_journal.side_effect = Exception('Connection refused')
@@ -1036,11 +1070,8 @@ class TestRegenerateApiErrors:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_client = umock.MagicMock()
         # No _journal_id — returns 400 early before any API call
@@ -1061,11 +1092,8 @@ class TestRegenerateApiErrors:
         queue[1]['truncated'] = True
         import os
 
-        import kanka_wiki_updater.core.config as config
-
-        queue_file = os.path.join(config.DATA_DIR, 'pending_changes.json')
-        with open(queue_file, 'w') as f:
-            json.dump(queue, f, indent=2)
+        from kanka_wiki_updater.core import state
+        state.save_queue(queue)
 
         mock_journal = _types.SimpleNamespace(id=789, name='Test', date='', created_at='', entry='<p>Old synopsis.</p>')
 

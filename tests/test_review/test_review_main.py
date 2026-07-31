@@ -17,9 +17,8 @@ class TestSkipNoChange:
         pass
 
 
-@pytest.mark.skip(reason="log_applied_batch / get_last_applied_batch removed during refactor")
 class TestBatchLogging:
-    def test_logs_applied_batch(self, tmp_path):
+    def test_logs_applied_batch(self, state_db):
         from kanka_wiki_updater.core import state as state_mod
 
         applied = [
@@ -35,44 +34,31 @@ class TestBatchLogging:
 
 
 class TestNewEntityFirst:
-    def test_new_entities_reviewed_before_updates(self, tmp_path):
+    def test_new_entities_reviewed_before_updates(self, state_db):
         """Verify new_entity proposals are queued before update proposals."""
         from kanka_wiki_updater.core import state
-        import kanka_wiki_updater.core.config as config
 
-        original_data_dir = getattr(config, 'DATA_DIR', None)
-        config.DATA_DIR = str(tmp_path / "state")
-        (tmp_path / "state").mkdir(exist_ok=True)
+        new_candidate = {
+            'proposal_type': 'new_entity',
+            'entity_name': 'TestNewEntity',
+            'suggested_type': 'character',
+            'status': 'pending',
+        }
+        update_proposal = {
+            'proposal_type': 'update',
+            'entity_name': 'TestUpdateEntity',
+            'status': 'pending',
+        }
 
-        # Patch the module-level file paths so they use the new DATA_DIR.
-        old_queue_file = state.QUEUE_FILE
-        state.QUEUE_FILE = os.path.join(config.DATA_DIR, 'pending_changes.json')
+        # Simulate the NEW order (new entities first, then updates)
+        state.append_to_queue([new_candidate])
+        state.append_to_queue([update_proposal])
 
-        try:
-            new_candidate = {
-                'proposal_type': 'new_entity',
-                'entity_name': 'TestNewEntity',
-                'suggested_type': 'character',
-                'status': 'pending',
-            }
-            update_proposal = {
-                'proposal_type': 'update',
-                'entity_name': 'TestUpdateEntity',
-                'status': 'pending',
-            }
-
-            # Simulate the NEW order (new entities first, then updates)
-            state.append_to_queue([new_candidate])
-            state.append_to_queue([update_proposal])
-
-            queue = state.load_queue()
-            proposals = queue['proposals']
-            assert len(proposals) == 2
-            assert proposals[0]['proposal_type'] == 'new_entity'
-            assert proposals[1]['proposal_type'] == 'update'
-        finally:
-            config.DATA_DIR = original_data_dir
-            state.QUEUE_FILE = old_queue_file
+        queue = state.load_queue()
+        proposals = queue['proposals']
+        assert len(proposals) == 2
+        assert proposals[0]['proposal_type'] == 'new_entity'
+        assert proposals[1]['proposal_type'] == 'update'
 
 
 @pytest.mark.skip(reason="has_meaningful_change removed during refactor")

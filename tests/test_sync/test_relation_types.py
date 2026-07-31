@@ -1,79 +1,110 @@
 """Tests for RelationTypeTracker — store, lookup, suggest, persist."""
 
-import json
 import os
 import sys
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from kanka_wiki_updater.sync.relation_types import (
-    RelationTypeTracker,
-    is_symmetric_relation,
-    get_inverse_label,
     DEFAULT_RELATION_TYPES,
+    RelationTypeTracker,
     ensure_seeded,
+    get_inverse_label,
+    is_symmetric_relation,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _tmp_tracker(**kwargs):
+@pytest.fixture
+def rt_db(tmp_path, monkeypatch):
+    """Point the core DB at a fresh SQLite file in tmp_path."""
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    monkeypatch.setattr(config, 'DATA_DIR', str(tmp_path))
+    db.close_all()
+    # Drop all tables to ensure clean schema (e.g. after a previous test)
+    conn = db.connect()
+    conn.execute('DROP TABLE IF EXISTS known_relation_types')
+    conn.execute('DROP TABLE IF EXISTS meta')
+    conn.execute('DROP TABLE IF EXISTS proposals')
+    conn.execute('DROP TABLE IF EXISTS tree_state')
+    conn.execute('DROP TABLE IF EXISTS applied_batches')
+    conn.execute('DROP TABLE IF EXISTS processed_journals')
+    db.init_db()
+    yield tmp_path
+    db.close_all()
+
+
+def _tmp_tracker(data_dir=None, **kwargs):
     """Create a tracker with a temporary data directory."""
-    tmpdir = Path(kwargs.pop('data_dir', '/tmp/rt_test'))
-    tmpdir.mkdir(exist_ok=True)
-    return RelationTypeTracker(data_dir=str(tmpdir), **kwargs)
+    if data_dir is None:
+        import tempfile
+        data_dir = tempfile.mkdtemp()
+    return RelationTypeTracker(data_dir=str(data_dir), **kwargs)
 
 
 # ---------------------------------------------------------------------------
-# Persistence
+# Persistence (SQLite-backed)
 # ---------------------------------------------------------------------------
 
 
-def test_load_save_roundtrip():
+def test_load_save_roundtrip(rt_db):
     """Persist + reload preserves counts."""
-    t = _tmp_tracker()
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
+
+    t = RelationTypeTracker(data_dir=str(rt_db))
     t.add_type('Ally')
     t.add_type('Enemy')
     t.add_type('Ally')  # increment count
     t.save()
 
-    t2 = RelationTypeTracker(data_dir=t.data_dir)
+    db.close_all()
+    t2 = RelationTypeTracker(data_dir=str(rt_db))
     t2.load()
     assert t2.known_types == {'Ally': 2, 'Enemy': 1}
 
 
-def test_load_nonexistent_file_is_empty():
-    """Missing file → empty known set."""
+def test_load_nonexistent_db_is_empty():
+    """Missing DB → empty known set."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
+        # Don't init the DB — just load from a tracker pointing there
         t = RelationTypeTracker(data_dir=tmpdir)
         t.load()
         assert t.known_types == {}
 
 
-def test_save_creates_directory():
+def test_save_creates_directory(rt_db):
     """save() creates parent directories if they don't exist."""
-    import shutil, tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        nested = os.path.join(tmpdir, 'a', 'b')
-        t = RelationTypeTracker(data_dir=nested)
-        t.add_type('Test')
-        t.save()
-        assert os.path.isfile(os.path.join(nested, 'known_relation_types.json'))
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
+
+    nested = os.path.join(str(rt_db), 'a', 'b')
+    t = RelationTypeTracker(data_dir=nested)
+    t.add_type('Test')
+    t.save()
+    assert os.path.isfile(os.path.join(nested, 'kanka_wiki_updater.db'))
 
 
-def test_load_corrupt_json_is_empty():
-    """Corrupt JSON file → falls back to empty set."""
+def test_load_corrupt_db_is_empty():
+    """Corrupt/missing DB → falls back to empty set."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, 'known_relation_types.json')
-        with open(path, 'w') as f:
-            f.write('not json {{{')
+        # No DB file at all — load should return empty
         t = RelationTypeTracker(data_dir=tmpdir)
         t.load()
         assert t.known_types == {}
@@ -262,37 +293,47 @@ def test_enrich_proposals_missing_key():
 
 
 # ---------------------------------------------------------------------------
-# Persistence format
+# Persistence format (SQLite)
 # ---------------------------------------------------------------------------
 
 
-def test_save_format():
-    """Saved JSON has the expected structure."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        t = RelationTypeTracker(data_dir=tmpdir)
-        t.add_type('Ally')
-        t.save()
+def test_save_format(rt_db):
+    """Saved data is stored in the known_relation_types table."""
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
 
-        path = os.path.join(tmpdir, 'known_relation_types.json')
-        with open(path) as f:
-            data = json.load(f)
-        assert 'known_types' in data
-        assert 'last_scraped_at' in data
-        assert data['known_types'] == {'Ally': 1}
+    t = RelationTypeTracker(data_dir=str(rt_db))
+    t.add_type('Ally')
+    t.save()
+
+    conn = db.connect()
+    row = conn.execute(
+        'SELECT label, count FROM known_relation_types WHERE label = ?', ('Ally',)
+    ).fetchone()
+    assert row is not None
+    assert row['label'] == 'Ally'
+    assert row['count'] == 1
 
 
-def test_load_preserves_last_scraped():
+def test_load_preserves_last_scraped(rt_db):
     """load() restores last_scraped_at timestamp."""
-    import tempfile, time
-    with tempfile.TemporaryDirectory() as tmpdir:
-        t = RelationTypeTracker(data_dir=tmpdir)
-        t._last_scraped_at = 12345.0
-        t.save()
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
 
-        t2 = RelationTypeTracker(data_dir=tmpdir)
-        t2.load()
-        assert t2._last_scraped_at == 12345.0
+    t = RelationTypeTracker(data_dir=str(rt_db))
+    t._last_scraped_at = 12345.0
+    t.save()
+
+    db.close_all()
+    t2 = RelationTypeTracker(data_dir=str(rt_db))
+    t2.load()
+    assert t2._last_scraped_at == 12345.0
 
 
 # ---------------------------------------------------------------------------
@@ -300,67 +341,79 @@ def test_load_preserves_last_scraped():
 # ---------------------------------------------------------------------------
 
 
-def test_load_from_client_populated():
+def test_load_from_client_populated(rt_db):
     """Entities with various relation labels → correct counts."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        t = RelationTypeTracker(data_dir=tmpdir)
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
 
-        mock_client = mock.MagicMock()
-        mock_client.get_characters.return_value = [
-            {
-                'relations': [
-                    {'relation': 'Ally', 'target_id': 1},
-                    {'relation': 'Enemy', 'target_id': 2},
-                ],
-            },
-            {
-                'relations': [
-                    {'relation': 'Ally', 'target_id': 3},
-                ],
-            },
-        ]
-        mock_client.get_locations.return_value = []
-        mock_client.get_organizations.return_value = []
-        mock_client.get_creatures.return_value = []
+    t = RelationTypeTracker(data_dir=str(rt_db))
 
-        t.load_from_client(mock_client)
+    mock_client = mock.MagicMock()
+    mock_client.get_characters.return_value = [
+        {
+            'relations': [
+                {'relation': 'Ally', 'target_id': 1},
+                {'relation': 'Enemy', 'target_id': 2},
+            ],
+        },
+        {
+            'relations': [
+                {'relation': 'Ally', 'target_id': 3},
+            ],
+        },
+    ]
+    mock_client.get_locations.return_value = []
+    mock_client.get_organizations.return_value = []
+    mock_client.get_creatures.return_value = []
 
-        assert t.known_types == {'Ally': 2, 'Enemy': 1}
+    t.load_from_client(mock_client)
+
+    assert t.known_types == {'Ally': 2, 'Enemy': 1}
 
 
-def test_load_from_client_empty_campaign():
+def test_load_from_client_empty_campaign(rt_db):
     """No relations on any entity → empty known set."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        t = RelationTypeTracker(data_dir=tmpdir)
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
 
-        mock_client = mock.MagicMock()
-        for fn in ('get_characters', 'get_locations', 'get_organizations', 'get_creatures'):
-            getattr(mock_client, fn).return_value = []
+    t = RelationTypeTracker(data_dir=str(rt_db))
 
-        t.load_from_client(mock_client)
+    mock_client = mock.MagicMock()
+    for fn in ('get_characters', 'get_locations', 'get_organizations', 'get_creatures'):
+        getattr(mock_client, fn).return_value = []
 
-        assert t.known_types == {}
+    t.load_from_client(mock_client)
+
+    assert t.known_types == {}
 
 
-def test_load_from_client_api_error_is_tolerated():
+def test_load_from_client_api_error_is_tolerated(rt_db):
     """API error for one kind doesn't prevent others from being scraped."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        t = RelationTypeTracker(data_dir=tmpdir)
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    config.DATA_DIR = str(rt_db)
+    db.close_all()
+    db.init_db()
 
-        mock_client = mock.MagicMock()
-        mock_client.get_characters.side_effect = Exception('Network error')
-        mock_client.get_locations.return_value = [
-            {'relations': [{'relation': 'Sacred Site', 'target_id': 1}]},
-        ]
-        mock_client.get_organizations.return_value = []
-        mock_client.get_creatures.return_value = []
+    t = RelationTypeTracker(data_dir=str(rt_db))
 
-        t.load_from_client(mock_client)
+    mock_client = mock.MagicMock()
+    mock_client.get_characters.side_effect = Exception('Network error')
+    mock_client.get_locations.return_value = [
+        {'relations': [{'relation': 'Sacred Site', 'target_id': 1}]},
+    ]
+    mock_client.get_organizations.return_value = []
+    mock_client.get_creatures.return_value = []
 
-        assert t.known_types == {'Sacred Site': 1}
+    t.load_from_client(mock_client)
+
+    assert t.known_types == {'Sacred Site': 1}
 
 
 # ---------------------------------------------------------------------------
@@ -422,39 +475,59 @@ def test_seed_defaults_noop_when_populated():
         assert t.seed_defaults() is False
 
 
-def test_ensure_seeded_creates_persistence_file(tmp_path):
-    """ensure_seeded() saves to disk when file is missing."""
-    ensure_seeded(data_dir=str(tmp_path))
-    path = tmp_path / 'known_relation_types.json'
-    assert path.exists()
-    data = json.loads(path.read_text())
-    assert len(data['known_types']) == len(DEFAULT_RELATION_TYPES)
+def test_ensure_seeded_creates_persistence_file(tmp_path, monkeypatch):
+    """ensure_seeded() seeds the DB table when it's empty."""
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    monkeypatch.setattr(config, 'DATA_DIR', str(tmp_path))
+    db.close_all()
+
+    result = ensure_seeded(data_dir=str(tmp_path))
+    assert result is True
+
+    conn = db.connect()
+    count_row = conn.execute('SELECT COUNT(*) AS c FROM known_relation_types').fetchone()
+    assert count_row['c'] == len(DEFAULT_RELATION_TYPES)
+    db.close_all()
 
 
-def test_ensure_seeded_skips_existing_file():
-    """ensure_seeded() does nothing when file already exists."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, 'known_relation_types.json')
-        # Create empty file to simulate existing persistence
-        Path(path).write_text('{}')
+def test_ensure_seeded_skips_existing_data(tmp_path, monkeypatch):
+    """ensure_seeded() does nothing when the table already has rows."""
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    monkeypatch.setattr(config, 'DATA_DIR', str(tmp_path))
+    db.close_all()
+    db.init_db()
 
-        result = ensure_seeded(data_dir=tmpdir)
-        assert result is False
-        data = json.loads(Path(path).read_text())
-        assert data == {}  # unchanged
+    # Pre-seed one type directly in the DB
+    with db.transaction() as conn:
+        conn.execute('INSERT INTO known_relation_types (label, count) VALUES (?, ?)', ('Custom', 1))
+    # close before ensure_seeded (it closes connections too)
+    db.close_all()
+
+    result = ensure_seeded(data_dir=str(tmp_path))
+    assert result is False
+
+    # Should still have exactly one row (the custom one)
+    conn = db.connect()
+    count_row = conn.execute('SELECT COUNT(*) AS c FROM known_relation_types').fetchone()
+    assert count_row['c'] == 1
+    db.close_all()
 
 
-def test_ensure_seeded_idempotent():
+def test_ensure_seeded_idempotent(tmp_path, monkeypatch):
     """Calling ensure_seeded twice does not double-seed."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdir:
-        result1 = ensure_seeded(data_dir=tmpdir)
-        assert result1 is True
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    monkeypatch.setattr(config, 'DATA_DIR', str(tmp_path))
+    db.close_all()
 
-        # Second call should be a no-op (file now exists)
-        result2 = ensure_seeded(data_dir=tmpdir)
-        assert result2 is False
+    result1 = ensure_seeded(data_dir=str(tmp_path))
+    assert result1 is True
+
+    # Second call should be a no-op (table now has rows)
+    result2 = ensure_seeded(data_dir=str(tmp_path))
+    assert result2 is False
 
 
 def test_attitude_guidance_text_format():

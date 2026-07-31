@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reset all entities on Kanka back to their first recorded previous_entry.
 
-Reads data/pending_changes.json, deduplicates by entity name (first occurrence
+Reads the queued proposals from the state database, deduplicates by entity name (first occurrence
 wins), and PATCHes each unique entity's synopsis back to its earliest recorded
 previous_entry. This is a nuclear undo — it overwrites current Kanka state with
 the oldest version of each entity found in the pending queue.
@@ -12,7 +12,6 @@ Usage:
     python -m kanka_wiki_updater.cli.reset_to_first [--dry-run]
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -26,8 +25,6 @@ except ImportError:
     from kanka_wiki_updater.core import colors, config
     from kanka_wiki_updater.core.kanka_client import KankaClient
 
-_QUEUE_FILE = str(Path(config.DATA_DIR) / 'pending_changes.json')
-
 
 def _kind_map():
     return {
@@ -39,17 +36,10 @@ def _kind_map():
 
 
 def main(dry_run: bool = False, auto_confirm: bool = False):
-    if not Path(_QUEUE_FILE).exists():
-        print(colors.red('No pending changes file found. Run sync first.'))
-        return
-    with open(_QUEUE_FILE, encoding='utf-8') as f:
-        raw = json.load(f)
+    from ..core import state
 
-    # Handle both wrapped format { proposals: [...] } and legacy plain array.
-    if isinstance(raw, dict):
-        queue = raw.get('proposals', [])
-    else:
-        queue = raw
+    data = state.load_queue()
+    queue = data['proposals']
 
     # Deduplicate by entity name — first occurrence wins (earliest in file order).
     seen = {}
@@ -139,26 +129,17 @@ def main(dry_run: bool = False, auto_confirm: bool = False):
     )
 
     if not dry_run and not auto_confirm:
-        confirm = input(colors.cyan('\nDelete stored data files? [y/n] ')).strip().lower()
+        confirm = input(colors.cyan('\nReset local state database? [y/n] ')).strip().lower()
         if confirm == 'y':
-            _delete_state_files()
+            _reset_state_db()
 
 
-def _delete_state_files():
-    """Remove all four state files from DATA_DIR. Silently skip any that don't exist."""
-    import os as _os
+def _reset_state_db():
+    """Truncate all tables in the local state database."""
+    from ..core import db as core_db
 
-    deleted = []
-    for filename in ('sync_state.json', 'pending_changes.json',
-                     'applied_log.json', 'processed_journals.json'):
-        path = Path(config.DATA_DIR) / filename
-        if _os.path.exists(path):
-            _os.remove(path)
-            deleted.append(filename)
-    if deleted:
-        print(colors.green(f'  Deleted {len(deleted)} state file(s): {", ".join(deleted)}'))
-    else:
-        print(colors.yellow('  No data files found to delete.'))
+    core_db.reset_db()
+    print(colors.green('  Local state database has been reset (all tables truncated).'))
 
 
 if __name__ == '__main__':

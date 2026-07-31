@@ -6,6 +6,24 @@ import unittest.mock as mock
 import pytest
 
 
+# ── SQLite state fixture (Phase 1) ────────────────────────────────────────
+
+
+@pytest.fixture
+def state_db(tmp_path, monkeypatch):
+    """Point state at a fresh SQLite DB in tmp_path."""
+    import kanka_wiki_updater.core.config as config
+    from kanka_wiki_updater.core import db
+    monkeypatch.setattr(config, 'DATA_DIR', str(tmp_path))
+    db.close_all()
+    db.init_db()
+    yield
+    db.close_all()
+
+
+# ── Environment fixture ────────────────────────────────────────────────────
+
+
 @pytest.fixture(autouse=True, scope='session')
 def mock_env():
     """Set minimal env vars for modules that require them."""
@@ -35,9 +53,19 @@ def mock_requests(monkeypatch):
 
 
 @pytest.fixture
-def mock_queue(tmp_path):
-    """Create a temporary pending_changes.json with mixed proposal types."""
-    queue = [
+def seed_queue(state_db):
+    """Seed the SQLite queue with a list of proposals."""
+    def _seed(proposals):
+        from kanka_wiki_updater.core import state
+        state.save_queue({'proposals': proposals,
+                          '_tree_state': {'per_tab': {}}})
+    return _seed
+
+
+@pytest.fixture
+def mock_queue(seed_queue):
+    """Seed a temporary queue with mixed proposal types."""
+    proposals = [
         {
             'proposal_type': 'new_entity',
             'entity_name': 'Vexara the Veiled',
@@ -68,24 +96,14 @@ def mock_queue(tmp_path):
             'status': 'pending',
         },
     ]
-    queue_file = tmp_path / 'pending_changes.json'
-    with open(queue_file, 'w') as f:
-        json.dump(queue, f, indent=2)
-    return str(queue_file), tmp_path
+    seed_queue(proposals)
 
 
 @pytest.fixture
 def app_with_queue(mock_queue):
-    """Create a Flask test client with the review_web app and a temp queue file."""
+    """Create a Flask test client with the review_web app and a seeded queue."""
     from kanka_wiki_updater.review.web import create_app
-
-    _queue_file, data_dir = mock_queue
-    # Override DATA_DIR so state.py reads our temp file
-    import kanka_wiki_updater.core.config as config
     import kanka_wiki_updater.review.web as rw
-
-    original_data_dir = config.DATA_DIR
-    config.DATA_DIR = str(data_dir)
 
     # Reset module-level sync job state between tests
     rw._sync_jobs.clear()
@@ -98,6 +116,3 @@ def app_with_queue(mock_queue):
     client = app.test_client()
 
     yield client
-
-    # Restore original DATA_DIR after test
-    config.DATA_DIR = original_data_dir
