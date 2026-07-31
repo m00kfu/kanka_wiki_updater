@@ -6,6 +6,7 @@ back up, or hand-edit if something looks wrong.
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 
 from . import config
@@ -16,6 +17,30 @@ SYNC_FILE = os.path.join(config.DATA_DIR, 'sync_state.json')
 QUEUE_FILE = os.path.join(config.DATA_DIR, 'pending_changes.json')
 APPLIED_LOG = os.path.join(config.DATA_DIR, 'applied_log.json')
 PROCESSED_FILE = os.path.join(config.DATA_DIR, 'processed_journals.json')
+
+# Lock protecting atomic load-modify-save on pending_changes.json.
+# Prevents race conditions between the sync thread and Flask web UI endpoints
+# (e.g. /api/tree-state) that both read and write this file concurrently.
+_queue_lock = threading.Lock()
+
+
+def _load_plain(path, default):
+    """Load JSON from *path* without any wrapping or migration logic.
+
+    Returns the raw parsed value (list, dict, scalar) or *default* if the
+    file is missing, empty, or corrupted.  Used for files that store bare
+    lists or simple dicts (``sync_state.json``, ``applied_log.json``,
+    ``processed_journals.json``).
+    """
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f'[WARN] Failed to load {path}: {exc}. Starting fresh.')
+        return default
+    return data
 
 
 def _load(path, default):
@@ -70,12 +95,17 @@ def _load(path, default):
 
 
 def _save(path, data):
+    """Write *data* as JSON to *path*."""
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def get_last_sync():
-    return _load(SYNC_FILE, {}).get('lastSync')
+    """Return the last-sync timestamp string, or None."""
+    data = _load_plain(SYNC_FILE, {})
+    if isinstance(data, dict):
+        return data.get('lastSync')
+    return None
 
 
 def set_last_sync(value):
@@ -88,6 +118,27 @@ def load_queue():
     return _load(QUEUE_FILE, default)
 
 
+def update_queue(modifier):
+    """Atomically load the queue, call *modifier* on it, and save back.
+
+    *modifier* is a callable that receives the data dict and mutates it in-place.
+    The entire load-modify-save cycle is protected by a threading lock so that
+    concurrent callers (sync thread + Flask web UI) never overwrite each other's
+    changes to ``pending_changes.json``.
+
+    Usage::
+
+        def add_proposal(data):
+            data['proposals'].append(new_proposal)
+
+        state.update_queue(add_proposal)
+    """
+    with _queue_lock:
+        data = load_queue()
+        modifier(data)
+        _save(QUEUE_FILE, data)
+
+
 def save_queue(data):
     """Persist *data* to *pending_changes.json*.
 
@@ -95,17 +146,30 @@ def save_queue(data):
     or a plain list for backward compatibility (legacy callers).
     When called with a plain list, existing _tree_state is preserved so that
     every write path keeps the file in the wrapped shape.
+
+    NOTE: this function acquires the queue lock around its internal load+save
+    to prevent lost updates from concurrent writers.
     """
-    if isinstance(data, list):
+    def _modifier(data):
+        if isinstance(data, list):
+            # Reconstruct with current tree state
+            pass  # handled below in caller context
+
+    with _queue_lock:
         current = load_queue()
-        data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
-    _save(QUEUE_FILE, data)
+        if isinstance(data, list):
+            final_data = {'proposals': data, '_tree_state': current.get('_tree_state', {})}
+        else:
+            final_data = data
+        _save(QUEUE_FILE, final_data)
 
 
 def append_to_queue(items):
-    data = load_queue()
-    data['proposals'].extend(items)
-    save_queue(data)
+    """Atomically add *items* to the queue."""
+    def _modifier(data):
+        data['proposals'].extend(items)
+
+    update_queue(_modifier)
 
 
 def log_applied_batch(entries):
@@ -114,7 +178,9 @@ def log_applied_batch(entries):
     review run' instead of guessing at boundaries in a flat list."""
     if not entries:
         return
-    log = _load(APPLIED_LOG, [])
+    log = _load_plain(APPLIED_LOG, [])
+    if not isinstance(log, list):
+        log = []
     log.append(
         {
             'run_id': datetime.now(timezone.utc).isoformat(),
@@ -131,7 +197,9 @@ def get_last_applied_batch():
     reverted, or it predates this batch-tracking format (applied with an
     older version of review.py) and so isn't recorded in enough detail to
     revert automatically."""
-    log = _load(APPLIED_LOG, [])
+    log = _load_plain(APPLIED_LOG, [])
+    if not isinstance(log, list):
+        return None
     for item in reversed(log):
         if isinstance(item, dict) and 'entries' in item and 'run_id' in item:
             if not item.get('reverted'):
@@ -142,7 +210,9 @@ def get_last_applied_batch():
 
 
 def mark_batch_reverted(run_id):
-    log = _load(APPLIED_LOG, [])
+    log = _load_plain(APPLIED_LOG, [])
+    if not isinstance(log, list):
+        return
     for item in log:
         if isinstance(item, dict) and item.get('run_id') == run_id:
             item['reverted'] = True
@@ -153,12 +223,16 @@ def get_processed_journal_ids():
     """Journal IDs already turned into proposals, regardless of whether
     those proposals were later approved or rejected. Used so an interrupted
     or re-run sync doesn't redo (and re-queue) the same journal twice."""
-    entries = _load(PROCESSED_FILE, [])
+    entries = _load_plain(PROCESSED_FILE, [])
+    if not isinstance(entries, list):
+        return set()
     return {e['id'] if isinstance(e, dict) else e for e in entries}
 
 
 def mark_journal_processed(journal_id, title=None):
-    entries = _load(PROCESSED_FILE, [])
+    entries = _load_plain(PROCESSED_FILE, [])
+    if not isinstance(entries, list):
+        entries = []
     existing_ids = {e['id'] if isinstance(e, dict) else e for e in entries}
     if journal_id not in existing_ids:
         entry = {'id': journal_id}

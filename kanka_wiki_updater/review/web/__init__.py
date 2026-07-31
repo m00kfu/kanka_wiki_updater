@@ -30,9 +30,9 @@ if __name__ == '__main__' and __package__ is None:
 from flask import Flask, jsonify, render_template, request  # noqa: E402
 
 try:
-    from ..core import config as pkg_config
+    from ..core import config as pkg_config, state as _state
 except ImportError:
-    from kanka_wiki_updater.core import config as pkg_config
+    from kanka_wiki_updater.core import config as pkg_config, state as _state
 
 # Backend modules — thin routes call these for all business logic
 try:
@@ -212,38 +212,39 @@ def create_app():
 
     @app.route('/api/proposals/<int:index>/status', methods=['POST'])
     def update_status(index):
-        data = queue_manager.load_queue()
-        queue = data['proposals']
-        if index >= len(queue):
-            return jsonify({'error': 'Proposal not found'}), 404
-
-        body = request.get_json()
-        status_value = body.get('status')
-        valid_statuses = ('approved_all', 'approved_synopsis_only', 'rejected')
-        if status_value not in valid_statuses:
-            return jsonify({'error': f'Invalid status. Must be one of {valid_statuses}'}), 400
-
-        sync_result = None
-        if status_value in ('approved_all', 'approved_synopsis_only'):
-            with _sync_lock:
-                client = KankaClient()
-                sync_result = sync_engine.apply_proposal(client, queue[index], {})
-            # Reload after potential modifications (created_local_id etc.)
+        with _state._queue_lock:
             data = queue_manager.load_queue()
             queue = data['proposals']
-            proposal = queue[index]
-            if not sync_result['ok']:
-                return jsonify(
-                    {
-                        'proposal': proposal,
-                        'ok': False,
-                        'sync_error': True,
-                        'sync_message': sync_result['message'],
-                    }
-                ), 409
+            if index >= len(queue):
+                return jsonify({'error': 'Proposal not found'}), 404
 
-        queue_manager.update_status(queue, index, status_value)
-        queue_manager.save_queue(data)
+            body = request.get_json()
+            status_value = body.get('status')
+            valid_statuses = ('approved_all', 'approved_synopsis_only', 'rejected')
+            if status_value not in valid_statuses:
+                return jsonify({'error': f'Invalid status. Must be one of {valid_statuses}'}), 400
+
+            sync_result = None
+            if status_value in ('approved_all', 'approved_synopsis_only'):
+                with _sync_lock:
+                    client = KankaClient()
+                    sync_result = sync_engine.apply_proposal(client, queue[index], {})
+                # Reload after potential modifications (created_local_id etc.)
+                data = queue_manager.load_queue()
+                queue = data['proposals']
+                proposal = queue[index]
+                if not sync_result['ok']:
+                    return jsonify(
+                        {
+                            'proposal': proposal,
+                            'ok': False,
+                            'sync_error': True,
+                            'sync_message': sync_result['message'],
+                        }
+                    ), 409
+
+            queue_manager.update_status(queue, index, status_value)
+            _state._save(_state.QUEUE_FILE, data)
         result = {'proposal': queue[index], 'ok': True}
         if sync_result:
             result['sync'] = sync_result
@@ -251,88 +252,91 @@ def create_app():
 
     @app.route('/api/proposals/<int:index>/edit', methods=['POST'])
     def edit_proposal(index):
-        data = queue_manager.load_queue()
-        queue = data['proposals']
-        if index >= len(queue):
-            return jsonify({'error': 'Proposal not found'}), 404
+        with _state._queue_lock:
+            data = queue_manager.load_queue()
+            queue = data['proposals']
+            if index >= len(queue):
+                return jsonify({'error': 'Proposal not found'}), 404
 
-        body = request.get_json()
-        entry_text = body.get('entry', '')
-        proposal = queue[index]
+            body = request.get_json()
+            entry_text = body.get('entry', '')
+            proposal = queue[index]
 
-        queue_manager.edit_proposal_text(queue, index, entry_text, proposal['proposal_type'])
-        queue_manager.save_queue(data)
+            queue_manager.edit_proposal_text(queue, index, entry_text, proposal['proposal_type'])
+            _state._save(_state.QUEUE_FILE, data)
         return jsonify({'proposal': queue[index], 'ok': True})
 
     @app.route('/api/proposals/<int:index>/relation', methods=['POST'])
     def update_relation(index):
-        data = queue_manager.load_queue()
-        queue = data['proposals']
-        if index >= len(queue):
-            return jsonify({'error': 'Proposal not found'}), 404
+        with _state._queue_lock:
+            data = queue_manager.load_queue()
+            queue = data['proposals']
+            if index >= len(queue):
+                return jsonify({'error': 'Proposal not found'}), 404
 
-        body = request.get_json()
-        action = (body.get('action') or '').strip().lower()
-        target_name = body.get('target_name', '')
+            body = request.get_json()
+            action = (body.get('action') or '').strip().lower()
+            target_name = body.get('target_name', '')
 
-        if action == 'create':
-            queue_manager.add_relation_change(
-                queue,
-                index,
-                action,
-                target_name,
-                relation=body.get('relation', ''),
-                attitude=body.get('attitude', ''),
-                reason=body.get('reason', ''),
-                owner_name=body.get('owner_name', ''),
-            )
+            if action == 'create':
+                queue_manager.add_relation_change(
+                    queue,
+                    index,
+                    action,
+                    target_name,
+                    relation=body.get('relation', ''),
+                    attitude=body.get('attitude', ''),
+                    reason=body.get('reason', ''),
+                    owner_name=body.get('owner_name', ''),
+                )
 
-        elif action == 'delete':
-            if not queue_manager.delete_relation_change(queue, index, target_name):
-                return jsonify({'error': f"No relation to '{target_name}' found"}), 404
+            elif action == 'delete':
+                if not queue_manager.delete_relation_change(queue, index, target_name):
+                    return jsonify({'error': f"No relation to '{target_name}' found"}), 404
 
-        elif action == 'update':
-            update_fields = {
-                'relation': body.get('relation', ''),
-                'attitude': body.get('attitude', ''),
-                'reason': body.get('reason', ''),
-            }
-            new_target_name = body.get('target_name')
-            if new_target_name is not None and new_target_name != target_name:
-                update_fields['target_name'] = new_target_name
-            new_entity_id = body.get('target_entity_id')
-            if new_entity_id is not None:
-                update_fields['target_entity_id'] = new_entity_id
+            elif action == 'update':
+                update_fields = {
+                    'relation': body.get('relation', ''),
+                    'attitude': body.get('attitude', ''),
+                    'reason': body.get('reason', ''),
+                }
+                new_target_name = body.get('target_name')
+                if new_target_name is not None and new_target_name != target_name:
+                    update_fields['target_name'] = new_target_name
+                new_entity_id = body.get('target_entity_id')
+                if new_entity_id is not None:
+                    update_fields['target_entity_id'] = new_entity_id
 
-            if queue_manager.update_relation_change(queue, index, target_name, **update_fields) is None:
-                return jsonify({'error': f"No relation to '{target_name}' found"}), 404
+                if queue_manager.update_relation_change(queue, index, target_name, **update_fields) is None:
+                    return jsonify({'error': f"No relation to '{target_name}' found"}), 404
 
-        else:
-            return jsonify({'error': f'Invalid action: {action}'}), 400
+            else:
+                return jsonify({'error': f'Invalid action: {action}'}), 400
 
-        queue_manager.save_queue(data)
+            _state._save(_state.QUEUE_FILE, data)
         return jsonify({'proposal': queue[index], 'ok': True})
 
     @app.route('/api/proposals/<int:index>/sync', methods=['POST'])
     def sync_proposal(index):
         """Sync a single proposal to Kanka.io. Used before marking as applied."""
-        data = queue_manager.load_queue()
-        queue = data['proposals']
-        if index >= len(queue):
-            return jsonify({'error': 'Proposal not found'}), 404
+        with _state._queue_lock:
+            data = queue_manager.load_queue()
+            queue = data['proposals']
+            if index >= len(queue):
+                return jsonify({'error': 'Proposal not found'}), 404
 
-        with _sync_lock:
-            client = KankaClient()
-            sync_result = sync_engine.apply_proposal(client, queue[index], {})
+            with _sync_lock:
+                client = KankaClient()
+                sync_result = sync_engine.apply_proposal(client, queue[index], {})
 
-        result = {
-            'ok': sync_result['ok'],
-            'message': sync_result['message'],
-            'warnings': sync_result.get('warnings', []),
-            'proposal': queue[index],
-        }
-        # Mark as applied after successful sync; caller should also update local state via /status
-        queue_manager.save_queue(data)
+            result = {
+                'ok': sync_result['ok'],
+                'message': sync_result['message'],
+                'warnings': sync_result.get('warnings', []),
+                'proposal': queue[index],
+            }
+            # Mark as applied after successful sync; caller should also update local state via /status
+            _state._save(_state.QUEUE_FILE, data)
         return jsonify(result)
 
     # ── Known relation types API ────────────────────────────────
@@ -392,63 +396,65 @@ def create_app():
 
             traceback.print_exc(file=sys.stderr)
             return jsonify({'error': str(e)}), 500
-        queue = data['proposals']
-        if index >= len(queue):
-            return jsonify({'error': 'Proposal not found'}), 404
 
-        proposal = queue[index]
-        ptype = proposal.get('proposal_type', 'update')
-        if _DEBUG:
-            _debug(
-                'regenerate #{} type={} truncated={} entity_id={} journal_id={} source_journal={}'.format(
-                    index,
-                    ptype,
-                    proposal.get('truncated'),
-                    proposal.get('entity_id'),
-                    proposal.get('_journal_id'),
-                    proposal.get('source_journal'),
+        with _state._queue_lock:
+            queue = data['proposals']
+            if index >= len(queue):
+                return jsonify({'error': 'Proposal not found'}), 404
+
+            proposal = queue[index]
+            ptype = proposal.get('proposal_type', 'update')
+            if _DEBUG:
+                _debug(
+                    'regenerate #{} type={} truncated={} entity_id={} journal_id={} source_journal={}'.format(
+                        index,
+                        ptype,
+                        proposal.get('truncated'),
+                        proposal.get('entity_id'),
+                        proposal.get('_journal_id'),
+                        proposal.get('source_journal'),
+                    )
                 )
+
+            force = request.args.get('force', '0').lower() in ('1', 'true')
+
+            try:
+                client = KankaClient()
+            except Exception as e:
+                return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
+
+            tracker = queue_manager.get_tracker()
+            result = synopsis_generator.regenerate_proposal(
+                client, proposal, force=force, relation_tracker=tracker,
             )
 
-        force = request.args.get('force', '0').lower() in ('1', 'true')
+            if not result['ok']:
+                # Map error types to HTTP status codes (mirrors original route)
+                err = result['error'].lower()
+                if 'no meaningful change' in err or 'llm no longer suggests' in err:
+                    code = 409
+                elif ('lacks' in err or 'cannot fetch' in err or 'cannot contact' in err):
+                    code = 400
+                elif 'not found' in err:
+                    code = 404
+                else:
+                    code = 500
+                return jsonify({'ok': False, 'error': result['error']}), code
 
-        try:
-            client = KankaClient()
-        except Exception as e:
-            return jsonify({'ok': False, 'error': f'Failed to initialize API client: {e}'}), 500
-
-        tracker = queue_manager.get_tracker()
-        result = synopsis_generator.regenerate_proposal(
-            client, proposal, force=force, relation_tracker=tracker,
-        )
-
-        if not result['ok']:
-            # Map error types to HTTP status codes (mirrors original route)
-            err = result['error'].lower()
-            if 'no meaningful change' in err or 'llm no longer suggests' in err:
-                code = 409
-            elif ('lacks' in err or 'cannot fetch' in err or 'cannot contact' in err):
-                code = 400
-            elif 'not found' in err:
-                code = 404
+            # Merge the new proposal into the existing queue entry.
+            if ptype == 'new_entity':
+                queue[index]['draft_entry'] = result['proposed_entry']
+                queue[index]['reason'] = result.get('change_summary', '')
+                queue[index]['uncertain'] = result.get('uncertain', [])
+                queue[index]['truncated'] = result.get('truncated', False)
             else:
-                code = 500
-            return jsonify({'ok': False, 'error': result['error']}), code
+                queue[index]['proposed_entry'] = result['proposed_entry']
+                queue[index]['change_summary'] = result.get('change_summary', '')
+                queue[index]['relation_changes'] = result.get('relation_changes', [])
+                queue[index]['uncertain'] = result.get('uncertain', [])
+                queue[index]['truncated'] = False
 
-        # Merge the new proposal into the existing queue entry.
-        if ptype == 'new_entity':
-            queue[index]['draft_entry'] = result['proposed_entry']
-            queue[index]['reason'] = result.get('change_summary', '')
-            queue[index]['uncertain'] = result.get('uncertain', [])
-            queue[index]['truncated'] = result.get('truncated', False)
-        else:
-            queue[index]['proposed_entry'] = result['proposed_entry']
-            queue[index]['change_summary'] = result.get('change_summary', '')
-            queue[index]['relation_changes'] = result.get('relation_changes', [])
-            queue[index]['uncertain'] = result.get('uncertain', [])
-            queue[index]['truncated'] = False
-
-        queue_manager.save_queue(data)
+            _state._save(_state.QUEUE_FILE, data)
         return jsonify({'ok': True, 'proposal': queue[index]})
 
     # ── Tree state API ───────────────────────────────────────
@@ -463,22 +469,23 @@ def create_app():
     @app.route('/api/tree-state', methods=['POST'])
     def update_tree_state():
         """Accept partial updates — only the fields present in the request body are merged."""
-        data = queue_manager.load_queue()
-        if '_tree_state' not in data:
-            data['_tree_state'] = {'per_tab': {}}
-        body = request.get_json() or {}
-        # Merge per-tab state (only the tab key present)
-        if 'per_tab' in body and isinstance(body['per_tab'], dict):
-            ts = data['_tree_state'].setdefault('per_tab', {})
-            for tab, val in body['per_tab'].items():
-                if tab in ('new', 'reviewed', 'sync'):
-                    if not isinstance(ts.get(tab), dict):
-                        ts[tab] = {}
-                    if 'expanded' in val:
-                        ts[tab]['expanded'] = val['expanded']
-                    if 'selected_id' in val:
-                        ts[tab]['selected_id'] = val['selected_id']
-        queue_manager.save_queue(data)
+        with _state._queue_lock:
+            data = queue_manager.load_queue()
+            if '_tree_state' not in data:
+                data['_tree_state'] = {'per_tab': {}}
+            body = request.get_json() or {}
+            # Merge per-tab state (only the tab key present)
+            if 'per_tab' in body and isinstance(body['per_tab'], dict):
+                ts = data['_tree_state'].setdefault('per_tab', {})
+                for tab, val in body['per_tab'].items():
+                    if tab in ('new', 'reviewed', 'sync'):
+                        if not isinstance(ts.get(tab), dict):
+                            ts[tab] = {}
+                        if 'expanded' in val:
+                            ts[tab]['expanded'] = val['expanded']
+                        if 'selected_id' in val:
+                            ts[tab]['selected_id'] = val['selected_id']
+            _state._save(_state.QUEUE_FILE, data)
         return jsonify({'ok': True})
 
     @app.route('/api/sync/run', methods=['POST'])
@@ -547,6 +554,7 @@ def create_app():
                 'type': proposal.get('proposal_type', 'update'),
                 'name': proposal.get('entity_name', ''),
                 'kind': proposal.get('entity_kind', ''),
+                'suggested_type': proposal.get('suggested_type', ''),
                 'status': 'pending',
             })
 
@@ -565,6 +573,7 @@ def create_app():
                 'type': suggestion.get('proposal_type', 'new_entity'),
                 'name': suggestion.get('entity_name', ''),
                 'kind': suggestion.get('suggested_type', ''),
+                'suggested_type': suggestion.get('suggested_type', ''),
                 'status': 'pending',
             })
 

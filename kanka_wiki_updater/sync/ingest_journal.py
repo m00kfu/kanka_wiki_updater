@@ -207,6 +207,11 @@ def propose_new_entities(journal, known_names):
             suggested_type = 'character'
 
         draft = (candidate.get('draft_entry') or '').strip()
+        # Skip proposals where the LLM returned no actual content.
+        if not draft:
+            print(f'      ! Skipping "{name}" — LLM returned empty draft_entry', file=sys.stderr)
+            continue
+
         is_truncated = False
         if draft:
             last = draft.rstrip()[-1:] if len(draft) > 1 else ''

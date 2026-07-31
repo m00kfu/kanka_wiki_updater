@@ -65,9 +65,19 @@ def test_set_last_sync_overwrites(tmp_path):
         state.SYNC_FILE = original_sync_file
 
 
-def test_load_queue_empty():
-    result = state.load_queue()
-    assert isinstance(result, list)
+def test_load_queue_empty(tmp_path):
+    data_dir = tmp_path / 'data'
+    data_dir.mkdir()
+    queue_file = str(data_dir / 'pending_changes.json')
+    original_queue_file = state.QUEUE_FILE
+    try:
+        state.QUEUE_FILE = queue_file
+        result = state.load_queue()
+        # load_queue returns the wrapped dict format
+        assert isinstance(result, dict)
+        assert result['proposals'] == []
+    finally:
+        state.QUEUE_FILE = original_queue_file
 
 
 def test_save_and_load_queue(tmp_path):
@@ -83,7 +93,8 @@ def test_save_and_load_queue(tmp_path):
         ]
         state.save_queue(items)
         result = state.load_queue()
-        assert result == items
+        assert isinstance(result, dict)
+        assert result['proposals'] == items
     finally:
         state.QUEUE_FILE = original_queue_file
 
@@ -99,9 +110,9 @@ def test_append_to_queue_adds_items(tmp_path):
         state.save_queue(initial)
         state.append_to_queue([{'id': 2}, {'id': 3}])
         result = state.load_queue()
-        assert len(result) == 3
-        assert result[0]['id'] == 1
-        assert result[2]['id'] == 3
+        assert len(result['proposals']) == 3
+        assert result['proposals'][0]['id'] == 1
+        assert result['proposals'][2]['id'] == 3
     finally:
         state.QUEUE_FILE = original_queue_file
 
@@ -117,7 +128,7 @@ def test_append_to_queue_empty_list(tmp_path):
         state.save_queue(initial)
         state.append_to_queue([])
         result = state.load_queue()
-        assert len(result) == 1
+        assert len(result['proposals']) == 1
     finally:
         state.QUEUE_FILE = original_queue_file
 
@@ -256,5 +267,28 @@ def test_get_processed_journal_ids_handles_mixed_format(tmp_path):
         assert 100 in result
         assert 200 in result
         assert 300 in result
+    finally:
+        state.PROCESSED_FILE = original_processed_file
+
+
+def test_processed_journals_not_wrapped_by_queue_migration(tmp_path):
+    """Regression: bare-array processed_journals.json must not be wrapped
+    by the queue migration logic that adds _tree_state.  Without this fix,
+    get_processed_journal_ids() returned dict keys instead of journal IDs."""
+    data_dir = tmp_path / 'data'
+    data_dir.mkdir()
+    processed_file = str(data_dir / 'processed_journals.json')
+    original_processed_file = state.PROCESSED_FILE
+    try:
+        # Write the real-world format: a bare JSON array of journal IDs.
+        with open(processed_file, 'w', encoding='utf-8') as f:
+            json.dump([179078], f)
+
+        result = state.get_processed_journal_ids()
+        assert isinstance(result, set), f'Expected set, got {type(result).__name__}'
+        assert 179078 in result, 'Journal ID must be present in dedup set'
+        # Ensure we did NOT get the queue migration keys.
+        assert 'proposals' not in result
+        assert '_tree_state' not in result
     finally:
         state.PROCESSED_FILE = original_processed_file

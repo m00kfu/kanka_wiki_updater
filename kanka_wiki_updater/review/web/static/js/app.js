@@ -1489,6 +1489,7 @@ async function runSync() {
       source_journal: realJournal || 'Syncing...',
       proposal_type: data.type === 'new_entity' ? 'new_entity' : 'update',
       entity_kind: data.kind || '',
+      suggested_type: data.suggested_type || (data.kind || ''),
       status: 'pending',
       _sync_placeholder: true, // marks this as a live-insert placeholder
     };
